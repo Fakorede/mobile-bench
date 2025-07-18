@@ -1,0 +1,69 @@
+# Mobile-Bench Configuration
+
+# Docker settings
+docker:
+  image: "mingc/android-build-box:latest"
+  memory_limit: "4g"
+  cpu_count: null  # Use all available CPUs
+  timeout: 1800  # 30 minutes default timeout
+
+# Execution settings
+execution:
+  max_workers: 4
+  force_rebuild: false
+  cache_level: "none"
+  
+# Java version mapping (Gradle version -> Java version)
+java_versions:
+  "8.0": "17"
+  "8.1": "17"
+  "7.6": "17"
+  "7.5": "17"
+  "7.0": "17"
+  "6.9": "11"
+  "6.0": "11"
+  "5.0": "8"
+  "4.0": "8"
+
+# Test settings
+testing:
+  default_test_commands:
+    - "./gradlew test"
+    - "./gradlew connectedAndroidTest"
+    - "./gradlew testDebugUnitTest"
+  
+  default_build_commands:
+    - "./gradlew clean"
+    - "./gradlew assembleDebug"
+    - "./gradlew compileDebugSources"
+    
+  default_setup_commands:
+    - "chmod +x ./gradlew"
+    - "export ANDROID_SDK_ROOT=/opt/android-sdk"
+    - "export ANDROID_HOME=/opt/android-sdk"
+
+# Logging settings
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_to_file: true
+  log_directory: "./mobile_bench_logs"
+
+# Report settings
+reporting:
+  output_directory: "./mobile_bench_reports"
+  generate_html: true
+  generate_csv: true
+  include_individual_reports: true
+
+# Validation settings
+validation:
+  validate_patches: true
+  validate_repositories: true
+  check_dangerous_commands: true
+  
+# Performance settings
+performance:
+  cleanup_containers: true
+  remove_images_after: false
+  disk_usage_limit: "50GB"

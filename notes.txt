@@ -1,0 +1,185 @@
+commit sha => ref => branch
+b58620c => base sha => main (base ref - no test)
+bab8d8 => head sha => share-menu (head ref)
+afec844 => merge commit (contains tests)
+
+merged commit afec844 into main
+merged 1 commit into main from share-menu
+1 parent b58620c commit afec844
+
+git log
+=======
+afec844 Adding share number feature (#33)
+b58620c (tag: v0.8.2) New patch version
+
+
+
+$ git checkout <sha>
+$ docker run -v `pwd`:/project -it mingc/android-build-box bash -l
+$ ./gradlew <cmd>
+
+./gradlew test --rerun-tasks --scan
+
+
+**connectedAndroidtests (UI Tests)
+
+TOTAL PRs COUNT
+==================
+Antennapod - 36
+Bitwarden - 490 => 310 successful instances
+DuckDuckGo - 595+435 = 1030
+Meshtastic - 14
+NeoStumbler - 26
+Thunderbird - 113+166 = 279
+Tusky - 17+23+41 = 81
+WifiAnalyzer - 5
+-----------------------
+TOTAL - 1961
+
+
+
+
+TESTS RAN
+=============
+2024
+=====
+Antennapod - all tests aren't run (refer to the tests for 2023&after)
+Bitwarden - tested 490 prs
+DuckDuckGo - tested 595 prs
+Easysync - only 1 test (repo to be dropped)
+Meshtastic - only 14 prs tested out of 25 prs in total
+NeoStumbler - 26 prs tested
+Theolm - 2 PRs tested
+Thunderbird - 113 prs
+Tusky - 17 PRs tested from >= 2024
+WifiAnalyzer - same as 2023 tests
+
+
+2023
+=====
+Antennapod - contains tests for 2023 and after - tested 36 prs
+Bitwarden - same prs as 2024 and after
+DuckDuckGo - 435 PR unique to 2022
+easysync - only 1 test from 2020 and after
+meshtastic - 25 prs from 2020 - 11 PRs fail
+NeoStumbler - 26 prs from 2020 
+Theolm - just 2 PRs
+Thunderbird - 166PRs
+Tusky - 23 PRs tested from 2023
+WifiAnalyzer - 3 PRs tested from 2023 and after
+
+2022
+=====
+Tusky - 41 PRs unique to 2022
+Thunderbird - 177 PRs unique to 2022 (lots of the tests are failing)
+
+2020
+=====
+Tusky - 9 PRs 2020-2021 - all failing
+WifiAnalyzer - 5 PRs from 2020 and after (2PRs tested, other 3 in 2024)
+
+
+
+ISSUES
+==============
+
+2024
+=====
+MISSING DATA
+-------------
+ibbaa/keepitup
+termux/termux-app
+mastodon/mastodon-android
+
+
+UI TESTS
+--------
+gujjwal00/avnc
+meshtastic/Meshtastic-Android
+
+FAILED TESTS
+-------------
+SkyMap
+NextCloud
+Wikipedia
+WordPress
+Signal
+Wire
+bitwarden/android
+
+
+2023
+=====
+
+
+
+
+TESTS
+========
+
+
+File: /home/thefabdev/dev/mobile-bench/theolm__WhatsAppNoContact/modules/presentation/build/test-results/testDebugUnitTest/TEST-dev.theolm.wwc.presentation.ext.ExtractPhoneNumberTest.xml	  
+Test Suite: dev.theolm.wwc.presentation.ext.ExtractPhoneNumberTest	  
+Tests: 4; Failures: 0; Errors: 0; Skipped: 0; Time: 0.018s	  
+All test cases:	    
+- given a string shared from chrome - expects to extract only the selected number (dev.theolm.wwc.presentation.ext.ExtractPhoneNumberTest)	    
+- given a String with 51992088821 - expects 51992088821 (dev.theolm.wwc.presentation.ext.ExtractPhoneNumberTest)	    
+- given a String with 51992088821withRandomText - expects 51992088821 (dev.theolm.wwc.presentation.ext.ExtractPhoneNumberTest)	    
+- given a String with only text - expects empty string (dev.theolm.wwc.presentation.ext.ExtractPhoneNumberTest)		================================
+
+
+NO TEST CASES RUN
+
+
+File: /home/thefabdev/dev/mobile-bench/theolm__WhatsAppNoContact/app/build/test-results/testDebugUnitTest/TEST-dev.theolm.wwc.ext.ExtractPhoneNumberTest.xml	  
+Test Suite: dev.theolm.wwc.ext.ExtractPhoneNumberTest	  
+Tests: 4; Failures: 0; Errors: 0; Skipped: 0; Time: 0.016s	  
+All test cases:	    
+- given a string shared from chrome - expects to extract only the selected number (dev.theolm.wwc.ext.ExtractPhoneNumberTest)	    
+- given a String with 51992088821 - expects 51992088821 (dev.theolm.wwc.ext.ExtractPhoneNumberTest)	    
+- given a String with 51992088821withRandomText - expects 51992088821 (dev.theolm.wwc.ext.ExtractPhoneNumberTest)	    
+- given a String with only text - expects empty string (dev.theolm.wwc.ext.ExtractPhoneNumberTest)		
+
+File: /home/thefabdev/dev/mobile-bench/theolm__WhatsAppNoContact/modules/domain/build/test-results/testDebugUnitTest/TEST-dev.theolm.wwc.domain.usecase.AddHistoryUseCaseTest.xml	  
+Test Suite: dev.theolm.wwc.domain.usecase.AddHistoryUseCaseTest	  
+Tests: 2; Failures: 0; Errors: 0; Skipped: 0; Time: 0.209s	  
+All test cases:	    
+- add history should return list with one item with id == 1 (dev.theolm.wwc.domain.usecase.AddHistoryUseCaseTest)	    
+- add history should return list with two items ordered by descending timestamp and with sequential ids (dev.theolm.wwc.domain.usecase.AddHistoryUseCaseTest)		
+
+File: /home/thefabdev/dev/mobile-bench/theolm__WhatsAppNoContact/modules/domain/build/test-results/testDebugUnitTest/TEST-dev.theolm.wwc.domain.usecase.ObserveHistoryUseCaseTest.xml	  
+Test Suite: dev.theolm.wwc.domain.usecase.ObserveHistoryUseCaseTest	  
+Tests: 2; Failures: 0; Errors: 0; Skipped: 0; Time: 0.004s	  
+All test cases:	    
+- observe history should return list with one item (dev.theolm.wwc.domain.usecase.ObserveHistoryUseCaseTest)	    
+- observe history should return empty list (dev.theolm.wwc.domain.usecase.ObserveHistoryUseCaseTest)		
+
+File: /home/thefabdev/dev/mobile-bench/theolm__WhatsAppNoContact/modules/domain/build/test-results/testDebugUnitTest/TEST-dev.theolm.wwc.domain.usecase.DeleteHistoryUseCaseTest.xml	  
+Test Suite: dev.theolm.wwc.domain.usecase.DeleteHistoryUseCaseTest	  
+Tests: 3; Failures: 0; Errors: 0; Skipped: 0; Time: 0.012s	  
+All test cases:	    
+- delete history should return empty list (dev.theolm.wwc.domain.usecase.DeleteHistoryUseCaseTest)	    
+- delete on empty list does nothing (dev.theolm.wwc.domain.usecase.DeleteHistoryUseCaseTest)	    
+- delete history should return list with one item (dev.theolm.wwc.domain.usecase.DeleteHistoryUseCaseTest)		
+
+File: /home/thefabdev/dev/mobile-bench/theolm__WhatsAppNoContact/modules/data/build/test-results/testDebugUnitTest/TEST-dev.theolm.wwc.data.repository.HistoryRepositoryTest.xml	  Test Suite: dev.theolm.wwc.data.repository.HistoryRepositoryTest	  
+Tests: 4; Failures: 0; Errors: 0; Skipped: 0; Time: 0.23s	  
+All test cases:	    
+- remove history - when removing a history - expects history to be removed (dev.theolm.wwc.data.repository.HistoryRepositoryTest)	    
+- add history - when adding a history - expects history to be added (dev.theolm.wwc.data.repository.HistoryRepositoryTest)	    
+- add history - when adding a history - expects history to be added in descending timestamp order (dev.theolm.wwc.data.repository.HistoryRepositoryTest)	    
+- observe history - when fresh install - expects empty list (dev.theolm.wwc.data.repository.HistoryRepositoryTest)		================================
+
+
+
+File: /home/thefabdev/dev/mobile-bench/theolm__WhatsAppNoContact/app/build/test-results/testDebugUnitTest/TEST-dev.theolm.wwc.ext.ExtractPhoneNumberTest.xml	  
+Test Suite: dev.theolm.wwc.ext.ExtractPhoneNumberTest	  
+Tests: 4; Failures: 0; Errors: 0; Skipped: 0; Time: 0.018s	  
+All test cases:	    
+- given a string shared from chrome - expects to extract only the selected number (dev.theolm.wwc.ext.ExtractPhoneNumberTest)	    
+- given a String with 51992088821 - expects 51992088821 (dev.theolm.wwc.ext.ExtractPhoneNumberTest)	    
+- given a String with 51992088821withRandomText - expects 51992088821 (dev.theolm.wwc.ext.ExtractPhoneNumberTest)	    
+- given a String with only text - expects empty string (dev.theolm.wwc.ext.ExtractPhoneNumberTest)		================================
+
+
+

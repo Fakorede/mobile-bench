@@ -1,0 +1,21 @@
+aiohttp
+anthropic
+asyncio
+chardet
+# concurrent-futures
+# dataclasses
+docker==7.1.0
+fastcore
+ghapi
+GitPython
+python-dotenv
+pyyaml
+requests
+tenacity
+tiktoken
+typing-extensions
+tqdm
+unidiff
+# uuid
+xmltodict
+

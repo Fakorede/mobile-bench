@@ -1,0 +1,303 @@
+#!/bin/bash
+
+# Script to automate cloning and testing Android GitHub repos in a container (https://github.com/mingchen/docker-android-build-box)
+# Usage: ./script.sh [csv_filename] [timeout_minutes] [java_version]
+# Example: ./script.sh repo_tests.csv 10 17
+#
+# Exit on error - but with our improved error handling
+set -o pipefail
+
+# Use the current directory where the script is saved
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+cd "$SCRIPT_DIR"
+
+# Set timeout in minutes (default: 10 minutes)
+TIMEOUT_MINUTES="${2:-10}"
+TIMEOUT_SECONDS=$((TIMEOUT_MINUTES * 60))
+
+# Set Java version (default: 17)
+JAVA_VERSION="${3:-17}"
+
+# Default CSV filename or use provided argument
+CSV_FILE="${1:-repo_tests.csv}"
+
+# Check if CSV file exists
+if [ ! -f "$CSV_FILE" ]; then
+  echo "Error: CSV file '$CSV_FILE' not found in $(pwd)"
+  exit 1
+fi
+
+# Check if parse_android_tests.sh exists
+if [ ! -f "parse_android_tests.sh" ]; then
+  echo "Error: parse_android_tests.sh not found in $(pwd)"
+  exit 1
+fi
+
+# Make parse script executable
+chmod +x parse_android_tests.sh
+
+# Create a temporary file for storing updated results
+TEMP_CSV="${CSV_FILE}.tmp"
+# Copy header line to temp file
+head -n 1 "$CSV_FILE" > "$TEMP_CSV"
+
+echo "=== Starting Android repo test automation ==="
+echo "Reading repositories from: $CSV_FILE"
+echo "Using Java version: $JAVA_VERSION"
+
+# Log file for errors
+ERROR_LOG="test_automation_errors.log"
+touch "$ERROR_LOG"
+
+# Skip header row and process each line in the CSV
+tail -n +2 "$CSV_FILE" | while IFS=, read -r repo_full_name pr_number sha filename status additions deletions changes blob_url raw_url contents_url merge_commit_sha head_ref head_sha head_repo_full_name base_ref base_sha fail_to_pass pass_to_pass;
+do
+  # Format the repo name as organizationname__reponame
+  REPO_NAME=$(echo "$repo_full_name" | sed 's/\//__/')
+
+  echo "=== Processing repository: $repo_full_name ==="
+  
+  # Format GitHub URL
+  REPO_URL="https://github.com/${repo_full_name}.git"
+  
+  # Clone the repository if it doesn't exist
+  if [ ! -d "$REPO_NAME" ]; then
+    echo "=== Cloning repository with submodules ==="
+    if ! git clone --recursive "$REPO_URL" "$REPO_NAME"; then
+      echo "ERROR: Failed to clone repository $repo_full_name" | tee -a "$ERROR_LOG"
+      echo "$repo_full_name,$pr_number,$sha,$filename,$status,$additions,$deletions,$changes,$blob_url,$raw_url,$contents_url,$merge_commit_sha,$head_ref,$head_sha,$head_repo_full_name,$base_ref,$base_sha,Failed to clone repository,Failed to clone repository" >> "$TEMP_CSV"
+      continue
+    fi
+  else
+    echo "=== Repository already exists, fetching latest changes and updating submodules ==="
+    cd "$REPO_NAME"
+    if ! git fetch --all; then
+      echo "ERROR: Failed to fetch updates for repository $repo_full_name" | tee -a "$ERROR_LOG"
+      cd "$SCRIPT_DIR"
+      echo "$repo_full_name,$pr_number,$sha,$filename,$status,$additions,$deletions,$changes,$blob_url,$raw_url,$contents_url,$merge_commit_sha,$head_ref,$head_sha,$head_repo_full_name,$base_ref,$base_sha,Failed to fetch updates,Failed to fetch updates" >> "$TEMP_CSV"
+      continue
+    fi
+    git submodule update --init --recursive || echo "Warning: Submodule update failed, continuing anyway"
+    cd "$SCRIPT_DIR"
+  fi
+  
+  # Initialize test result variables
+  MERGE_COMMIT_TEST_RESULT=""
+  BASE_SHA_TEST_RESULT=""
+  
+  # Process merge commit
+  echo "=== Testing merge commit: $merge_commit_sha ==="
+  cd "$REPO_NAME"
+  
+  # Check if the merge_commit_sha exists
+  if ! git cat-file -e "$merge_commit_sha^{commit}" 2>/dev/null; then
+    echo "ERROR: Commit $merge_commit_sha does not exist in repository $repo_full_name" | tee -a "$SCRIPT_DIR/$ERROR_LOG"
+    MERGE_COMMIT_TEST_RESULT="Error: Commit hash not found"
+  else
+    # Try to checkout the commit
+    if ! git checkout "$merge_commit_sha"; then
+      echo "ERROR: Failed to checkout commit $merge_commit_sha in repository $repo_full_name" | tee -a "$SCRIPT_DIR/$ERROR_LOG"
+      MERGE_COMMIT_TEST_RESULT="Error: Failed to checkout commit"
+    else
+      # Update submodules (but don't fail if they can't be updated)
+      git submodule update --init --recursive || echo "Warning: Submodule update failed, continuing anyway"
+      
+      # Run tests on merge commit - show output in real-time
+      echo "=== Running tests on merge commit with Java $JAVA_VERSION ==="
+      docker run --rm \
+        --network host \
+        --dns 8.8.8.8 \
+        --dns 8.8.4.4 \
+        -v "$SCRIPT_DIR/$REPO_NAME":/project mingc/android-build-box bash -c "
+        cd /project && 
+        echo '=== Container environment ready ===' && 
+        echo '=== Setting Java version to $JAVA_VERSION ===' && 
+
+        # Initialize jenv if available
+        if command -v jenv &> /dev/null; then
+          eval \"\$(jenv init -)\"
+          
+          # Set specific Java version from script parameter
+          jenv global $JAVA_VERSION || jenv global ${JAVA_VERSION}.0 || echo 'Failed to set Java version with jenv, trying alternatives'
+          
+          echo 'Current Java version after jenv:'
+          java -version 2>&1
+        fi
+        
+        # Set ANDROID_SDK_ROOT if needed
+        if [ -d '/opt/android-sdk' ]; then
+          export ANDROID_SDK_ROOT='/opt/android-sdk'
+          echo 'Set ANDROID_SDK_ROOT to /opt/android-sdk'
+        fi
+
+        echo '=== Running Gradle tests ===' && 
+
+        rm -rf ~/.gradle/caches/
+        
+        # Check if Gradle wrapper exists
+        if [ -f './gradlew' ]; then
+          # Make gradlew executable
+          chmod +x ./gradlew
+
+          ./gradlew clean
+          
+          # Run tests with timeout (allow failure)
+          timeout $TIMEOUT_SECONDS ./gradlew test || true
+        else
+          # If gradlew doesn't exist but build.gradle does, use system gradle
+          if [ -f './build.gradle' ] || [ -f './app/build.gradle' ]; then
+            timeout $TIMEOUT_SECONDS gradle test || true
+          else
+            echo 'No Gradle build files found'
+          fi
+        fi
+      "
+      
+      # Parse test results for merge commit
+      echo "=== Parsing test results for merge commit ==="
+      TEMP_RESULT_FILE=$(mktemp)
+      # Run the parser script and capture the output
+      "$SCRIPT_DIR/parse_android_tests.sh" "$SCRIPT_DIR/$REPO_NAME" > "$TEMP_RESULT_FILE" 2>&1
+      
+      # Check if any test files were found
+      if grep -q "No Android test result XML files found" "$TEMP_RESULT_FILE"; then
+        MERGE_COMMIT_TEST_RESULT="Gradle build failed and test couldn't run: $merge_commit_sha"
+      else
+        # Store the full test results output (excluding the summary section)
+        # Replace commas with semicolons and keep the original format
+        # Use a tab character as the separator
+        MERGE_COMMIT_TEST_RESULT=$(sed '/OVERALL SUMMARY/,$d' "$TEMP_RESULT_FILE" | 
+                                   grep -v "=== " | 
+                                   grep -v "Searching for" | 
+                                   grep -v "^Found " |
+                                   sed 's/,/;/g' |
+                                   sed 's/$/\t/' |  # Add tab at end of each line
+                                   tr -d '\n')      # Remove newlines
+        
+        # Remove the trailing tab if present
+        MERGE_COMMIT_TEST_RESULT=$(echo "$MERGE_COMMIT_TEST_RESULT" | sed 's/\t$//')
+      fi
+      
+      # Clean up
+      rm -f "$TEMP_RESULT_FILE"
+    fi
+  fi
+  
+  # Process base SHA
+  echo "=== Testing base commit: $base_sha ==="
+  
+  # Check if the base_sha exists
+  if ! git cat-file -e "$base_sha^{commit}" 2>/dev/null; then
+    echo "ERROR: Base commit $base_sha does not exist in repository $repo_full_name" | tee -a "$SCRIPT_DIR/$ERROR_LOG"
+    BASE_SHA_TEST_RESULT="Error: Base commit hash not found"
+  else
+    # Try to checkout the base commit
+    if ! git checkout "$base_sha"; then
+      echo "ERROR: Failed to checkout base commit $base_sha in repository $repo_full_name" | tee -a "$SCRIPT_DIR/$ERROR_LOG"
+      BASE_SHA_TEST_RESULT="Error: Failed to checkout base commit"
+    else
+      # Update submodules (but don't fail if they can't be updated)
+      git submodule update --init --recursive || echo "Warning: Submodule update failed, continuing anyway"
+      
+      # Run tests on base SHA with real-time output
+      echo "=== Running tests on base SHA with Java $JAVA_VERSION ==="
+      docker run --rm \
+        --network host \
+        --dns 8.8.8.8 \
+        --dns 8.8.4.4 \
+        -v "$SCRIPT_DIR/$REPO_NAME":/project mingc/android-build-box bash -c "
+        cd /project && 
+        echo '=== Container environment ready ===' && 
+        echo '=== Setting Java version to $JAVA_VERSION ===' && 
+
+        # Initialize jenv if available
+        if command -v jenv &> /dev/null; then
+          eval \"\$(jenv init -)\"
+          
+          # Set specific Java version from script parameter
+          jenv global $JAVA_VERSION || jenv global ${JAVA_VERSION}.0 || echo 'Failed to set Java version with jenv, trying alternatives'
+          
+          echo 'Current Java version after jenv:'
+          java -version 2>&1
+        fi
+        
+        # Set ANDROID_SDK_ROOT if needed
+        if [ -d '/opt/android-sdk' ]; then
+          export ANDROID_SDK_ROOT='/opt/android-sdk'
+          echo 'Set ANDROID_SDK_ROOT to /opt/android-sdk'
+        fi
+
+        echo '=== Running Gradle tests ===' && 
+
+        rm -rf ~/.gradle/caches/
+        
+        # Check if Gradle wrapper exists
+        if [ -f './gradlew' ]; then
+          # Make gradlew executable
+          chmod +x ./gradlew
+
+          ./gradlew clean
+          
+          # Run tests with timeout (allow failure)
+          timeout $TIMEOUT_SECONDS ./gradlew test || true
+        else
+          # If gradlew doesn't exist but build.gradle does, use system gradle
+          if [ -f './build.gradle' ] || [ -f './app/build.gradle' ]; then
+            timeout $TIMEOUT_SECONDS gradle test || true
+          else
+            echo 'No Gradle build files found'
+          fi
+        fi
+      "
+      
+      # Parse test results for base SHA
+      echo "=== Parsing test results for base SHA ==="
+      TEMP_RESULT_FILE=$(mktemp)
+      # Run the parser script and capture the output
+      "$SCRIPT_DIR/parse_android_tests.sh" "$SCRIPT_DIR/$REPO_NAME" > "$TEMP_RESULT_FILE" 2>&1
+      
+      # Check if any test files were found
+      if grep -q "No Android test result XML files found" "$TEMP_RESULT_FILE"; then
+        BASE_SHA_TEST_RESULT="Gradle build failed and test couldn't run: $base_sha"
+      else
+        # Store the full test results output (excluding the summary section)
+        # Replace commas with semicolons and keep the original format
+        # Use a tab character as the separator
+        BASE_SHA_TEST_RESULT=$(sed '/OVERALL SUMMARY/,$d' "$TEMP_RESULT_FILE" | 
+                               grep -v "=== " | 
+                               grep -v "Searching for" | 
+                               grep -v "^Found " |
+                               sed 's/,/;/g' |
+                               sed 's/$/\t/' |  # Add tab at end of each line
+                               tr -d '\n')      # Remove newlines
+        
+        # Remove the trailing tab if present
+        BASE_SHA_TEST_RESULT=$(echo "$BASE_SHA_TEST_RESULT" | sed 's/\t$//')
+      fi
+      
+      # Clean up
+      rm -f "$TEMP_RESULT_FILE"
+    fi
+  fi
+  
+  # Go back to script directory
+  cd "$SCRIPT_DIR"
+  
+  # Update results in CSV
+  echo "=== Updating test results ==="
+  echo "Merge commit test result: $MERGE_COMMIT_TEST_RESULT"
+  echo "Base SHA test result: $BASE_SHA_TEST_RESULT"
+  
+  # Append the updated line to the temp CSV file
+  echo "$repo_full_name,$pr_number,$sha,$filename,$status,$additions,$deletions,$changes,$blob_url,$raw_url,$contents_url,$merge_commit_sha,$head_ref,$head_sha,$head_repo_full_name,$base_ref,$base_sha,$BASE_SHA_TEST_RESULT,$MERGE_COMMIT_TEST_RESULT" >> "$TEMP_CSV"
+  
+  echo "=== Completed testing for $repo_full_name ==="
+  echo "================================================"
+done
+
+OUTPUT_FILE="repo_tests_results.csv"
+mv "$TEMP_CSV" "$OUTPUT_FILE"
+
+echo "=== All testing completed ==="
+echo "Results saved to $OUTPUT_FILE"
+echo "Error log saved to $ERROR_LOG"

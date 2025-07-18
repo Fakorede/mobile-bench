@@ -1,0 +1,134 @@
+High-Level Workflow
+
+Load predictions (AI-generated patches) from a file
+Build Docker environments for each software project
+Apply patches to the codebase in isolated containers
+Run tests to see if the patch fixes the issue
+Generate reports with pass/fail results
+
+def run_instance(test_spec, pred, rm_image, force_rebuild, client, run_id, timeout):
+    # 1. Set up logging for this specific instance
+    # 2. Build Docker container with the project environment  
+    # 3. Apply the AI-generated patch to the codebase
+    # 4. Run the test suite
+    # 5. Compare results and generate report
+
+
+Docker Management
+The script heavily uses Docker utilities for isolation:
+
+build_container(): Creates isolated environments
+copy_to_container(): Transfers patch files
+exec_run_with_timeout(): Runs commands with timeouts
+cleanup_container(): Cleans up resources
+
+
+Expected File Formats
+Predictions File (JSONL)
+json{
+  "instance_id": "AntennaPod-123",
+  "model_name_or_path": "gpt-4",
+  "generated_patch": "diff --git a/app/src/main/java/...",
+  "base_commit": "abc123def456"
+}
+Dataset File (JSONL)
+json{
+  "instance_id": "AntennaPod-123",
+  "repo_url": "https://github.com/AntennaPod/AntennaPod",
+  "base_commit": "abc123def456",
+  "test_commands": ["./gradlew testDebugUnitTest"],
+  "build_commands": ["./gradlew assembleDebug"]
+}
+
+
+What Gets Evaluated
+Input Format (Predictions):
+json{
+  "instance_id": "django__django-12345", 
+  "model_name_or_path": "gpt-4",
+  "model_patch": "diff --git a/file.py\n+fixed_code_here"
+}
+Output Format (Reports):
+json{
+  "django__django-12345": {
+    "resolved": true,
+    "patch_applied": true, 
+    "tests_status": {
+      "PASSED": ["test_1", "test_2"],
+      "FAILED": ["test_3"]
+    }
+  }
+}
+
+docker context ls
+NAME              DESCRIPTION                               DOCKER ENDPOINT                                      ERROR
+default           Current DOCKER_HOST based configuration   unix:///var/run/docker.sock                          
+desktop-linux *   Docker Desktop                            unix:///home/thefabdev/.docker/desktop/docker.sock   
+
+
+Directory Structure
+=======================
+logs/harness/eval_20250709_183456/
+└── google__gemini-2.5-flash/          # ✅ Model-specific directory!
+    └── AntennaPod__AntennaPod-5751/
+        ├── evaluation.log
+        ├── patch.diff
+        ├── clone.log
+        ├── checkout.log
+        ├── patch_git_apply_--verbose_--reject.log
+        ├── patch_patch_-p1.log
+        ├── build.log                   # ← Check this for build failure details
+        └── report.json
+
+
+docker pull mingc/android-build-box:latest
+
+# Now run your script
+
+
+Dry Run
+=======================
+python run_harness.py \
+    --predictions /home/thefabdev/dev/mobile-bench/data/inference/Bitwarden_tested_instances_prompts_style-3_oracle_gemini_20250712_210923.jsonl \
+    --dataset /home/thefabdev/dev/mobile-bench/data/prompts/Bitwarden_tested_instances_prompts_style-3_oracle_gemini.jsonl \
+    --run-id eval_001 \
+    --dry-run
+
+
+Debug Specific Instances
+=========================
+python run_harness.py \
+    --predictions /home/thefabdev/dev/mobile-bench/data/inference/Bitwarden_tested_instances_prompts_style-3_oracle_gemini_20250712_210923.jsonl \
+    --dataset /home/thefabdev/dev/mobile-bench/data/prompts/Bitwarden_tested_instances_prompts_style-3_oracle_gemini.jsonl \
+    --instance-ids AntennaPod__AntennaPod-5751 \
+    --debug
+
+
+Basic Evaluation
+==========================
+bashpython run_harness.py \
+    --predictions /home/thefabdev/dev/mobile-bench/data/inference/output.jsonl \
+    --dataset /home/thefabdev/dev/mobile-bench/data/prompts/Bitwarden_tested_instances_prompts_style-3_oracle_gemini.jsonl \
+    --run-id eval_002
+
+
+Production Run
+===========================
+bashpython run_harness.py \
+    --predictions /home/thefabdev/dev/mobile-bench/data/inference/Bitwarden_tested_instances_prompts_style-3_oracle_gemini_20250712_210923.jsonl \
+    --dataset /home/thefabdev/dev/mobile-bench/data/prompts/Bitwarden_tested_instances_prompts_style-3_oracle_gemini.jsonl \
+    --run-id prod_2025_01_27 \
+    --max-workers 8 \
+    --timeout 3600 \
+    --android-api-level 34
+
+
+# Validate your current patches
+python validate_patches.py --predictions /home/thefabdev/dev/mobile-bench/data/inference/output.jsonl --dataset /home/thefabdev/dev/mobile-bench/data/prompts/Bitwarden_tested_instances_prompts_style-3_oracle_gemini.jsonl --report validation_report.json --verbose
+
+# Generate repaired patches
+python validate_patches.py --predictions /home/thefabdev/dev/mobile-bench/data/inference/output.jsonl --dataset /home/thefabdev/dev/mobile-bench/data/prompts/Bitwarden_tested_instances_prompts_style-3_oracle_gemini.jsonl --output repaired_patches.jsonl --report validation_report.json
+
+# Test specific instances
+python validate_patches.py --predictions output.jsonl --dataset dataset.jsonl --instance-ids bitwarden__android-3394 bitwarden__android-3929 --verbose
+

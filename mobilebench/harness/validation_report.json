@@ -1,0 +1,1541 @@
+{
+  "summary": {
+    "total_patches": 305,
+    "valid_patches": 92,
+    "failed_patches": 213,
+    "success_rate": 30.16
+  },
+  "error_breakdown": {
+    "Context mismatch": 48,
+    "Corrupt patch format": 141,
+    "Missing patch header": 23,
+    "Missing file": 1
+  },
+  "results": [
+    {
+      "instance_id": "bitwarden__android-3619",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4884",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt...\nHunk #1 succeeded at 1032 (offset 19 lines).\nerror: while searching for:\n                                 ),\n                             },\n                         )\n                     }\n             }\n             .flatMap {\n                 when (vaultRepository.unlockVaultWithMasterPassword(password)) {\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt:1137\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/model/ResetPasswordResult.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/model/SetPasswordResult.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/completeregistration/CompleteRegistrationViewModel.kt...\nHunk #1 succeeded at 204 (offset -10 lines).\nHunk #2 succeeded at 413 (offset 7 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/createaccount/CreateAccountViewModel.kt...\nHunk #1 succeeded at 174 (offset -3 lines).\nHunk #2 succeeded at 386 (offset -1 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/masterpasswordhint/MasterPasswordHintViewModel.kt...\nHunk #1 succeeded at 124 (offset -7 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/removepassword/RemovePasswordViewModel.kt...\nHunk #1 succeeded at 92 (offset -1 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/resetpassword/ResetPasswordViewModel.kt...\nHunk #1 succeeded at 287 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/setpassword/SetPasswordViewModel.kt...\nHunk #1 succeeded at 179 (offset -4 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/exportvault/ExportVaultViewModel.kt...\nHunk #1 succeeded at 406 (offset 70 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4751",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/accountsecurity/AccountSecurityScreen.kt...\nerror: while searching for:\n                .fillMaxWidth(),\n            )\n\n            Spacer(Modifier.height(16.dp))\n            BitwardenListHeaderText(\n                label = stringResource(id = R.string.unlock_options),\n                modifier = Modifier\n                    .fillMaxWidth()\n                    .standardHorizontalMargin()\n                    .padding(horizontal = 16.dp),\n            )\n            Spacer(modifier = Modifier.height(height = 8.dp))\n\n            val biometricSupportStatus = biometricsManager.biometricSupportStatus\n            BitwardenUnlockWithBiometricsSwitch(\n                biometricSupportStatus = biometricSupportStatus,\n                isChecked = state.isUnlockWithBiometricsEnabled || showBiometricsPrompt,\n                onDisableBiometrics = remember(viewModel) {\n                    {\n                        viewModel.trySendAction(\n                            AccountSecurityAction.UnlockWithBiometricToggleDisabled,\n                        )\n                    }\n                },\n                onEnableBiometrics = remember(viewModel) {\n                    { viewModel.trySendAction(AccountSecurityAction.EnableBiometricsClick) }\n                },\n                cardStyle = CardStyle.Full,\n                modifier = Modifier\n                    .testTag(\"UnlockWithBiometricsSwitch\")\n                    .fillMaxWidth()\n                    .standardHorizontalMargin(),\n            )\n            if (!state.removeUnlockWithPinPolicyEnabled || state.isUnlockWithPinEnabled) {\n                Spacer(modifier = Modifier.height(height = 8.dp))\n                BitwardenUnlockWithPinSwitch(\n                    isUnlockWithPasswordEnabled = state.isUnlockWithPasswordEnabled,\n                    isUnlockWithPinEnabled = state.isUnlockWithPinEnabled,\n                    onUnlockWithPinToggleAction = remember(viewModel) {\n                        { viewModel.trySendAction(AccountSecurityAction.UnlockWithBiometricToggleDisabled) }\n                    },\n                    cardStyle = CardStyle.Full,\n                    modifier = Modifier\n                        .testTag(\"UnlockWithPinSwitch\")\n                        .fillMaxWidth()\n                        .standardHorizontalMargin(),\n                )\n            }\n            Spacer(Modifier.height(16.dp))\n            if (state.shouldShowEnableAuthenticatorSync) {\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/accountsecurity/AccountSecurityScreen.kt:232\nerror: app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/accountsecurity/AccountSecurityScreen.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4059",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4512",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3891",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3733",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4448",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 61\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3364",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 44\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4057",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 38\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3529",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingViewModel.kt...\nHunk #1 succeeded at 122 (offset 18 lines).\nHunk #2 succeeded at 269 (offset 4 lines).\nerror: while searching for:\n                registerFido2CredentialToCipher(\n                    request = credentialRequest,\n                    cipherView = cipherView,\n                )\n            }\n            }\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingViewModel.kt:398\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingViewModel.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4161",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 49\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3878",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3532",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 15\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3439",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 34\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3798",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/datasource/disk/AuthDiskSource.kt...\nHunk #1 succeeded at 33 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/datasource/disk/AuthDiskSourceImpl.kt...\nHunk #1 succeeded at 40 (offset -2 lines).\nHunk #2 succeeded at 141 (offset 13 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt...\nHunk #1 succeeded at 307 (offset 45 lines).\nHunk #2 succeeded at 1317 (offset -3 lines).\nHunk #3 succeeded at 276 (offset -1334 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/model/UserState.kt...\nHunk #1 succeeded at 51 (offset -1 lines).\nerror: while searching for:\n    hasPendingAccountAddition: Boolean,\n    isBiometricsEnabledProvider: (userId: String) -> Boolean,\n    vaultUnlockTypeProvider: (userId: String) -> VaultUnlockType,\n    isDeviceTrustedProvider: (userId: String) -> Boolean,\n): UserState =\n    UserState(\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/model/UserState.kt:160\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/model/UserState.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3448",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 23\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4311",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 39: @@ -10,6 +10,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4042",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditViewModel.kt...\nHunk #1 succeeded at 1034 (offset -1 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/util/CipherViewExtensions.kt...\nerror: while searching for:\n                     username = login?.username.orEmpty(),\n                     password = login?.password.orEmpty(),\n                     totp = login?.totp,\n                     canViewPassword = this.viewPassword,\n                     canEditItem = this.edit,\n                     uriList = login?.uris.toUriItems(),\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/util/CipherViewExtensions.kt:50\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/util/CipherViewExtensions.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingContent.kt...\nHunk #1 succeeded at 77 (offset -4 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingViewModel.kt...\nHunk #1 succeeded at 774 (offset -1 lines).\nHunk #2 succeeded at 908 (offset -3 lines).\nerror: while searching for:\n                     username: String = \"\",\n                     password: String = \"\",\n                     totp: String? = null,\n                     canViewPassword: Boolean = true,\n                     canEditItem: Boolean = true,\n                     uriList: List<UriItem> = listOf(\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingViewModel.kt:1935\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingViewModel.kt: patch does not apply\nChecking patch app/src/main/res/values/strings.xml...\nerror: while searching for:\n  <string name=\"welcome_message_4\">Save unlimited passwords across unlimited devices with Bitwarden mobile, browser, and desktop apps.</string>\n  <string name=\"remove_passkey\">Remove passkey</string>\n  <string name=\"passkey_removed\">Passkey removed</string>\n</resources>\n\nerror: patch failed: app/src/main/res/values/strings.xml:682\nerror: app/src/main/res/values/strings.xml: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4462",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 46\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3802",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3652",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 31\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4571",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 48\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3777",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 36\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4287",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 34\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3625",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 18\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4414",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3928",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 48\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3720",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4212",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 5: @@ -12,7 +12,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3841",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 94\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3530",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 46\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3697",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 14: @@ -126,6 +128,9 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4250",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 33: @@ -48,6 +50,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4292",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3633",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/util/VaultItemListingDataExtensions.kt...\nerror: while searching for:\n            isFido2Creation = isFido2Creation,\n        ),\n        iconTestTag = this.toIconTestTag(),\n        extraIconList = this.toLabelIcons(),\n        overflowOptions = this.toOverflowActions(\n            hasMasterPassword = hasMasterPassword,\n            isPremiumUser = isPremiumUser,\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/util/VaultItemListingDataExtensions.kt:339\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/util/VaultItemListingDataExtensions.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3409",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4136",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 44\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3933",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/accessibility/parser/AccessibilityParserImpl.kt...\nHunk #2 succeeded at 30 (offset -4 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/accessibility/util/AccessibilityUtils.kt...\nerror: app/src/main/java/com/x8bit/bitwarden/data/autofill/accessibility/util/AccessibilityUtils.kt: No such file or directory\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3598",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4335",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 26\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3648",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/MainViewModel.kt...\nHunk #1 succeeded at 115 (offset -2 lines).\nHunk #2 succeeded at 155 (offset -3 lines).\nerror: while searching for:\n                specialCircumstanceManager.specialCircumstance =\n                    SpecialCircumstance.VaultShortcut\n            }\n        }\n    }\n\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/MainViewModel.kt:258\nerror: app/src/main/java/com/x8bit/bitwarden/MainViewModel.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/model/Fido2GetCredentialResult.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/model/Fido2GetCredentialsRequest.kt...\nHunk #2 succeeded at 19 (offset 1 line).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/util/Fido2IntentUtils.kt...\nerror: while searching for:\n        )\n    )\n}\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/util/Fido2IntentUtils.kt:75\nerror: app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/util/Fido2IntentUtils.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/autofill/fido2/manager/Fido2CompletionManager.kt...\nerror: while searching for:\n     * Complete the FIDO 2 \"Get credentials\" process with the provided [result].\n     */\n    fun completeFido2GetCredentialRequest(result: Fido2GetCredentialResult)\n}\n-- a/app/src/main/java/com/x8bit/bitwarden/ui/autofill/fido2/manager/Fido2CompletionManagerImpl.kt\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/autofill/fido2/manager/Fido2CompletionManager.kt:20\nerror: app/src/main/java/com/x8bit/bitwarden/ui/autofill/fido2/manager/Fido2CompletionManager.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/autofill/fido2/manager/Fido2CompletionManagerUnsupportedApiImpl.kt...\nHunk #1 succeeded at 14 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/composition/LocalManagerProvider.kt...\nHunk #1 succeeded at 35 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingScreen.kt...\nHunk #1 succeeded at 169 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingViewModel.kt...\nHunk #1 succeeded at 14 (offset -3 lines).\nHunk #2 succeeded at 105 (offset -5 lines).\nHunk #3 succeeded at 132 (offset 1 line).\nHunk #4 succeeded at 167 (offset 8 lines).\nerror: while searching for:\n                handleFido2AssertionResultReceive(action)\n            }\n\n            is VaultItemListingsAction.Internal.Fido2GetCredentialsDataReceive -> {\n                handleFido2GetCredentialsDataReceive(action)\n            }\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingViewModel.kt:482\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingViewModel.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3450",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 92\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3859",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/manager/UserLogoutManager.kt...\nerror: while searching for:\n     * Partially logs out the given [userId]. All data for the given [userId] will be removed with\n     * the exception of basic account data.\n     */\n    fun softLogout(userId: String)\n}\n\n-- a/app/src/main/java/com/x8bit/bitwarden/data/auth/manager/UserLogoutManagerImpl.kt\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/manager/UserLogoutManager.kt:18\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/manager/UserLogoutManager.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/repository/VaultRepositoryImpl.kt...\nHunk #1 succeeded at 358 (offset -1 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4033",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/MainViewModel.kt...\nHunk #1 succeeded at 32 (offset 8 lines).\nHunk #2 succeeded at 234 (offset -7 lines).\nHunk #3 succeeded at 318 (offset 1 line).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/manager/model/SpecialCircumstance.kt...\nHunk #1 succeeded at 90 (offset 5 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/rootnav/RootNavScreen.kt...\nerror: while searching for:\n                    }\n\n                    SpecialCircumstance.GeneratorShortcut,\n                    SpecialCircumstance.VaultShortcut,\n                    null,\n                    -> RootNavState.VaultUnlocked(activeUserId = userState.activeAccount.userId)\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/rootnav/RootNavScreen.kt:235\nerror: app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/rootnav/RootNavScreen.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/rootnav/RootNavViewModel.kt...\nHunk #1 succeeded at 145 (offset -2 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4180",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/datasource/disk/AuthDiskSource.kt...\nHunk #1 succeeded at 180 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/datasource/disk/AuthDiskSourceImpl.kt...\nHunk #1 succeeded at 75 (offset -2 lines).\nHunk #2 succeeded at 286 (offset -3 lines).\nHunk #3 succeeded at 513 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/repository/SettingsRepository.kt...\nHunk #1 succeeded at 107 (offset -5 lines).\nerror: while searching for:\n            ?.let { authDiskSource.getUserBiometricUnlockKey(userId = it) != null }\n            ?: false\n\n    override val isUnlockWithPinEnabled: Boolean\n        get() = activeUserId\n            ?.let { authDiskSource.getEncryptedPin(userId = it) != null }\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/platform/repository/SettingsRepository.kt:305\nerror: app/src/main/java/com/x8bit/bitwarden/data/platform/repository/SettingsRepository.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3888",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3601",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3436",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 5: @@ -18,7 +18,6 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4018",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3346",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 196\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4154",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 15\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3418",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/builder/FilledDataBuilderImpl.kt...\nHunk #1 succeeded at 21 (offset 1 line).\nHunk #2 succeeded at 47 (offset 1 line).\nerror: while searching for:\n                                autofillCipher = autofillCipher,\n                                autofillViews = autofillRequest.partition.views,\n                                inlinePresentationSpec = getCipherInlinePresentationOrNull(),\n                                )\n                            }\n                    }\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/autofill/builder/FilledDataBuilderImpl.kt:60\nerror: app/src/main/java/com/x8bit/bitwarden/data/autofill/builder/FilledDataBuilderImpl.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3613",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4019",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4128",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3812",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3781",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4372",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 36\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4235",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3806",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 26\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3842",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3372",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4179",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditScreen.kt...\nHunk #1 succeeded at 315 (offset 2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditViewModel.kt...\nerror: while searching for:\n                 shouldShowCloseButton = autofillSaveItem == null && fido2AttestationOptions == null,\n                 shouldExitOnSave = shouldExitOnSave,\n                 supportedItemTypes = getSupportedItemTypeOptions(\n                     isSshKeyVaultItemSupported = featureFlagManager.getFeatureFlag(\n                         key = FlagKey.SshKeyCipherItems,\n                     ),\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditViewModel.kt:173\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditViewModel.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/util/CipherViewExtensions.kt...\nHunk #1 succeeded at 108 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/item/VaultItemScreen.kt...\nerror: while searching for:\n                                         )\n                                     }\n                                 },\n                             ),\n                         ),\n                     )\n                 },\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/item/VaultItemScreen.kt:229\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/item/VaultItemScreen.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/item/VaultItemViewModel.kt...\nHunk #1 succeeded at 1153 (offset -1 lines).\nerror: while searching for:\n                 * @property currentCipher The cipher that is currently being viewed (nullable).\n                 */\n             @Parcelize\n             data class Common(\n                 val name: String,\n                 val lastUpdated: String,\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/item/VaultItemViewModel.kt:1217\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/item/VaultItemViewModel.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/item/util/CipherViewExtensions.kt...\nHunk #1 succeeded at 48 (offset -1 lines).\nerror: while searching for:\n                                ?.passwordData\n                                ?.isVisible == true,\n                             canViewPassword = viewPassword,\n                         )\n                     },\n                     uris = loginValues.uris.orEmpty().map { it.toUriData() },\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/item/util/CipherViewExtensions.kt:76\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/item/util/CipherViewExtensions.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4076",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3924",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3975",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 52\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3609",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 58: @@ -1456,7 +1463,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3540",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 54\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3751",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3775",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4012",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 48\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3624",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3389",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3861",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4888",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt...\nHunk #1 succeeded at 64 (offset 4 lines).\nHunk #2 succeeded at 72 (offset 4 lines).\nHunk #3 succeeded at 81 (offset 5 lines).\nHunk #4 succeeded at 723 (offset -472 lines).\nerror: while searching for:\n            authModel = IdentityTokenAuthModel.SingleSignOn(\n                ssoCode = ssoCode,\n                ssoCodeVerifier = ssoCodeVerifier,\n                ssoRedirectUri = ssoRedirectUri,\n            ),\n            captchaToken = captchaToken,\n            orgIdentifier = organizationIdentifier,\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt:1203\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepository.kt...\nHunk #1 succeeded at 25 (offset 9 lines).\nerror: while searching for:\n        captchaToken: String?,\n        organizationIdentifier: String,\n    ): LoginResult\n\n    /**\n     * Refreshes the access token for the given [userId].\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepository.kt:148\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepository.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/model/LoginResult.kt...\nerror: while searching for:\n     * There was an error with the server's SSL certificate.\n     */\n    data object CertificateError : LoginResult()\n}\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/model/LoginResult.kt:53\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/model/LoginResult.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/twofactorlogin/TwoFactorLoginViewModel.kt...\nHunk #1 succeeded at 315 (offset 1 line).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4426",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 62\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4203",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 18\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3659",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 64\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3649",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3644",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 26\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3911",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 85\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4581",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/content/BitwardenFullScreenLoadingContent.kt...\nerror: while searching for:\n    BackHandler(enabled = showLoadingState) {\n        // No-op\n    }\n    ObscuredContent(\n        enabled = showLoadingState,\n        modifier = Modifier\n            .fillMaxSize()\n            .then(modifier),\n        content = content,\n        overlayContent = {\n            BitwardenLoadingContent(\n                message = message,\n                modifier = Modifier.align(Alignment.Center),\n            )\n        },\n    )\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/platform/components/content/BitwardenFullScreenLoadingContent.kt:25\nerror: app/src/main/java/com/x8bit/bitwarden/ui/platform/components/content/BitwardenFullScreenLoadingContent.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3709",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4743",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3961",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3779",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 30\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3658",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4067",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 98\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3449",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/manager/biometrics/BiometricsManager.kt...\nerror: while searching for:\n        onCancel: () -> Unit,\n        onLockOut: () -> Unit,\n        onError: () -> Unit,\n    )\n}\n\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/platform/manager/biometrics/BiometricsManager.kt:38\nerror: app/src/main/java/com/x8bit/bitwarden/ui/platform/manager/biometrics/BiometricsManager.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/manager/biometrics/BiometricsManagerImpl.kt...\nHunk #1 succeeded at 50 (offset 1 line).\nHunk #2 succeeded at 58 (offset 1 line).\nHunk #3 succeeded at 81 (offset 2 lines).\nHunk #4 succeeded at 124 (offset 12 lines).\nHunk #5 succeeded at 145 (offset 12 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3435",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 21\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3330",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3356",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/res/values/strings.xml...\nerror: while searching for:\n  <string name=\"third_dot_select_bitwarden_to_use_for_passwords_and_passkeys\">3. Select \"Bitwarden\" to use for passwords and passkeys</string>\n  <string name=\"your_passkey_will_be_saved_to_your_bitwarden_vault\">Your passkey will be saved to your Bitwarden vault</string>\n  <string name=\"your_passkey_will_be_saved_to_your_bitwarden_vault_for_x\">Your passkey will be saved to your Bitwarden vault for %1$s</string>\n  <string name=\"organization_unassigned_items_message_useu_description_long\">Unassigned organization items are no longer visible in the All Vaults view and only accessible via the Admin Console. Assign these items to a collection from the Admin Console to make them visible.</string>\n  <string name=\"organization_unassigned_items_message_self_host_041624_description_long\">On May 16, 2024, unassigned organization items will no longer be visible in the All Vaults view and only accessible via the Admin Console. Assign these items to a collection from the Admin Console to make them visible.</string>\n  <string name=\"remind_me_later\">Remind me later</string>\n  <string name=\"notice\">Notice</string>\n\nerror: patch failed: app/src/main/res/values/strings.xml:896\nerror: app/src/main/res/values/strings.xml: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3921",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 49\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3887",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3965",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4314",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 111\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4214",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 82\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4284",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/disk/database/VaultDatabase.kt...\nHunk #1 succeeded at 26 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/disk/entity/CollectionEntity.kt...\nerror: while searching for:\n    val isReadOnly: Boolean,\n\n    @ColumnInfo(name = \"manage\")\n    val canManage: Boolean,\n)\n\n-- a/app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/network/model/SyncResponseJson.kt\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/disk/entity/CollectionEntity.kt:34\nerror: app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/disk/entity/CollectionEntity.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/repository/util/VaultSdkCollectionExtensions.kt...\nHunk #1 succeeded at 15 (offset 2 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4339",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 83\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4152",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 101\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3925",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 27\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4046",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 5: @@ -23,7 +23,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3905",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3951",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 31: @@ -70,7 +70,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4374",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 26\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4304",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/platform/datasource/disk/SettingsDiskSource.kt...\nHunk #1 succeeded at 72 (offset -5 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/datasource/disk/SettingsDiskSourceImpl.kt...\nHunk #1 succeeded at 10 (offset -3 lines).\nHunk #2 succeeded at 78 (offset -1 lines).\nHunk #3 succeeded at 161 (offset -1 lines).\nerror: while searching for:\n        mutableShowImportLoginsSettingBadgeFlowMap.getOrPut(userId) {\n            bufferedMutableSharedFlow(replay = 1)\n        }\n}\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/platform/datasource/disk/SettingsDiskSourceImpl.kt:500\nerror: app/src/main/java/com/x8bit/bitwarden/data/platform/datasource/disk/SettingsDiskSourceImpl.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/manager/DatabaseSchemeManager.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/manager/DatabaseSchemeManagerImpl.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/repository/VaultRepositoryImpl.kt...\nHunk #1 succeeded at 294 (offset 2 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4047",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4484",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3896",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 19\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3723",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3711",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 65\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3553",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 13\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3397",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4891",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 33\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3690",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 110\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4389",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4141",
+      "valid": false,
+      "error_message": "Checking patch README.md...\nerror: while searching for:\n    - https://developer.android.com/jetpack/androidx/releases/appcompat\n    - Purpose: Allows access to new APIs on older API versions.\n    - License: Apache 2.0\n\n - **AndroidX Autofill**\n    - https://developer.android.com/jetpack/androidx/releases/autofill\n    - Purpose: Allows access to tools for building inline autofill UI.\n    - License: Apache 2.0\n\nerror: patch failed: README.md:68\nerror: README.md: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4846",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3968",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 92\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3964",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 16\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4388",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3708",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 34\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3838",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 75\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4125",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3702",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 119\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3822",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 10\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3895",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 83\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3682",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 13\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4368",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/twofactorlogin/TwoFactorLoginViewModel.kt...\nerror: while searching for:\n                isContinueButtonEnabled = action.yubiKeyResult.token.length >= 6,\n            )\n        }\n    }\n\n    /**\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/twofactorlogin/TwoFactorLoginViewModel.kt:369\nerror: app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/twofactorlogin/TwoFactorLoginViewModel.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3638",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3639",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/processor/Fido2ProviderProcessorImpl.kt...\nerror: while searching for:\nimport androidx.credentials.provider.CreateEntry\nimport androidx.credentials.provider.CredentialEntry\nimport androidx.credentials.provider.ProviderClearCredentialStateRequest\nimport com.bitwarden.fido.Fido2CredentialAutofillView\nimport com.bitwarden.sdk.Fido2CredentialStore\nimport com.x8bit.bitwarden.R\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/processor/Fido2ProviderProcessorImpl.kt:23\nerror: app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/processor/Fido2ProviderProcessorImpl.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3864",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3331",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 64\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3747",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/datasource/disk/AuthDiskSource.kt...\nHunk #1 succeeded at 60 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/datasource/disk/AuthDiskSourceImpl.kt...\nHunk #1 succeeded at 140 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/manager/TrustedDeviceManagerImpl.kt...\nerror: while searching for:\n     */\nclass TrustedDeviceManagerImpl(\n    private val authDiskSource: AuthDiskSource,\n    private val vaultSdkSource: VaultSdkSource,\n    private val devicesService: DevicesService,\n) : TrustedDeviceManager {\n    override suspend fun trustThisDeviceIfNecessary(userId: String): Result<Boolean> =\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/manager/TrustedDeviceManagerImpl.kt:20\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/manager/TrustedDeviceManagerImpl.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt...\nHunk #1 succeeded at 301 (offset -2 lines).\nHunk #2 succeeded at 469 (offset -31 lines).\nHunk #3 succeeded at 1311 (offset 2 lines).\nHunk #4 succeeded at 1606 (offset -2 lines).\nHunk #6 succeeded at 1647 (offset 1 line).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/datasource/disk/BaseDiskSource.kt...\nHunk #1 succeeded at 19 (offset -1 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4058",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 91\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3610",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 109\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3539",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 120: @@ -26,7 +28,10 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3906",
+      "valid": false,
+      "error_message": "Checking patch app/src/debug/AndroidManifest.xml...\nHunk #1 succeeded at 27 (offset 3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/BitwardenAppComponentFactory.kt...\nHunk #1 succeeded at 6 (offset -1 lines).\nHunk #2 succeeded at 17 (offset -1 lines).\nHunk #3 succeeded at 37 (offset 3 lines).\nHunk #4 succeeded at 73 (offset 13 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/accessibility/di/AccessibilityModule.kt...\nerror: while searching for:\npackage com.x8bit.bitwarden.data.autofill.accessibility.di\n\nimport android.content.Context\nimport android.content.pm.PackageManager\nimport com.x8bit.bitwarden.data.autofill.accessibility.manager.AccessibilityAutofillManager\nimport com.x8bit.bitwarden.data.autofill.accessibility.manager.AccessibilityCompletionManager\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/autofill/accessibility/di/AccessibilityModule.kt:1\nerror: app/src/main/java/com/x8bit/bitwarden/data/autofill/accessibility/di/AccessibilityModule.kt: patch does not apply\nChecking patch app/src/main/res/values/strings.xml...\nHunk #1 succeeded at 498 (offset 167 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4365",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3801",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 27\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4181",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/header/BitwardenListHeaderText.kt...\nerror: while searching for:\n    ) {\n        Text(\n            text = label,\n            style = BitwardenTheme.typography.labelMedium,\n            color = BitwardenTheme.colorScheme.text.secondary,\n            modifier = modifier.padding(\n                top = 12.dp,\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/platform/components/header/BitwardenListHeaderText.kt:24\nerror: app/src/main/java/com/x8bit/bitwarden/ui/platform/components/header/BitwardenListHeaderText.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/header/BitwardenListHeaderTextWithSupportingText.kt...\nHunk #1 succeeded at 36 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/theme/type/Typography.kt...\nHunk #1 succeeded at 232 (offset -3 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3831",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3793",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/completeregistration/CompleteRegistrationScreen.kt...\nHunk #1 succeeded at 201 (offset -14 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/completeregistration/CompleteRegistrationViewModel.kt...\nHunk #1 succeeded at 38 (offset 1 line).\nHunk #2 succeeded at 366 (offset -11 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/completeregistration/PasswordStrengthIndicator.kt...\nerror: while searching for:\nimport androidx.compose.ui.graphics.TransformOrigin\nimport androidx.compose.ui.graphics.graphicsLayer\nimport androidx.compose.ui.unit.dp\nimport com.x8bit.bitwarden.ui.platform.base.util.asText\nimport com.x8bit.bitwarden.ui.platform.theme.LocalNonMaterialColors\n\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/completeregistration/PasswordStrengthIndicator.kt:22\nerror: app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/completeregistration/PasswordStrengthIndicator.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4373",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 57\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3444",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 172\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4879",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 23\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4291",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 122\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3753",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4369",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 104\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3637",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 62\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4066",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3455",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 47\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3569",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 88\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4229",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 73\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4444",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 5: @@ -1,6 +1,6 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4271",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3787",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 47: @@ -76,8 +76,8 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3620",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 30\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4020",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3707",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 40\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3422",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 33\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3739",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/tools/generator/repository/model/UsernameGenerationOptions.kt...\nHunk #1 succeeded at 113 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/generator/GeneratorViewModel.kt...\nerror: while searching for:\n                simpleLoginApiKey = forwardedEmailAlias.selectedServiceType.apiKey,\n            )\n\n            else -> options.copy(\n                type = UsernameGenerationOptions.UsernameType.FORWARDED_EMAIL_EMAIL_ALIAS,\n                serviceType = UsernameGenerationOptions.ForwardedEmailServiceType.NONE,\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/generator/GeneratorViewModel.kt:475\nerror: app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/generator/GeneratorViewModel.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3752",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3327",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 10\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3456",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4341",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3810",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 70: @@ -22,6 +27,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3788",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 36\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4300",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 45\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4201",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4257",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4604",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4345",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 106\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4158",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 83\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4023",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 116\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4003",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 43\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3729",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 55\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4442",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3954",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 52\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3719",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3329",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 31\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4455",
+      "valid": false,
+      "error_message": "Checking patch app/build.gradle.kts...\nHunk #1 succeeded at 248 (offset -6 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/composition/LocalManagerProvider.kt...\nHunk #1 succeeded at 21 (offset 6 lines).\nHunk #2 succeeded at 49 (offset 5 lines).\nHunk #3 succeeded at 95 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultScreen.kt...\nHunk #1 succeeded at 54 (offset -3 lines).\nHunk #2 succeeded at 81 (offset 1 line).\nHunk #3 succeeded at 126 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultViewModel.kt...\nHunk #1 succeeded at 12 (offset -1 lines).\nHunk #2 succeeded at 77 (offset -1 lines).\nerror: while searching for:\n\n            is VaultAction.Internal.SnackbarDataReceive -> handleSnackbarDataReceive(action)\n        }\n    }\n\n    private fun handleImportActionCardClick() {\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultViewModel.kt:169\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultViewModel.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/util/VaultStateUpdate.kt...\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/util/VaultStateUpdate.kt: No such file or directory\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultViewModel.kt...\nHunk #1 succeeded at 621 (offset 7 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultState.kt...\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultState.kt: No such file or directory\nChecking patch gradle/libs.versions.toml...\nHunk #2 succeeded at 92 (offset -3 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4283",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3873",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 82: @@ -541,6 +550,25 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3398",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 11\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3947",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 16\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3909",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/vault/repository/VaultRepository.kt...\nHunk #1 succeeded at 188 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/repository/VaultRepositoryImpl.kt...\nerror: while searching for:\n            )\n    }\n\n    override suspend fun createSend(\n        sendView: SendView,\n        fileUri: Uri?,\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/vault/repository/VaultRepositoryImpl.kt:595\nerror: app/src/main/java/com/x8bit/bitwarden/data/vault/repository/VaultRepositoryImpl.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3645",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3612",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 108\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3962",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3350",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 31\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4034",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3844",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 29\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3934",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 16\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4893",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/platform/manager/KeyManagerImpl.kt...\nHunk #1 succeeded at 40 (offset -2 lines).\nHunk #3 succeeded at 92 (offset 3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/manager/model/ImportPrivateKeyResult.kt...\nHunk #1 succeeded at 20 (offset 1 line).\nHunk #2 succeeded at 35 (offset 3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/repository/SettingsRepositoryImpl.kt...\nHunk #1 succeeded at 495 (offset -14 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/repository/model/BiometricsKeyResult.kt...\nHunk #1 succeeded at 12 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/sdk/model/FindFido2CredentialsResult.kt...\nHunk #1 succeeded at 15 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/sdk/model/SaveCredentialResult.kt...\nHunk #1 succeeded at 13 (offset -4 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/manager/CipherManagerImpl.kt...\nerror: while searching for:\n        val encryptedFile = when (val result = fileManager.downloadFileToCache(url)) {\n            DownloadResult.Failure -> return IllegalStateException(\"Download failed\").asFailure()\n            is DownloadResult.Success -> result.file\n        }\n        }\n\n        val decryptedFile = File(encryptedFile.path + \"_decrypted\")\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/vault/manager/CipherManagerImpl.kt:390\nerror: app/src/main/java/com/x8bit/bitwarden/data/vault/manager/CipherManagerImpl.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/manager/FileManagerImpl.kt...\nHunk #1 succeeded at 43 (offset -4 lines).\nHunk #2 succeeded at 63 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/manager/model/DownloadResult.kt...\nHunk #1 succeeded at 14 (offset -3 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/accountsetup/SetupUnlockViewModel.kt...\nHunk #1 succeeded at 181 (offset -4 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/accountsecurity/AccountSecurityViewModel.kt...\nHunk #1 succeeded at 463 (offset -2 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3528",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 481\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4008",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3782",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/model/Organization.kt...\nerror: while searching for:\npackage com.x8bit.bitwarden.data.auth.repository.model\n\n/**\n * Represents an organization a user may be a member of.\n *\n * @property id The ID of the organization.\n * @property name The name of the organization (if applicable).\n */\ndata class Organization(\n    val id: String,\n    val name: String?,\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/model/Organization.kt:1\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/model/Organization.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/util/SyncResponseJsonExtensions.kt...\nHunk #1 succeeded at 14 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/network/model/SyncResponseJson.kt...\nHunk #1 succeeded at 246 (offset -1 lines).\nChecking patch app/src/main/res/values/strings.xml...\nHunk #1 succeeded at 617 (offset 1 line).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3710",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3749",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 23\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4370",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 56\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3843",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 67\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3630",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 190\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3621",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 13: @@ -69,7 +71,10 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3935",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 49\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3923",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 18\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3440",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/model/AutofillView.kt...\nHunk #1 succeeded at 83 (offset -6 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/parser/AutofillParserImpl.kt...\nHunk #1 succeeded at 104 (offset 1 line).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/util/ViewNodeExtensions.kt...\nerror: while searching for:\n    }\n\n    else -> null\n}\n \n/**\n * Check whether this [AssistStructure.ViewNode] represents a password field.\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/autofill/util/ViewNodeExtensions.kt:159\nerror: app/src/main/java/com/x8bit/bitwarden/data/autofill/util/ViewNodeExtensions.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3876",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 69: @@ -65,6 +66,9 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4525",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4044",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 25\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3627",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 15\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3394",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 19\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3856",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 43\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3622",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt...\nHunk #1 succeeded at 728 (offset -47 lines).\nerror: while searching for:\n                             kdfType = kdf.toKdfTypeJson(),\n                             kdfIterations = kdf.iterations,\n                         ),\n                     )\n                 } else {\n                     identityService.registerFinish(\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt:820\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/auth/AuthNavigation.kt...\nHunk #1 succeeded at 15 (offset 5 lines).\nHunk #2 succeeded at 66 (offset -4 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/createaccount/CreateAccountScreen.kt...\nerror: while searching for:\n    @Composable\n    fun CreateAccountScreen(\n    onNavigateBack: () -> Unit,\n    onNavigateToLogin: (emailAddress: String, captchaToken: String) -> Unit,\n    intentManager: IntentManager = LocalIntentManager.current,\n    viewModel: CreateAccountViewModel = hiltViewModel(),\n) {\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/createaccount/CreateAccountScreen.kt:91\nerror: app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/createaccount/CreateAccountScreen.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/createaccount/CreateAccountViewModel.kt...\nHunk #1 succeeded at 194 (offset -3 lines).\nHunk #2 succeeded at 476 (offset 106 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/rootnav/RootNavScreen.kt...\nHunk #1 succeeded at 194 (offset -3 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3600",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepository.kt...\nHunk #1 succeeded at 347 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt...\nerror: while searching for:\n        .all { validatePasswordAgainstPolicy(password, it) }\n\n    /**\n     * Return true if there are any [PolicyInformation.MasterPassword] policies that the user's\n     * master password has failed to pass.\n     */\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt:1147\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingScreen.kt...\nHunk #1 succeeded at 42 (offset -5 lines).\nerror: while searching for:\n                ),\n            )\n        },\n    )\n\n    VaultItemListingScaffold(\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingScreen.kt:200\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingScreen.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingViewModel.kt...\nHunk #1 succeeded at 197 (offset -2 lines).\nHunk #2 succeeded at 355 (offset 1 line).\nHunk #3 succeeded at 387 (offset 6 lines).\nHunk #4 succeeded at 831 (offset -3 lines).\nHunk #5 succeeded at 1416 (offset -13 lines).\nHunk #6 succeeded at 1943 (offset -1 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4273",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 31\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3755",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4204",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 5: @@ -16,6 +16,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4272",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4346",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 23\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3358",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3942",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/generator/GeneratorScreen.kt...\nHunk #1 succeeded at 345 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/generator/GeneratorViewModel.kt...\nHunk #1 succeeded at 94 (offset -6 lines).\nHunk #2 succeeded at 111 (offset -1 lines).\nHunk #3 succeeded at 693 (offset -1 lines).\nerror: while searching for:\n     * that must be overridden by each subclass to provide the appropriate string resource ID\n     * for display purposes.\n     */\n        abstract val displayStringResId: Int\n\n        /**\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/generator/GeneratorViewModel.kt:2096\nerror: app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/generator/GeneratorViewModel.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3668",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 13\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4199",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 104\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3344",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 80\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4610",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 102\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3740",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/datasource/disk/AuthDiskSource.kt...\nHunk #1 succeeded at 245 (offset -1 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/datasource/disk/AuthDiskSourceImpl.kt...\nHunk #1 succeeded at 39 (offset -4 lines).\nHunk #2 succeeded at 123 (offset -4 lines).\nerror: while searching for:\n            getMutableAccountTokensFlow(userId = userId).tryEmit(accountTokens)\n    }\n\n    private fun generateAndStoreUniqueAppId(): String =\n        UUID\n            .randomUUID()\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/datasource/disk/AuthDiskSourceImpl.kt:363\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/datasource/disk/AuthDiskSourceImpl.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/repository/VaultRepositoryImpl.kt...\nerror: while searching for:\n                                 syncResponse = syncResponse,\n                             )\n \n                         unlockVaultForOrganizationsIfNecessary(syncResponse = syncResponse)\n                         storeProfileData(syncResponse = syncResponse)\n                         // Treat absent network policies as known empty data to\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/vault/repository/VaultRepositoryImpl.kt:375\nerror: app/src/main/java/com/x8bit/bitwarden/data/vault/repository/VaultRepositoryImpl.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4344",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/platform/datasource/network/interceptor/BaseUrlInterceptors.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/manager/NetworkConfigManagerImpl.kt...\nerror: while searching for:\nimport com.x8bit.bitwarden.data.auth.repository.AuthRepository\nimport com.x8bit.bitwarden.data.platform.datasource.network.authenticator.RefreshAuthenticator\nimport com.x8bit.bitwarden.data.platform.datasource.network.interceptor.BaseUrlInterceptors\nimport com.x8bit.bitwarden.data.platform.manager.dispatcher.DispatcherManager\nimport kotlinx.coroutines.CoroutineScope\nimport kotlinx.coroutines.flow.debounce\nimport kotlinx.coroutines.flow.launchIn\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/platform/manager/NetworkConfigManagerImpl.kt:3\nerror: app/src/main/java/com/x8bit/bitwarden/data/platform/manager/NetworkConfigManagerImpl.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4338",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4248",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 133\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3904",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 49\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3874",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/createaccount/CreateAccountScreen.kt...\nHunk #1 succeeded at 21 (offset -5 lines).\nHunk #2 succeeded at 307 (offset -10 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/startregistration/StartRegistrationScreen.kt...\nHunk #1 succeeded at 25 (offset -3 lines).\nHunk #2 succeeded at 438 (offset -11 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/twofactorlogin/TwoFactorLoginScreen.kt...\nerror: while searching for:\nimport androidx.compose.foundation.rememberScrollState\nimport androidx.compose.foundation.verticalScroll\nimport androidx.compose.material3.ExperimentalMaterial3Api\nimport androidx.compose.material3.MaterialTheme\nimport androidx.compose.material3.Text\nimport androidx.compose.material3.TopAppBarDefaults\nimport androidx.compose.material3.rememberTopAppBarState\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/twofactorlogin/TwoFactorLoginScreen.kt:15\nerror: app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/twofactorlogin/TwoFactorLoginScreen.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/welcome/WelcomeScreen.kt...\nerror: while searching for:\nimport androidx.compose.foundation.pager.HorizontalPager\nimport androidx.compose.foundation.pager.PagerState\nimport androidx.compose.foundation.pager.rememberPagerState\nimport androidx.compose.foundation.rememberScrollState\nimport androidx.compose.foundation.verticalScroll\nimport androidx.compose.material3.ExperimentalMaterial3Api\nimport androidx.compose.material3.MaterialTheme\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/welcome/WelcomeScreen.kt:26\nerror: app/src/main/java/com/x8bit/bitwarden/ui/auth/feature/welcome/WelcomeScreen.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/base/util/EventsEffect.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/base/util/ModifierExtensions.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/account/BitwardenAccountSwitcher.kt...\nerror: while searching for:\nimport androidx.compose.material3.HorizontalDivider\nimport androidx.compose.material3.Icon\nimport androidx.compose.material3.MaterialTheme\nimport androidx.compose.material3.TopAppBarDefaults\nimport androidx.compose.material3.TopAppBarScrollBehavior\nimport androidx.compose.material3.rememberTopAppBarState\nimport androidx.compose.runtime.Composable\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/platform/components/account/BitwardenAccountSwitcher.kt:26\nerror: app/src/main/java/com/x8bit/bitwarden/ui/platform/components/account/BitwardenAccountSwitcher.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/dialog/row/BitwardenBasicDialogRow.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/dropdown/EnvironmentSelector.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/listitem/BitwardenGroupItem.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/listitem/BitwardenListItem.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/row/BitwardenTextRow.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/scaffold/BitwardenScaffold.kt...\nHunk #1 succeeded at 12 (offset 1 line).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/segment/BitwardenSegmentedButton.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/text/BitwardenClickableText.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/toggle/BitwardenSwitch.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/toggle/BitwardenSwitchWithActions.kt...\nerror: while searching for:\npackage com.x8bit.bitwarden.ui.platform.components.toggle\n\nimport androidx.compose.foundation.clickable\nimport androidx.compose.foundation.layout.Arrangement\nimport androidx.compose.foundation.layout.Row\nimport androidx.compose.foundation.layout.RowScope\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/platform/components/toggle/BitwardenSwitchWithActions.kt:1\nerror: app/src/main/java/com/x8bit/bitwarden/ui/platform/components/toggle/BitwardenSwitchWithActions.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/components/toggle/BitwardenWideSwitch.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/SettingsScreen.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/about/AboutScreen.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/accountsecurity/pendingrequests/PendingRequestsScreen.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/accountsecurity/pendingrequests/PendingRequestsViewModel.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/autofill/blockautofill/BlockAutoFillScreen.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/folders/FoldersScreen.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/vaultunlockednavbar/VaultUnlockedNavBarScreen.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/send/SendScreen.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/send/SendViewModel.kt...\nerror: while searching for:\npackage com.x8bit.bitwarden.ui.tools.feature.send\n\nimport android.os.Parcelable\nimport androidx.annotation.DrawableRes\nimport androidx.lifecycle.SavedStateHandle\nimport com.x8bit.bitwarden.data.platform.manager.PolicyManager\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/send/SendViewModel.kt:1\nerror: app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/send/SendViewModel.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingScreen.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/itemlisting/VaultItemListingViewModel.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultScreen.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultViewModel.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/verificationcode/VerificationCodeItem.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/verificationcode/VerificationCodeScreen.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/verificationcode/VerificationCodeViewModel.kt...\nChecking patch gradle/libs.versions.toml...\nerror: while searching for:\n12 androidXBiometrics = \"1.2.0-alpha05\"\n13 androidxBrowser = \"1.8.0\"\n14 androidxCamera = \"1.3.4\"\n15 androidxComposeBom = \"2024.08.00\"\n16 androidxCore = \"1.13.1\"\n17 androidxCredentials = \"1.2.2\"\n18 androidxHiltNavigationCompose = \"1.2.0\"\n\nerror: patch failed: gradle/libs.versions.toml:14\nerror: gradle/libs.versions.toml: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3803",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3748",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 72\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3654",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditLoginItems.kt...\nHunk #2 succeeded at 87 (offset -4 lines).\nerror: while searching for:\n        )\n    }\n}\n\n@Composable\nprivate fun PasskeyField(\n    creationDateTime: Text,\n    modifier: Modifier = Modifier,\n) {\n    BitwardenTextField(\n        label = stringResource(id = R.string.passkey),\n        value = creationDateTime.invoke(),\n        onValueChange = { },\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditLoginItems.kt:517\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditLoginItems.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditViewModel.kt...\nHunk #1 succeeded at 931 (offset -5 lines).\nHunk #2 succeeded at 1038 (offset -3 lines).\nHunk #3 succeeded at 2679 (offset -34 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/handlers/VaultAddEditLoginTypeHandlers.kt...\nHunk #1 succeeded at 20 (offset -5 lines).\nHunk #2 succeeded at 36 (offset -4 lines).\nerror: while searching for:\n                        ),\n                    )\n                },\n                onPasswordVisibilityChange = {\n                    viewModel.trySendAction(\n                        VaultAddEditAction.ItemType.LoginType.PasswordVisibilityChange(it),\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/handlers/VaultAddEditLoginTypeHandlers.kt:96\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/handlers/VaultAddEditLoginTypeHandlers.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/util/VaultAddItemStateExtensions.kt...\nHunk #1 succeeded at 145 (offset -5 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3626",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 51\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3807",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4010",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4914",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3445",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 70\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3632",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/vaultunlockednavbar/VaultUnlockedNavBarScreen.kt...\nHunk #1 succeeded at 60 (offset 16 lines).\nHunk #2 succeeded at 258 (offset -19 lines).\nHunk #3 succeeded at 266 (offset -19 lines).\nHunk #4 succeeded at 297 (offset -12 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/vaultunlockednavbar/VaultUnlockedNavBarViewModel.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultViewModel.kt...\nerror: while searching for:\npackage com.x8bit.bitwarden.ui.vault.feature.vault\n\nimport androidx.lifecycle.viewModelScope\nimport com.x8bit.bitwarden.R\nimport com.x8bit.bitwarden.data.auth.repository.AuthRepository\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultViewModel.kt:1\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/vault/VaultViewModel.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3695",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3463",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4129",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 45\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3615",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 10\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3754",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 27\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3929",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 42\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3927",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 202\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3392",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/autofill/AutoFillScreen.kt...\nHunk #1 succeeded at 37 (offset 8 lines).\nerror: while searching for:\n            }\n        }\n    }\n\n    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())\n    BitwardenScaffold(\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/autofill/AutoFillScreen.kt:83\nerror: app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/autofill/AutoFillScreen.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/settings/autofill/AutoFillViewModel.kt...\nHunk #2 succeeded at 126 (offset -4 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/manager/intent/IntentManager.kt...\nHunk #1 succeeded at 31 (offset -6 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/manager/intent/IntentManagerImpl.kt...\nHunk #1 succeeded at 111 (offset -2 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4144",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3691",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 39\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4299",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 22\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4139",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/vault/repository/VaultRepositoryImpl.kt...\nHunk #1 succeeded at 1356 (offset -26 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/importlogins/ImportLoginsScreen.kt...\nerror: while searching for:\n                onDismissClick = handler.onDismissDialog,\n            )\n        }\n\n        null -> Unit\n    }\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/importlogins/ImportLoginsScreen.kt:225\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/importlogins/ImportLoginsScreen.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/importlogins/ImportLoginsViewModel.kt...\nHunk #2 succeeded at 94 (offset 41 lines).\nHunk #3 succeeded at 103 (offset 41 lines).\nHunk #4 succeeded at 195 (offset 66 lines).\nHunk #5 succeeded at 246 (offset 69 lines).\nHunk #6 succeeded at 391 (offset 135 lines).\nChecking patch app/src/main/res/values/strings.xml...\nHunk #1 succeeded at 1072 (offset -1 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4439",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 18\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4016",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 26\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3617",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3976",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3586",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3762",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 35\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3585",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 114\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3959",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 12: @@ -173,7 +173,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4043",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 5: @@ -313,7 +313,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3629",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/manager/Fido2CredentialManager.kt...\nHunk #2 succeeded at 54 (offset -4 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/manager/Fido2CredentialManagerImpl.kt...\nHunk #1 succeeded at 7 (offset 1 line).\nHunk #2 succeeded at 23 (offset 2 lines).\nerror: while searching for:\n        }\n    }\n\n    override suspend fun validateOrigin(\n        fido2CredentialRequest: Fido2CredentialRequest,\n    ): Fido2ValidateOriginResult {\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/manager/Fido2CredentialManagerImpl.kt:88\nerror: app/src/main/java/com/x8bit/bitwarden/data/autofill/fido2/manager/Fido2CredentialManagerImpl.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4165",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 58\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4336",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4053",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 5: @@ -22,7 +22,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4124",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 78\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4315",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 11\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3823",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 50\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4441",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4032",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 16\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3936",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 75\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3368",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 17\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3395",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3542",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditScreen.kt...\nHunk #1 succeeded at 185 (offset 13 lines).\nHunk #2 succeeded at 220 (offset 15 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditViewModel.kt...\nHunk #1 succeeded at 158 (offset -3 lines).\nerror: while searching for:\n            is VaultAddEditAction.Common.CloseClick -> handleCloseClick()\n            is VaultAddEditAction.Common.DismissDialog -> handleDismissDialog()\n            is VaultAddEditAction.Common.SaveClick -> handleSaveClick(action)\n            is VaultAddEditAction.Common.TypeOptionSelect -> handleTypeOptionSelect(action)\n            is VaultAddEditAction.Common.AddNewCustomFieldClick -> {\n                handleAddNewCustomFieldClick(action)\n            }\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditViewModel.kt:239\nerror: app/src/main/java/com/x8bit/bitwarden/ui/vault/feature/addedit/VaultAddEditViewModel.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3345",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 39\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4200",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 34\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3994",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/generator/GeneratorScreen.kt...\nHunk #1 succeeded at 660 (offset 110 lines).\nHunk #2 succeeded at 680 (offset 111 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/generator/GeneratorViewModel.kt...\nHunk #1 succeeded at 359 (offset -4 lines).\nerror: while searching for:\n                                    val minLowercase = if (useLowercase) 1 else 0\n                                    val minUppercase = if (useCapitals) 1 else 0\n                                    val minimumNumbers = if (useNumbers) max(1, minNumbers) else 0\n                                    val minimumSpecial = if (useSpecialChars) max(1, minSpecial) else 0\n                                    return minLowercase + minUppercase + minimumNumbers + minimumSpecial\n                                }\n\n                            private val PasscodeGenerationOptions?.passcodeType: Passcode.PasscodeType\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/generator/GeneratorViewModel.kt:1860\nerror: app/src/main/java/com/x8bit/bitwarden/ui/tools/feature/generator/GeneratorViewModel.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3811",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 17\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3794",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 112\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3631",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3987",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 5: @@ -1 +1 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3618",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 32\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3584",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 12: @@ -29,7 +29,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4006",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4013",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3847",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 125\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3692",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-4383",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 97: @@ -66,12 +66,14 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3699",
+      "valid": true,
+      "error_message": ""
+    },
+    {
+      "instance_id": "bitwarden__android-3721",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 22\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4290",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 111\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4264",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 554\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3656",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/platform/datasource/network/model/ConfigResponseJson.kt...\nHunk #1 succeeded at 12 (offset -3 lines).\nHunk #2 succeeded at 31 (offset -2 lines).\nHunk #3 succeeded at 46 (offset -1 lines).\nHunk #4 succeeded at 62 (offset -21 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/manager/SdkClientManagerImpl.kt...\nHunk #1 succeeded at 9 (offset -4 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/manager/di/PlatformManagerModule.kt...\nHunk #1 succeeded at 139 (offset -5 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/sdk/BitwardenFeatureFlagManager.kt...\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/sdk/BitwardenFeatureFlagManagerImpl.kt...\nerror: while searching for:\nprivate const val CIPHER_KEY_ENCRYPTION_KEY = \"enableCipherKeyEncryption\"\n\n/**\n * Primary implementation of [BitwardenFeatureFlagManager].\n */\nclass BitwardenFeatureFlagManagerImpl : BitwardenFeatureFlagManager {\n    override val featureFlags: Map<String, Boolean>\n        get() = mapOf(CIPHER_KEY_ENCRYPTION_KEY to true)\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/sdk/BitwardenFeatureFlagManagerImpl.kt:3\nerror: app/src/main/java/com/x8bit/bitwarden/data/vault/datasource/sdk/BitwardenFeatureFlagManagerImpl.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3853",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/util/SyncResponseJsonExtensions.kt...\nerror: while searching for:\npackage com.x8bit.bitwarden.data.auth.repository.util\n\nimport com.x8bit.bitwarden.data.auth.repository.model.Organization\nimport com.x8bit.bitwarden.data.platform.util.decodeFromStringOrNull\nimport com.x8bit.bitwarden.data.vault.datasource.network.model.PolicyTypeJson\nimport com.x8bit.bitwarden.data.vault.datasource.network.model.SyncResponseJson\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/util/SyncResponseJsonExtensions.kt:1\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/util/SyncResponseJsonExtensions.kt: patch does not apply\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/platform/manager/PolicyManagerImpl.kt...\nHunk #1 succeeded at 93 (offset -3 lines).\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3862",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 52\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3657",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepository.kt...\nHunk #1 succeeded at 115 (offset 10 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt...\nHunk #1 succeeded at 305 (offset -3 lines).\nHunk #2 succeeded at 773 (offset -2 lines).\nerror: while searching for:\n                refreshToken = refreshTokenResponse.refreshToken,\n            ),\n        )\n        settingsRepository.hasUserLoggedInOrCreatedAccount = true\n        authDiskSource.userState = userStateJson\n        loginResponse.key?.let {\n            // Only set the value if it's present, since we may have set it already\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt:1417\nerror: app/src/main/java/com/x8bit/bitwarden/data/auth/repository/AuthRepositoryImpl.kt: patch does not apply\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3416",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 27\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3884",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 30\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3361",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 22\n"
+    },
+    {
+      "instance_id": "bitwarden__android-4302",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 246\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3854",
+      "valid": false,
+      "error_message": "error: corrupt patch at line 211\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3352",
+      "valid": false,
+      "error_message": "error: patch fragment without header at line 69: @@ -190,6 +193,7 @@\n"
+    },
+    {
+      "instance_id": "bitwarden__android-3883",
+      "valid": false,
+      "error_message": "Checking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/rootnav/RootNavScreen.kt...\nHunk #1 succeeded at 50 (offset -4 lines).\nHunk #2 succeeded at 114 (offset -2 lines).\nHunk #3 succeeded at 219 (offset -2 lines).\nChecking patch app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/rootnav/RootNavViewModel.kt...\nerror: while searching for:\n                        )\n                    }\n\n                    SpecialCircumstance.VaultShortcut,\n                    null,\n                    -> RootNavState.VaultUnlocked(activeUserId = userState.activeAccount.userId)\n\nerror: patch failed: app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/rootnav/RootNavViewModel.kt:134\nerror: app/src/main/java/com/x8bit/bitwarden/ui/platform/feature/rootnav/RootNavViewModel.kt: patch does not apply\n"
+    }
+  ]
+}

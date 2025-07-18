@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Mobile-Bench
+Comment=Mobile-Bench Evaluation Harness
+Exec=/home/researchuser/dev/mobile-bench/mobilebench/harness/run_example.sh
+Icon=application-x-executable
+Terminal=true
+Categories=Development;
