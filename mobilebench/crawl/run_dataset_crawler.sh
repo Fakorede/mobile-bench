@@ -8,7 +8,8 @@ PROJECT_ROOT="$SCRIPT_DIR/../.."
 
 # Run the Python script with proper PYTHONPATH
 PYTHONPATH="$PROJECT_ROOT" python "$SCRIPT_DIR/collect_github_data.py" \
-    --repos Antennapod/Antennapod \
+    --repos duckduckgo/Android \
     --path_prs "$PROJECT_ROOT/data/prs" \
     --path_tasks "$PROJECT_ROOT/data/tasks" \
     --cutoff_date 20230101
+# duckduckgo/Android

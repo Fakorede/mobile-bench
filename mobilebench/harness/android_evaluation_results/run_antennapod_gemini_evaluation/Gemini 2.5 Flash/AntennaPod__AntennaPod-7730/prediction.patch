@@ -1,0 +1,13 @@
+--- a/net/download/service/src/main/java/de/danoeh/antennapod/net/download/service/episode/autodownload/AutomaticDownloadAlgorithm.java
++++ b/net/download/service/src/main/java/de/danoeh/antennapod/net/download/service/episode/autodownload/AutomaticDownloadAlgorithm.java
+@@ -95,7 +95,10 @@
+                     episodeSpaceLeft = episodeCacheSize - (downloadedEpisodes - deletedEpisodes);
+                 }
+ 
+-                List<FeedItem> itemsToDownload = candidates.subList(0, episodeSpaceLeft);
++                List<FeedItem> itemsToDownload = new ArrayList<>();
++                if (episodeSpaceLeft > 0) {
++                    itemsToDownload = candidates.subList(0, Math.min(episodeSpaceLeft, candidates.size()));
++                }
+                 if (itemsToDownload.size() > 0) {
+                     Log.d(TAG, "Enqueueing " + itemsToDownload.size() + " items for download");

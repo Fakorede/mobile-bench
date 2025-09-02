@@ -4,21 +4,22 @@ Enhanced Mobile Bench Inference Script
 
 This script uses OpenRouter API to prompt multiple language models 
 with mobile bench smart oracle retrieval for Android projects.
-Enhanced with SWE-bench features: cost tracking, progress resumption, 
-retry logic, dataset filtering, and sharding support.
+Enhanced with features such as progress resumption, retry logic, 
+dataset filtering, and sharding support.
 
 Usage:
-    python run_completion.py --input data.jsonl --output results.jsonl
-    python run_completion.py --input data.jsonl --output results.jsonl --max-cost 50.0
-    python run_completion.py --input data.jsonl --output results.jsonl --shard-id 0 --num-shards 4
+    python run_inference.py --input data.jsonl --output results.jsonl
+    python run_inference.py --input data.jsonl --output results.jsonl --max-cost 50.0
+    python run_inference.py --input data.jsonl --output results.jsonl --shard-id 0 --num-shards 4
 """
 
+import re
 import json
 import asyncio
 import aiohttp
 import argparse
 import logging
-from typing import Dict, List, Any, Optional, Set
+from typing import Dict, List, Any, Optional, Set, Tuple
 from dataclasses import dataclass, asdict
 from pathlib import Path
 import time
@@ -113,7 +114,7 @@ class InferenceResult:
     instance_id: str
     model_name: str
     model_name_or_path: str
-    generated_patch: str
+    # generated_patch: str
     full_output: str  # Store complete response
     prompt_tokens: int
     completion_tokens: int
@@ -325,7 +326,7 @@ class OpenRouterClient:
                 instance_id=instance_id,
                 model_name=model_config.name,
                 model_name_or_path=model_config.api_name,
-                generated_patch="",
+                # generated_patch="",
                 full_output="",
                 prompt_tokens=prompt_tokens,
                 completion_tokens=0,
@@ -372,7 +373,7 @@ class OpenRouterClient:
                         instance_id=instance_id,
                         model_name=model_config.name,
                         model_name_or_path=model_config.api_name,
-                        generated_patch="",
+                        # generated_patch="",
                         full_output="",
                         prompt_tokens=0,
                         completion_tokens=0,
@@ -388,7 +389,7 @@ class OpenRouterClient:
                 
                 # Extract response content
                 full_output = data["choices"][0]["message"]["content"]
-                generated_patch = self.extract_patch(full_output)
+                # generated_patch = self.extract_patch(full_output)
                 
                 # Extract token usage
                 usage = data.get("usage", {})
@@ -405,7 +406,7 @@ class OpenRouterClient:
                     instance_id=instance_id,
                     model_name=model_config.name,
                     model_name_or_path=model_config.api_name,
-                    generated_patch=generated_patch,
+                    # generated_patch=generated_patch,
                     full_output=full_output,
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
@@ -423,7 +424,7 @@ class OpenRouterClient:
                 instance_id=instance_id,
                 model_name=model_config.name,
                 model_name_or_path=model_config.api_name,
-                generated_patch="",
+                # generated_patch="",
                 full_output="",
                 prompt_tokens=0,
                 completion_tokens=0,
@@ -435,27 +436,27 @@ class OpenRouterClient:
                 prompt=prompt  # Store complete prompt
             )
     
-    def extract_patch(self, text: str) -> str:
-        """Extract patch/diff from model output"""
-        # Look for common patch patterns
-        lines = text.split('\n')
-        patch_lines = []
-        in_patch = False
+    # def extract_patch(self, text: str) -> str:
+    #     """Extract patch/diff from model output"""
+    #     # Look for common patch patterns
+    #     lines = text.split('\n')
+    #     patch_lines = []
+    #     in_patch = False
         
-        for line in lines:
-            # Start of patch indicators
-            if any(indicator in line for indicator in ['diff --git', '--- a/', '+++ b/', '@@']):
-                in_patch = True
-                patch_lines.append(line)
-            elif in_patch and (line.startswith('+') or line.startswith('-') or line.startswith(' ') or line.startswith('@@')):
-                patch_lines.append(line)
-            elif in_patch and line.strip() == '':
-                patch_lines.append(line)
-            elif in_patch and not line.startswith(('+', '-', ' ', '@')) and line.strip():
-                # End of patch
-                break
+    #     for line in lines:
+    #         # Start of patch indicators
+    #         if any(indicator in line for indicator in ['diff --git', '--- a/', '+++ b/', '@@']):
+    #             in_patch = True
+    #             patch_lines.append(line)
+    #         elif in_patch and (line.startswith('+') or line.startswith('-') or line.startswith(' ') or line.startswith('@@')):
+    #             patch_lines.append(line)
+    #         elif in_patch and line.strip() == '':
+    #             patch_lines.append(line)
+    #         elif in_patch and not line.startswith(('+', '-', ' ', '@')) and line.strip():
+    #             # End of patch
+    #             break
         
-        return '\n'.join(patch_lines) if patch_lines else ""
+    #     return '\n'.join(patch_lines) if patch_lines else ""
 
 class MobileBenchInference:
     """Main inference class for Mobile Bench with SWE-bench features"""
@@ -641,7 +642,7 @@ class MobileBenchInference:
                         instance_id=instance_id,
                         model_name=models_to_run[i],
                         model_name_or_path="unknown",
-                        generated_patch="",
+                        # generated_patch="",
                         full_output="",
                         prompt_tokens=0,
                         completion_tokens=0,
@@ -991,6 +992,7 @@ Examples:
     
     # Get API key
     api_key = args.api_key or os.getenv("OPENROUTER_API_KEY")
+    print(f"API KEY: {api_key}")
     if not api_key:
         logger.error("OpenRouter API key required. Set --api-key or OPENROUTER_API_KEY environment variable")
         return 1

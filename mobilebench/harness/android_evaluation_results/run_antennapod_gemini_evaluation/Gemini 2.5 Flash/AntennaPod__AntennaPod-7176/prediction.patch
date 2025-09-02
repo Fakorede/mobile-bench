@@ -1,0 +1,283 @@
+--- a/app/src/main/java/de/danoeh/antennapod/activity/MainActivity.java
++++ b/app/src/main/java/de/danoeh/antennapod/activity/MainActivity.java
+@@ -35,6 +35,7 @@
+ import com.google.android.material.appbar.MaterialToolbar;
+ import com.google.android.material.bottomsheet.BottomSheetBehavior;
+ import com.google.android.material.snackbar.Snackbar;
++import com.google.android.material.navigation.NavigationBarView;
+ import de.danoeh.antennapod.R;
+ import de.danoeh.antennapod.net.download.service.feed.FeedUpdateManagerImpl;
+ import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
+@@ -103,6 +104,7 @@
+     private View navDrawer;
+     private LockableBottomSheetBehavior sheetBehavior;
+     private RecyclerView.RecycledViewPool recycledViewPool = new RecyclerView.RecycledViewPool();
++    private NavigationBarView bottomNavigationView;
+     private int lastTheme = 0;
+     private Insets navigationBarInsets = Insets.NONE;
+ 
+@@ -124,6 +126,7 @@
+ 
+         drawerLayout = findViewById(R.id.drawer_layout);
+         navDrawer = findViewById(R.id.navDrawerFragment);
++        bottomNavigationView = findViewById(R.id.bottom_navigation);
+         setNavDrawerSize();
+ 
+         // Consume navigation bar insets - we apply them in setPlayerVisible()
+@@ -135,26 +138,7 @@
+                     .build();
+         });
+ 
+-        final FragmentManager fm = getSupportFragmentManager();
+-        if (fm.findFragmentByTag(MAIN_FRAGMENT_TAG) == null) {
+-            if (!UserPreferences.DEFAULT_PAGE_REMEMBER.equals(UserPreferences.getDefaultPage())) {
+-                loadFragment(UserPreferences.getDefaultPage(), null);
+-            } else {
+-                String lastFragment = NavDrawerFragment.getLastNavFragment(this);
+-                if (ArrayUtils.contains(getResources().getStringArray(R.array.nav_drawer_section_tags), lastFragment)) {
+-                    loadFragment(lastFragment, null);
+-                } else {
+-                    try {
+-                        loadFeedFragmentById(Integer.parseInt(lastFragment), null);
+-                    } catch (NumberFormatException e) {
+-                        // it's not a number, this happens if we removed
+-                        // a label from the NAV_DRAWER_TAGS
+-                        // give them a nice default...
+-                        loadFragment(HomeFragment.TAG, null);
+-                    }
+-                }
+-            }
+-        }
++        setupFragments();
+ 
+         FragmentTransaction transaction = fm.beginTransaction();
+         NavDrawerFragment navDrawerFragment = new NavDrawerFragment();
+@@ -166,6 +150,40 @@
+         View bottomSheet = findViewById(R.id.audioplayerFragment);
+         sheetBehavior = (LockableBottomSheetBehavior) BottomSheetBehavior.from(bottomSheet);
+         sheetBehavior.setHideable(false);
++        sheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
++            @Override
++            public void onStateChanged(@NonNull View bottomSheet, int newState) {
++                if (newState == BottomSheetBehavior.STATE_COLLAPSED) {
++                    bottomNavigationView.setVisibility(View.VISIBLE);
++                } else {
++                    bottomNavigationView.setVisibility(View.GONE);
++                }
++            }
++
++            @Override
++            public void onSlide(@NonNull View bottomSheet, float slideOffset) {
++                // Not used
++            }
++        });
++
++        bottomNavigationView.setOnItemSelectedListener(item -> {
++            int itemId = item.getItemId();
++            if (itemId == R.id.nav_subscriptions) {
++                loadFragment(SubscriptionFragment.TAG, null);
++            } else if (itemId == R.id.nav_episodes) {
++                loadFragment(AllEpisodesFragment.TAG, null);
++            } else if (itemId == R.id.nav_downloads) {
++                loadFragment(CompletedDownloadsFragment.TAG, null);
++            } else if (itemId == R.id.nav_history) {
++                loadFragment(PlaybackHistoryFragment.TAG, null);
++            } else if (itemId == R.id.nav_queue) {
++                loadFragment(QueueFragment.TAG, null);
++            } else {
++                return false;
++            }
++            return true;
++        });
++
+         sheetBehavior.setBottomSheetCallback(bottomSheetCallback);
+ 
+         FeedUpdateManager.getInstance().restartUpdateAlarm(this, false);
+@@ -219,6 +237,29 @@
+         updateInsets();
+     }
+ 
++    private void setupFragments() {
++        final FragmentManager fm = getSupportFragmentManager();
++        if (fm.findFragmentByTag(MAIN_FRAGMENT_TAG) == null) {
++            if (!UserPreferences.DEFAULT_PAGE_REMEMBER.equals(UserPreferences.getDefaultPage())) {
++                loadFragment(UserPreferences.getDefaultPage(), null);
++            } else {
++                String lastFragment = NavDrawerFragment.getLastNavFragment(this);
++                if (ArrayUtils.contains(getResources().getStringArray(R.array.nav_drawer_section_tags), lastFragment)) {
++                    loadFragment(lastFragment, null);
++                } else {
++                    try {
++                        loadFeedFragmentById(Integer.parseInt(lastFragment), null);
++                    } catch (NumberFormatException e) {
++                        // it's not a number, this happens if we removed
++                        // a label from the NAV_DRAWER_TAGS
++                        // give them a nice default...
++                        loadFragment(HomeFragment.TAG, null);
++                    }
++                }
++            }
++        }
++    }
++
+     /**
+      * View.generateViewId stores the current ID in a static variable.
+      * When the process is killed, the variable gets reset.
+@@ -339,6 +380,7 @@
+         params.setMargins(navigationBarInsets.left, 0, navigationBarInsets.right,
+                 navigationBarInsets.bottom + (visible ? externalPlayerHeight : 0));
+         mainView.setLayoutParams(params);
++        bottomNavigationView.setPadding(navigationBarInsets.left, 0, navigationBarInsets.right, navigationBarInsets.bottom);
+         FragmentContainerView playerView = findViewById(R.id.playerFragment);
+         ViewGroup.MarginLayoutParams playerParams = (ViewGroup.MarginLayoutParams) playerView.getLayoutParams();
+         playerParams.setMargins(navigationBarInsets.left, 0, navigationBarInsets.right, 0);
+@@ -563,6 +605,7 @@
+         } else if (sheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
+             sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+         } else if (getSupportFragmentManager().getBackStackEntryCount() != 0) {
++            bottomNavigationView.setVisibility(View.VISIBLE);
+             super.onBackPressed();
+         } else {
+             String toPage = UserPreferences.getDefaultPage();
+@@ -604,6 +647,7 @@
+                     loadFragment(fragment);
+                 }
+             }
++            bottomNavigationView.setVisibility(View.GONE);
+             sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+         } else if (intent.getBooleanExtra(MainActivityStarter.EXTRA_OPEN_PLAYER, false)) {
+             sheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+--- a/app/src/main/java/de/danoeh/antennapod/ui/screen/drawer/DrawerPreferencesDialog.java
++++ b/app/src/main/java/de/danoeh/antennapod/ui/screen/drawer/DrawerPreferencesDialog.java
+@@ -72,7 +72,7 @@
+         UserPreferences.setDrawerItemOrder(hiddenDrawerItems, getTagsWithoutHeaders());
+ 
+         if (hiddenDrawerItems.contains(UserPreferences.getDefaultPage())) {
+-            for (String tag : context.getResources().getStringArray(R.array.nav_drawer_section_tags)) {
++            for (String tag : context.getResources().getStringArray(R.array.nav_drawer_section_tags_all)) {
+                 if (!hiddenDrawerItems.contains(tag)) {
+                     UserPreferences.setDefaultPage(tag);
+                     break;
+--- a/app/src/main/java/de/danoeh/antennapod/ui/screen/drawer/NavListAdapter.java
++++ b/app/src/main/java/de/danoeh/antennapod/ui/screen/drawer/NavListAdapter.java
+@@ -100,7 +100,7 @@
+         List<String> newTags = UserPreferences.getVisibleDrawerItemOrder();
+ 
+         if (newTags.contains(SUBSCRIPTION_LIST_TAG)) {
+-            // we never want SUBSCRIPTION_LIST_TAG to be in 'tags'
++            // we never want SUBSCRIPTION_LIST_TAG to be in 'tags' directly
+             // since it doesn't actually correspond to a position in the list, but is
+             // a placeholder that indicates if we should show the subscription list in the
+             // nav drawer at all.
+--- a/app/src/main/java/de/danoeh/antennapod/ui/screen/playback/audio/AudioPlayerFragment.java
++++ b/app/src/main/java/de/danoeh/antennapod/ui/screen/playback/audio/AudioPlayerFragment.java
+@@ -330,7 +330,7 @@
+     public void fadePlayerToToolbar(float slideOffset) {
+         float playerFadeProgress = Math.max(0.0f, Math.min(0.2f, slideOffset - 0.2f)) / 0.2f;
+         View player = getView().findViewById(R.id.playerFragment);
+-        player.setAlpha(1 - playerFadeProgress);
++        player.setAlpha(1.0f - playerFadeProgress);
+         player.setVisibility(playerFadeProgress > 0.99f ? View.INVISIBLE : View.VISIBLE);
+         float toolbarFadeProgress = Math.max(0.0f, Math.min(0.2f, slideOffset - 0.6f)) / 0.2f;
+         toolbar.setAlpha(toolbarFadeProgress);
+--- a/app/src/main/res/layout-sw720dp/main.xml
++++ b/app/src/main/res/layout-sw720dp/main.xml
+@@ -43,4 +43,14 @@
+ 
+     </androidx.coordinatorlayout.widget.CoordinatorLayout>
+ 
++    <com.google.android.material.bottomnavigation.BottomNavigationView
++        android:id="@+id/bottom_navigation"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:layout_gravity="bottom"
++        android:visibility="gone"
++        app:menu="@menu/bottom_navigation_menu"
++        tools:visibility="visible" />
++
+ </LinearLayout>
+--- a/app/src/main/res/layout/main.xml
++++ b/app/src/main/res/layout/main.xml
+@@ -36,4 +36,13 @@
+         android:layout_height="match_parent"
+         android:orientation="vertical" />
+ 
++    <com.google.android.material.bottomnavigation.BottomNavigationView
++        android:id="@+id/bottom_navigation"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:layout_gravity="bottom"
++        android:visibility="gone"
++        app:menu="@menu/bottom_navigation_menu"
++        tools:visibility="visible" />
++
+ </androidx.drawerlayout.widget.DrawerLayout>
+--- a/app/src/main/res/values/ids.xml
++++ b/app/src/main/res/values/ids.xml
+@@ -15,4 +15,10 @@
+     <item name="view_type_subscription_grid_with_title" type="id"/>
+     <item name="view_type_subscription_grid_without_title" type="id"/>
+     <item name="view_type_subscription_list" type="id"/>
++
++    <!-- Bottom navigation -->
++    <item name="nav_subscriptions" type="id"/>
++    <item name="nav_episodes" type="id"/>
++    <item name="nav_downloads" type="id"/>
++    <item name="nav_history" type="id"/>
++    <item name="nav_queue" type="id"/>
+ </resources>
+--- a/build.gradle
++++ b/build.gradle
+@@ -25,7 +25,7 @@
+     paletteVersion = "1.0.0"
+     preferenceVersion = "1.1.1"
+     recyclerViewVersion = "1.2.1"
+-    viewPager2Version = "1.1.0-beta01"
++    viewPager2Version = "1.0.0"
+     workManagerVersion = "2.7.1"
+     googleMaterialVersion = "1.7.0"
+ 
+--- a/storage/preferences/src/main/java/de/danoeh/antennapod/storage/preferences/UserPreferences.java
++++ b/storage/preferences/src/main/java/de/danoeh/antennapod/storage/preferences/UserPreferences.java
+@@ -203,7 +203,7 @@
+         String itemOrderStr = prefs.getString(PREF_DRAWER_ITEM_ORDER, "");
+         List<String> itemOrderTags = new ArrayList<>(Arrays.asList(TextUtils.split(itemOrderStr, ",")));
+         List<String> hiddenItemTags = getHiddenDrawerItems();
+-        String[] sectionTags = context.getResources().getStringArray(R.array.nav_drawer_section_tags);
++        String[] sectionTags = context.getResources().getStringArray(R.array.nav_drawer_section_tags_all);
+         Arrays.sort(sectionTags, (String a, String b) -> Integer.signum(
+                 indexOfOrMaxValue(itemOrderTags, a) - indexOfOrMaxValue(itemOrderTags, b)));
+         List<String> finalItemTags = new ArrayList<>();
+--- /dev/null
++++ b/app/src/main/res/menu/bottom_navigation_menu.xml
+@@ -0,0 +1,31 @@
++<?xml version="1.0" encoding="utf-8"?>
++<menu xmlns:android="http://schemas.android.com/apk/res/android">
++
++    <item
++        android:id="@+id/nav_subscriptions"
++        android:icon="@drawable/ic_subscriptions"
++        android:title="@string/subscriptions_label" />
++
++    <item
++        android:id="@+id/nav_episodes"
++        android:icon="@drawable/ic_feed"
++        android:title="@string/episodes_label" />
++
++    <item
++        android:id="@+id/nav_downloads"
++        android:icon="@drawable/ic_download"
++        android:title="@string/downloads_label" />
++
++    <item
++        android:id="@+id/nav_history"
++        android:icon="@drawable/ic_history"
++        android:title="@string/playback_history_label" />
++
++    <item
++        android:id="@+id/nav_queue"
++        android:icon="@drawable/ic_playlist_play"
++        android:title="@string/queue_label" />
++
++</menu>
++

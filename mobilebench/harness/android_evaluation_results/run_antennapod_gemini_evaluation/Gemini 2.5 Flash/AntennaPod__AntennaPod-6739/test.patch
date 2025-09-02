@@ -1,0 +1,38 @@
+diff --git a/parser/feed/src/test/java/de/danoeh/antennapod/parser/feed/element/namespace/RssParserTest.java b/parser/feed/src/test/java/de/danoeh/antennapod/parser/feed/element/namespace/RssParserTest.java
+index 88ac5c7314..4ce8911e92 100644
+--- a/parser/feed/src/test/java/de/danoeh/antennapod/parser/feed/element/namespace/RssParserTest.java
++++ b/parser/feed/src/test/java/de/danoeh/antennapod/parser/feed/element/namespace/RssParserTest.java
+@@ -97,6 +97,14 @@ public void testMultipleFundingTags() throws Exception {
+         assertEquals("https://example.com/funding3", feed.getPaymentLinks().get(2).url);
+     }
+ 
++    @Test
++    public void testPodcastIndexTranscript() throws Exception {
++        File feedFile = FeedParserTestHelper.getFeedFile("feed-rss-testPodcastIndexTranscript.xml");
++        Feed feed = FeedParserTestHelper.runFeedParser(feedFile);
++        assertEquals("https://podnews.net/audio/podnews231011.mp3.json", feed.getItems().get(0).getPodcastIndexTranscriptUrl());
++        assertEquals("application/json", feed.getItems().get(0).getPodcastIndexTranscriptType());
++    }
++
+     @Test
+     public void testUnsupportedElements() throws Exception {
+         File feedFile = FeedParserTestHelper.getFeedFile("feed-rss-testUnsupportedElements.xml");
+diff --git a/parser/feed/src/test/resources/feed-rss-testPodcastIndexTranscript.xml b/parser/feed/src/test/resources/feed-rss-testPodcastIndexTranscript.xml
+new file mode 100644
+index 0000000000..f972ee2076
+--- /dev/null
++++ b/parser/feed/src/test/resources/feed-rss-testPodcastIndexTranscript.xml
+@@ -0,0 +1,13 @@
++<?xml version='1.0' encoding='UTF-8' ?>
++<rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
++    <channel>
++        <title>title</title>
++        <item>
++            <title>Podcasts in YouTube make it to the UK</title>
++            <link>https://podnews.net/update/youtube-podcasts-uk</link>
++            <pubDate>Tue, 10 Oct 2023 08:46:31 +0000</pubDate>
++            <podcast:transcript url="https://podnews.net/audio/podnews231011.mp3.json" type="application/json" />
++            <podcast:transcript url="https://podnews.net/audio/podnews231011.mp3.srt" type="application/srt" />
++        </item>
++    </channel>
++</rss>

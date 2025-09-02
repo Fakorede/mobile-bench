@@ -1,0 +1,61 @@
+{
+  "summary": {
+    "total_tests": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "duration": 40.30348253250122,
+    "exit_code": 0,
+    "build_successful": true
+  },
+  "test_lists": {
+    "passed_tests": [
+      "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_NoAuth",
+      "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.downloadRequestTestEquals",
+      "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_WithAuth",
+      "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_MixAuth"
+    ],
+    "failed_tests": [],
+    "skipped_tests": [],
+    "error_tests": []
+  },
+  "detailed_results": [
+    {
+      "test_name": "parcelInArrayListTest_NoAuth",
+      "class_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest",
+      "full_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_NoAuth",
+      "status": "PASSED",
+      "duration": 0.0,
+      "failure_message": "",
+      "error_message": ""
+    },
+    {
+      "test_name": "downloadRequestTestEquals",
+      "class_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest",
+      "full_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.downloadRequestTestEquals",
+      "status": "PASSED",
+      "duration": 0.0,
+      "failure_message": "",
+      "error_message": ""
+    },
+    {
+      "test_name": "parcelInArrayListTest_WithAuth",
+      "class_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest",
+      "full_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_WithAuth",
+      "status": "PASSED",
+      "duration": 0.0,
+      "failure_message": "",
+      "error_message": ""
+    },
+    {
+      "test_name": "parcelInArrayListTest_MixAuth",
+      "class_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest",
+      "full_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_MixAuth",
+      "status": "PASSED",
+      "duration": 0.0,
+      "failure_message": "",
+      "error_message": ""
+    }
+  ]
+}

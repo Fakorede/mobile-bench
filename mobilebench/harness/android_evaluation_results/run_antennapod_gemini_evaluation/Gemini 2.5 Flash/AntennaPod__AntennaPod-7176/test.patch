@@ -1,0 +1,12 @@
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/NavigationDrawerTest.java b/app/src/androidTest/java/de/test/antennapod/ui/NavigationDrawerTest.java
+index 57385f62a16..d9e1db18d61 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/NavigationDrawerTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/NavigationDrawerTest.java
+@@ -52,6 +52,7 @@ public void setUp() throws IOException {
+ 
+         EspressoTestUtils.clearPreferences();
+         EspressoTestUtils.clearDatabase();
++        UserPreferences.setBottomNavigationEnabled(false);
+     }
+ 
+     @After

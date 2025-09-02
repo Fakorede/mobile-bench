@@ -1,0 +1,31 @@
+diff --git a/core/src/test/java/de/danoeh/antennapod/core/feed/VolumeAdaptionSettingTest.java b/core/src/test/java/de/danoeh/antennapod/core/feed/VolumeAdaptionSettingTest.java
+index 30767bdc88..966351a5e4 100644
+--- a/core/src/test/java/de/danoeh/antennapod/core/feed/VolumeAdaptionSettingTest.java
++++ b/core/src/test/java/de/danoeh/antennapod/core/feed/VolumeAdaptionSettingTest.java
+@@ -1,6 +1,9 @@
+ package de.danoeh.antennapod.core.feed;
+ 
+ import de.danoeh.antennapod.model.feed.VolumeAdaptionSetting;
++
++import org.junit.After;
++import org.junit.Before;
+ import org.junit.Test;
+ 
+ import static org.hamcrest.Matchers.equalTo;
+@@ -11,6 +14,16 @@
+ 
+ public class VolumeAdaptionSettingTest {
+ 
++    @Before
++    public void setUp() throws Exception {
++        VolumeAdaptionSetting.setBoostSupported(false);
++    }
++
++    @After
++    public void tearDown() throws Exception {
++        VolumeAdaptionSetting.setBoostSupported(null);
++    }
++
+     @Test
+     public void mapOffToInteger() {
+         VolumeAdaptionSetting setting = VolumeAdaptionSetting.OFF;

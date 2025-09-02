@@ -1,0 +1,14 @@
+diff --git a/app/src/androidTest/java/de/test/antennapod/service/playback/PlaybackServiceMediaPlayerTest.java b/app/src/androidTest/java/de/test/antennapod/service/playback/PlaybackServiceMediaPlayerTest.java
+index aa2f1cf9848..e8436a3a2db 100644
+--- a/app/src/androidTest/java/de/test/antennapod/service/playback/PlaybackServiceMediaPlayerTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/service/playback/PlaybackServiceMediaPlayerTest.java
+@@ -129,7 +129,8 @@ public void testInit() {
+ 
+     private Playable writeTestPlayable(String downloadUrl, String fileUrl) {
+         Feed f = new Feed(0, null, "f", "l", "d", null, null, null, null, "i", null, null, "l", false);
+-        FeedPreferences prefs = new FeedPreferences(f.getId(), false, FeedPreferences.AutoDeleteAction.NO, VolumeAdaptionSetting.OFF, null, null);
++        FeedPreferences prefs = new FeedPreferences(f.getId(), false, FeedPreferences.AutoDeleteAction.NEVER,
++                VolumeAdaptionSetting.OFF, FeedPreferences.NewEpisodesAction.NOTHING, null, null);
+         f.setPreferences(prefs);
+         f.setItems(new ArrayList<>());
+         FeedItem i = new FeedItem(0, "t", "i", "l", new Date(), FeedItem.UNPLAYED, f);

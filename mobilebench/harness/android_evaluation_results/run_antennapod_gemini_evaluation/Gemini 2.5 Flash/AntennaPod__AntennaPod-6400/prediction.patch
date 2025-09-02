@@ -1,0 +1,137 @@
+--- a/app/src/main/java/de/danoeh/antennapod/adapter/actionbutton/DeleteActionButton.java
++++ b/app/src/main/java/de/danoeh/antennapod/adapter/actionbutton/DeleteActionButton.java
+@@ -10,6 +10,7 @@
+ import de.danoeh.antennapod.R;
+ import de.danoeh.antennapod.model.feed.FeedItem;
+ import de.danoeh.antennapod.model.feed.FeedMedia;
++import de.danoeh.antennapod.core.storage.DBReader;
+ import de.danoeh.antennapod.core.storage.DBWriter;
+ 
+ public class DeleteActionButton extends ItemActionButton {
+@@ -33,7 +34,7 @@
+         if (media == null) {
+             return;
+         }
+-        DBWriter.deleteFeedMediaOfItem(context, media.getId());
++        DBWriter.deleteFeedMediaOfItem(context, DBReader.get  FeedMedia(media.getId()));
+     }
+ 
+     @Override
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/FeedItemlistFragment.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/FeedItemlistFragment.java
+@@ -367,7 +367,7 @@
+         int countHasMedia = 0;
+         for (FeedItem feedItem : items) {
+             if (feedItem.hasMedia() && feedItem.getMedia().isDownloaded()) {
+-                countHasMedia++;
++                countHasMedia++; // Only count downloaded items
+                 DBWriter.deleteFeedMediaOfItem(activity, feedItem.getMedia().getId());
+             }
+         }
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/actions/EpisodeMultiSelectActionHandler.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/actions/EpisodeMultiSelectActionHandler.java
+@@ -105,7 +105,7 @@
+         for (FeedItem feedItem : items) {
+             if (feedItem.hasMedia() && feedItem.getMedia().isDownloaded()) {
+                 countHasMedia++;
+-                DBWriter.deleteFeedMediaOfItem(activity, feedItem.getMedia().getId());
++                DBWriter.deleteFeedMediaOfItem(activity, feedItem.getMedia());
+             }
+         }
+         showMessage(R.plurals.deleted_multi_episode_batch_label, countHasMedia);
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/swipeactions/DeleteSwipeAction.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/swipeactions/DeleteSwipeAction.java
+@@ -36,7 +36,7 @@
+         if (!item.isDownloaded()) {
+             return;
+         }
+-        DBWriter.deleteFeedMediaOfItem(fragment.requireContext(), item.getMedia().getId());
++        DBWriter.deleteFeedMediaOfItem(fragment.requireContext(), item.getMedia());
+     }
+ 
+     @Override
+--- a/app/src/main/java/de/danoeh/antennapod/menuhandler/FeedItemMenuHandler.java
++++ b/app/src/main/java/de/danoeh/antennapod/menuhandler/FeedItemMenuHandler.java
+@@ -151,7 +151,7 @@
+                                              @NonNull FeedItem selectedItem) {
+ 
+         @NonNull Context context = fragment.requireContext();
+-        if (menuItemId == R.id.skip_episode_item) {
++        if (menuItemId == R.id.skip_episode_item) { // This is the "skip to next" button
+             context.sendBroadcast(MediaButtonReceiver.createIntent(context, KeyEvent.KEYCODE_MEDIA_NEXT));
+         } else if (menuItemId == R.id.remove_item) {
+             DBWriter.deleteFeedMediaOfItem(context, selectedItem.getMedia().getId());
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/playback/PlaybackService.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/service/playback/PlaybackService.java
+@@ -1102,7 +1102,7 @@
+                 boolean shouldAutoDelete = action == FeedPreferences.AutoDeleteAction.ALWAYS
+                         || (action == FeedPreferences.AutoDeleteAction.GLOBAL && UserPreferences.isAutoDelete());
+                 if (shouldAutoDelete && (!item.isTagged(FeedItem.TAG_FAVORITE)
+-                        || !UserPreferences.shouldFavoriteKeepEpisode())) {
++                        || !UserPreferences.shouldFavoriteKeepEpisode() || item.getFeed().isLocalFeed())) {
+                     DBWriter.deleteFeedMediaOfItem(PlaybackService.this, media.getId());
+                     Log.d(TAG, "Episode Deleted");
+                 }
+--- a/core/src/main/java/de/danoeh/antennapod/core/storage/DBWriter.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/storage/DBWriter.java
+@@ -94,13 +94,12 @@
+      * Deletes a downloaded FeedMedia file from the storage device.
+      *
+      * @param context A context that is used for opening a database connection.
+-     * @param mediaId ID of the FeedMedia object whose downloaded file should be deleted.
+-     */
+-    public static Future<?> deleteFeedMediaOfItem(@NonNull final Context context,
+-                                                  final long mediaId) {
+-        return dbExec.submit(() -> {
+-            final FeedMedia media = DBReader.getFeedMedia(mediaId);
+-            if (media != null) {
++     * @param media The FeedMedia object whose downloaded file should be deleted.
++     */
++    public static Future<?> deleteFeedMediaOfItem(@NonNull final Context context, @NonNull final FeedMedia media) {
++        return dbExec.submit(() -> {
++            // Make sure we have the latest version of the media object
++            final FeedMedia updatedMedia = DBReader.getFeedMedia(media.getId());
++            if (updatedMedia != null) {
+                 boolean result = deleteFeedMediaSynchronous(context, media);
+-
+                 if (result && UserPreferences.shouldDeleteRemoveFromQueue()) {
+                     DBWriter.removeQueueItemSynchronous(context, false, media.getItem().getId());
+                 }
+@@ -110,8 +109,8 @@
+ 
+     private static boolean deleteFeedMediaSynchronous(
+             @NonNull Context context, @NonNull FeedMedia media) {
+-        Log.i(TAG, String.format(Locale.US, "Requested to delete FeedMedia [id=%d, title=%s, downloaded=%s",
+-                media.getId(), media.getEpisodeTitle(), media.isDownloaded()));
++        Log.i(TAG, String.format(Locale.US, "Requested to delete FeedMedia [id=%d, title=%s, downloaded=%s, localFeed=%s]",
++                media.getId(), media.getEpisodeTitle(), media.isDownloaded(), media.getItem().getFeed().isLocalFeed()));
+         if (media.isDownloaded()) {
+             // delete downloaded media file
+             File mediaFile = new File(media.getFile_url());
+@@ -122,14 +121,16 @@
+             }
+             media.setDownloaded(false);
+             media.setFile_url(null);
+             media.setHasEmbeddedPicture(false);
+             PodDBAdapter adapter = PodDBAdapter.getInstance();
+             adapter.open();
+             adapter.setMedia(media);
+             adapter.close();
+ 
+-            if (media.getId() == PlaybackPreferences.getCurrentlyPlayingFeedMediaId()) {
++            if (media.getId() == PlaybackPreferences.getCurrentlyPlayingFeedMediaId() && !media.getItem().getFeed().isLocalFeed()) {
+                 PlaybackPreferences.writeNoMediaPlaying();
+                 IntentUtils.sendLocalBroadcast(context, PlaybackServiceInterface.ACTION_SHUTDOWN_PLAYBACK_SERVICE);
+ 
+                 NotificationManagerCompat nm = NotificationManagerCompat.from(context);
+                 nm.cancel(R.id.notification_playing);
+             }
+@@ -207,7 +208,7 @@
+                     PlaybackPreferences.writeNoMediaPlaying();
+                     IntentUtils.sendLocalBroadcast(context, PlaybackServiceInterface.ACTION_SHUTDOWN_PLAYBACK_SERVICE);
+                 }
+-                if (item.getMedia().isDownloaded()) {
++                if (item.getMedia().isDownloaded() && !item.getFeed().isLocalFeed()) {
+                     deleteFeedMediaSynchronous(context, item.getMedia());
+                 }
+                 DownloadServiceInterface.get().cancel(context, item.getMedia().getDownload_url());

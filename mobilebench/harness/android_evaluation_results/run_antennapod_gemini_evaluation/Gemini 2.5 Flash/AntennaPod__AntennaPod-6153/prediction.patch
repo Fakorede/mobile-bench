@@ -1,0 +1,81 @@
+--- a/core/src/main/java/de/danoeh/antennapod/core/feed/LocalFeedUpdater.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/feed/LocalFeedUpdater.java
+@@ -189,39 +189,43 @@
+     }
+ 
+     private static void loadMetadata(FeedItem item, DocumentFile file, Context context) {
+-        MediaMetadataRetriever mediaMetadataRetriever = new MediaMetadataRetriever();
+-        mediaMetadataRetriever.setDataSource(context, file.getUri());
+-
+-        String dateStr = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE);
+-        if (!TextUtils.isEmpty(dateStr)) {
++        try {
++            MediaMetadataRetriever mediaMetadataRetriever = new MediaMetadataRetriever();
++            mediaMetadataRetriever.setDataSource(context, file.getUri());
++
++            String dateStr = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE);
++            if (!TextUtils.isEmpty(dateStr)) {
++                try {
++                    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.getDefault());
++                    item.setPubDate(simpleDateFormat.parse(dateStr));
++                } catch (ParseException parseException) {
++                    Date date = DateUtils.parse(dateStr);
++                    if (date != null) {
++                        item.setPubDate(date);
++                    }
++                }
++            }
++
++            String title = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
++            if (!TextUtils.isEmpty(title)) {
++                item.setTitle(title);
++            }
++
++            String durationStr = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
++            if (!TextUtils.isEmpty(durationStr)) {
++                item.getMedia().setDuration((int) Long.parseLong(durationStr));
++            }
++
++            item.getMedia().setHasEmbeddedPicture(mediaMetadataRetriever.getEmbeddedPicture() != null);
++        } catch (Exception e) {
++            Log.e(TAG, "Unable to load metadata from MediaMetadataRetriever for " + file.getUri() + ": " + e.getMessage());
++        }
++
++        try (InputStream inputStream = context.getContentResolver().openInputStream(file.getUri())) {
++            Id3MetadataReader reader = new Id3MetadataReader(new CountingInputStream(inputStream));
++            reader.readInputStream();
++            item.setDescriptionIfLonger(reader.getComment());
++        } catch (IOException | ID3ReaderException e) {
++            Log.d(TAG, "Unable to parse ID3 of " + file.getUri() + ": " + e.getMessage());
+             try {
+-                SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.getDefault());
+-                item.setPubDate(simpleDateFormat.parse(dateStr));
+-            } catch (ParseException parseException) {
+-                Date date = DateUtils.parse(dateStr);
+-                if (date != null) {
+-                    item.setPubDate(date);
+-                }
+-            }
+-        }
+-
+-        String title = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
+-        if (!TextUtils.isEmpty(title)) {
+-            item.setTitle(title);
+-        }
+-
+-        String durationStr = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+-        item.getMedia().setDuration((int) Long.parseLong(durationStr));
+-
+-        item.getMedia().setHasEmbeddedPicture(mediaMetadataRetriever.getEmbeddedPicture() != null);
+-
+-        try (InputStream inputStream = context.getContentResolver().openInputStream(file.getUri())) {
+-            Id3MetadataReader reader = new Id3MetadataReader(new CountingInputStream(inputStream));
+-            reader.readInputStream();
+-            item.setDescriptionIfLonger(reader.getComment());
+-        } catch (IOException | ID3ReaderException e) {
+-            Log.d(TAG, "Unable to parse ID3 of " + file.getUri() + ": " + e.getMessage());
+-
+-            try (InputStream inputStream = context.getContentResolver().openInputStream(file.getUri())) {
+                 VorbisCommentMetadataReader reader = new VorbisCommentMetadataReader(inputStream);
+                 reader.readInputStream();
+                 item.setDescriptionIfLonger(reader.getDescription());

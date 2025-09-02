@@ -1,0 +1,176 @@
+
+==================================================
+Task: :net:download:service-interface:testDebugUnitTest --tests de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest
+Exit Code: 0
+==================================================
+To honour the JVM settings for this build a single-use Daemon process will be forked. See https://docs.gradle.org/7.5/userguide/gradle_daemon.html#sec:disabling_the_daemon.
+Daemon will be stopped at the end of the build 
+Configuration on demand is an incubating feature.
+
+> Configure project :net:download:service-interface
+WARNING:The option setting 'android.jetifier.ignorelist=bcprov-jdk15on' is experimental.
+
+> Task :net:common:preBuild UP-TO-DATE
+> Task :model:preBuild UP-TO-DATE
+> Task :net:download:service-interface:preBuild UP-TO-DATE
+> Task :net:common:preDebugBuild UP-TO-DATE
+> Task :model:preDebugBuild UP-TO-DATE
+> Task :net:download:service-interface:preDebugBuild UP-TO-DATE
+> Task :model:compileDebugAidl NO-SOURCE
+> Task :net:common:compileDebugAidl NO-SOURCE
+> Task :model:compileDebugRenderscript NO-SOURCE
+> Task :net:common:compileDebugRenderscript NO-SOURCE
+> Task :net:common:dataBindingMergeDependencyArtifactsDebug
+> Task :net:common:generateDebugResValues
+> Task :net:common:generateDebugResources
+> Task :net:download:service-interface:dataBindingMergeDependencyArtifactsDebug
+> Task :net:download:service-interface:compileDebugAidl NO-SOURCE
+> Task :model:dataBindingMergeDependencyArtifactsDebug
+> Task :net:download:service-interface:generateDebugResValues
+> Task :model:generateDebugResValues
+> Task :model:generateDebugResources
+> Task :net:common:packageDebugResources
+> Task :net:download:service-interface:generateDebugBuildConfig
+> Task :model:packageDebugResources
+> Task :model:dataBindingGenBaseClassesDebug
+> Task :net:common:dataBindingGenBaseClassesDebug
+> Task :model:generateDebugBuildConfig
+> Task :net:common:generateDebugBuildConfig
+
+> Task :net:download:service-interface:processDebugManifest
+package="de.danoeh.antennapod.net.download.serviceinterface" found in source AndroidManifest.xml: /workspace/net/download/service-interface/src/main/AndroidManifest.xml.
+Setting the namespace via a source AndroidManifest.xml's package attribute is deprecated.
+Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+This migration can be done automatically using the AGP Upgrade Assistant, please refer to https://developer.android.com/studio/build/agp-upgrade-assistant for more information.
+
+> Task :net:download:service-interface:javaPreCompileDebug
+> Task :net:download:service-interface:processDebugJavaRes NO-SOURCE
+> Task :net:download:service-interface:preDebugUnitTestBuild UP-TO-DATE
+> Task :net:download:service-interface:javaPreCompileDebugUnitTest
+> Task :net:download:service-interface:writeDebugAarMetadata
+> Task :net:download:service-interface:generateDebugUnitTestResValues
+> Task :net:download:service-interface:generateDebugUnitTestResources
+> Task :net:download:service-interface:mergeDebugShaders
+> Task :net:download:service-interface:compileDebugShaders NO-SOURCE
+> Task :net:download:service-interface:generateDebugAssets UP-TO-DATE
+> Task :net:download:service-interface:generateDebugUnitTestAssets UP-TO-DATE
+> Task :net:download:service-interface:packageDebugAssets
+> Task :net:download:service-interface:processDebugUnitTestJavaRes NO-SOURCE
+
+> Task :model:processDebugManifest
+package="de.danoeh.antennapod.model" found in source AndroidManifest.xml: /workspace/model/src/main/AndroidManifest.xml.
+Setting the namespace via a source AndroidManifest.xml's package attribute is deprecated.
+Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+This migration can be done automatically using the AGP Upgrade Assistant, please refer to https://developer.android.com/studio/build/agp-upgrade-assistant for more information.
+
+> Task :net:common:processDebugJavaRes NO-SOURCE
+> Task :model:javaPreCompileDebug
+> Task :model:processDebugJavaRes NO-SOURCE
+> Task :net:common:javaPreCompileDebug
+
+> Task :net:common:processDebugManifest
+package="de.danoeh.antennapod.net.common" found in source AndroidManifest.xml: /workspace/net/common/src/main/AndroidManifest.xml.
+Setting the namespace via a source AndroidManifest.xml's package attribute is deprecated.
+Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+This migration can be done automatically using the AGP Upgrade Assistant, please refer to https://developer.android.com/studio/build/agp-upgrade-assistant for more information.
+
+> Task :net:common:packageDebugRenderscript NO-SOURCE
+> Task :model:packageDebugRenderscript NO-SOURCE
+> Task :net:download:service-interface:compileDebugRenderscript NO-SOURCE
+> Task :net:download:service-interface:generateDebugResources
+> Task :net:download:service-interface:packageDebugResources
+> Task :net:download:service-interface:dataBindingGenBaseClassesDebug
+> Task :net:download:service-interface:parseDebugLocalResources
+> Task :net:common:parseDebugLocalResources
+> Task :model:parseDebugLocalResources
+> Task :net:download:service-interface:compileDebugLibraryResources
+> Task :model:compileDebugLibraryResources
+> Task :net:common:compileDebugLibraryResources
+> Task :model:extractDeepLinksDebug
+> Task :net:common:extractDeepLinksDebug
+> Task :model:writeDebugAarMetadata
+> Task :model:mergeDebugShaders
+> Task :net:common:writeDebugAarMetadata
+> Task :net:common:mergeDebugShaders
+> Task :net:common:compileDebugShaders NO-SOURCE
+> Task :net:common:generateDebugAssets UP-TO-DATE
+> Task :model:compileDebugShaders NO-SOURCE
+> Task :model:generateDebugAssets UP-TO-DATE
+> Task :net:common:generateDebugRFile
+> Task :model:generateDebugRFile
+> Task :net:common:packageDebugAssets
+> Task :model:packageDebugAssets
+> Task :net:download:service-interface:mapDebugUnitTestSourceSetPaths
+> Task :net:download:service-interface:generateDebugRFile
+> Task :net:download:service-interface:checkDebugUnitTestAarMetadata
+> Task :net:download:service-interface:extractDeepLinksDebug
+> Task :net:download:service-interface:mergeDebugUnitTestResources
+> Task :net:download:service-interface:processDebugUnitTestManifest
+> Task :net:download:service-interface:mergeDebugAssets
+> Task :net:download:service-interface:mergeDebugUnitTestAssets
+> Task :net:download:service-interface:processDebugUnitTestResources
+> Task :net:download:service-interface:packageDebugUnitTestForUnitTest
+> Task :net:download:service-interface:generateDebugUnitTestConfig
+
+> Task :model:compileDebugJavaWithJavac
+
+> Task :net:common:compileDebugJavaWithJavac
+> Task :model:bundleLibResDebug
+> Task :net:common:bundleLibResDebug
+> Task :net:common:bundleLibCompileToJarDebug
+> Task :net:common:bundleLibRuntimeToJarDebug
+> Task :model:bundleLibRuntimeToJarDebug
+> Task :model:bundleLibCompileToJarDebug
+> Task :net:download:service-interface:compileDebugJavaWithJavac
+> Task :net:download:service-interface:bundleLibResDebug
+> Task :net:download:service-interface:bundleLibRuntimeToJarDebug
+> Task :net:download:service-interface:bundleLibCompileToJarDebug
+
+> Task :net:download:service-interface:compileDebugUnitTestJavaWithJavac
+
+> Task :net:download:service-interface:testDebugUnitTest
+
+de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest > parcelInArrayListTest_NoAuth STANDARD_ERROR
+    [WARN] Unknown chunk type '200'.
+
+de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest > parcelInArrayListTest_NoAuth PASSED
+
+de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest > downloadRequestTestEquals PASSED
+
+de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest > parcelInArrayListTest_WithAuth PASSED
+
+de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest > parcelInArrayListTest_MixAuth PASSED
+
+BUILD SUCCESSFUL in 39s
+67 actionable tasks: 67 executed
+Warning: SDK processing. This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+/workspace/model/src/main/java/de/danoeh/antennapod/model/feed/FeedItem.java:21: warning: [serial] serializable class FeedItem has no definition of serialVersionUID
+public class FeedItem extends FeedComponent implements Serializable {
+       ^
+/workspace/model/src/main/java/de/danoeh/antennapod/model/feed/FeedPreferences.java:13: warning: [serial] serializable class FeedPreferences has no definition of serialVersionUID
+public class FeedPreferences implements Serializable {
+       ^
+/workspace/model/src/main/java/de/danoeh/antennapod/model/feed/FeedItemFilter.java:9: warning: [serial] serializable class FeedItemFilter has no definition of serialVersionUID
+public class FeedItemFilter implements Serializable {
+       ^
+/workspace/model/src/main/java/de/danoeh/antennapod/model/feed/FeedFilter.java:10: warning: [serial] serializable class FeedFilter has no definition of serialVersionUID
+public class FeedFilter implements Serializable {
+       ^
+/workspace/model/src/main/java/de/danoeh/antennapod/model/feed/FeedMedia.java:19: warning: [serial] serializable class FeedMedia has no definition of serialVersionUID
+public class FeedMedia extends FeedFile implements Playable {
+       ^
+/workspace/model/src/main/java/de/danoeh/antennapod/model/playback/RemoteMedia.java:24: warning: [serial] serializable class RemoteMedia has no definition of serialVersionUID
+public class RemoteMedia implements Playable {
+       ^
+6 warnings
+/workspace/net/download/service-interface/src/test/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadRequestTest.java:94: warning: [deprecation] <T>getParcelableArrayList(String) in Bundle has been deprecated
+        ArrayList<DownloadRequest> fromParcel = bundleOut.getParcelableArrayList("r");
+                                                         ^
+  where T is a type-variable:
+    T extends Parcelable declared in method <T>getParcelableArrayList(String)
+/workspace/net/download/service-interface/src/test/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadRequestTest.java:110: warning: [deprecation] get(String) in BaseBundle has been deprecated
+            Object val = b.get(key);
+                          ^
+2 warnings
+
+==================================================

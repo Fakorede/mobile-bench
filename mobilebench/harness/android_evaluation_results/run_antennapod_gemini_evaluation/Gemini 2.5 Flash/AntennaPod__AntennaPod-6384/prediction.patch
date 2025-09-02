@@ -1,0 +1,197 @@
+--- a/app/src/main/java/de/danoeh/antennapod/dialog/SleepTimerDialog.java
++++ b/app/src/main/java/de/danoeh/antennapod/dialog/SleepTimerDialog.java
+@@ -14,6 +14,7 @@
+ import android.widget.EditText;
+ import android.widget.LinearLayout;
+ import android.widget.TextView;
++import android.widget.TimePicker;
+ import androidx.annotation.NonNull;
+ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+ import androidx.fragment.app.DialogFragment;
+@@ -35,6 +36,8 @@
+     private LinearLayout timeSetup;
+     private LinearLayout timeDisplay;
+     private TextView time;
++    private TimePicker autoEnableStartTime;
++    private TimePicker autoEnableEndTime;
+ 
+     public SleepTimerDialog() {
+ 
+@@ -73,6 +76,8 @@
+         CheckBox cbShakeToReset = content.findViewById(R.id.cbShakeToReset);
+         CheckBox cbVibrate = content.findViewById(R.id.cbVibrate);
+         CheckBox chAutoEnable = content.findViewById(R.id.chAutoEnable);
++        autoEnableStartTime = content.findViewById(R.id.auto_enable_start_time);
++        autoEnableEndTime = content.findViewById(R.id.auto_enable_end_time);
+ 
+         cbShakeToReset.setChecked(SleepTimerPreferences.shakeToReset());
+         cbVibrate.setChecked(SleepTimerPreferences.vibrate());
+@@ -83,7 +88,17 @@
+         cbVibrate.setOnCheckedChangeListener((buttonView, isChecked)
+                 -> SleepTimerPreferences.setVibrate(isChecked));
+         chAutoEnable.setOnCheckedChangeListener((compoundButton, isChecked)
+-                -> SleepTimerPreferences.setAutoEnable(isChecked));
++                -> {
++                    SleepTimerPreferences.setAutoEnable(isChecked);
++                    content.findViewById(R.id.auto_enable_time_layout).setVisibility(isChecked ? View.VISIBLE : View.GONE);
++                });
++
++        autoEnableStartTime.setHour(SleepTimerPreferences.autoEnableStartTimeHour());
++        autoEnableStartTime.setMinute(SleepTimerPreferences.autoEnableStartTimeMinute());
++        autoEnableEndTime.setHour(SleepTimerPreferences.autoEnableEndTimeHour());
++        autoEnableEndTime.setMinute(SleepTimerPreferences.autoEnableEndTimeMinute());
++
++        content.findViewById(R.id.auto_enable_time_layout).setVisibility(chAutoEnable.isChecked() ? View.VISIBLE : View.GONE);
+ 
+         Button disableButton = content.findViewById(R.id.disableSleeptimerButton);
+         disableButton.setOnClickListener(v -> {
+@@ -106,6 +121,14 @@
+                 closeKeyboard(content);
+             } catch (NumberFormatException e) {
+                 e.printStackTrace();
++                Snackbar.make(content, R.string.time_dialog_invalid_input, Snackbar.LENGTH_LONG).show();
++            }
++        });
++
++        builder.setOnDismissListener(dialog -> {
++            try {
++                SleepTimerPreferences.setAutoEnableTime(autoEnableStartTime.getHour(), autoEnableStartTime.getMinute(),
++                        autoEnableEndTime.getHour(), autoEnableEndTime.getMinute());
++            } catch (IllegalArgumentException e) {
+                 Snackbar.make(content, R.string.time_dialog_invalid_input, Snackbar.LENGTH_LONG).show();
+             }
+         });
+--- a/app/src/main/res/layout/time_dialog.xml
++++ b/app/src/main/res/layout/time_dialog.xml
+@@ -140,6 +140,40 @@
+             android:layout_width="match_parent"
+             android:layout_height="wrap_content"
+             android:text="@string/auto_enable_label" />
++
++        <LinearLayout
++            android:id="@+id/auto_enable_time_layout"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:orientation="vertical"
++            android:visibility="gone">
++
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:text="@string/auto_enable_start_time_label"
++                android:layout_marginTop="8dp"
++                android:textAppearance="?android:attr/textAppearanceSmall" />
++
++            <TimePicker
++                android:id="@+id/auto_enable_start_time"
++                android:layout_width="wrap_content"
++                android:layout_height="wrap_content"
++                android:timePickerMode="spinner"
++                android:layout_gravity="center_horizontal" />
++
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:text="@string/auto_enable_end_time_label"
++                android:layout_marginTop="8dp"
++                android:textAppearance="?android:attr/textAppearanceSmall" />
++
++            <TimePicker
++                android:id="@+id/auto_enable_end_time"
++                android:layout_width="wrap_content"
++                android:layout_height="wrap_content"
++                android:timePickerMode="spinner"
++                android:layout_gravity="center_horizontal" />
++        </LinearLayout>
+ 
+     </LinearLayout>
+ 
+--- a/core/src/main/java/de/danoeh/antennapod/core/preferences/SleepTimerPreferences.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/preferences/SleepTimerPreferences.java
+@@ -20,6 +20,10 @@
+     private static final String PREF_VIBRATE = "Vibrate";
+     private static final String PREF_SHAKE_TO_RESET = "ShakeToReset";
+     private static final String PREF_AUTO_ENABLE = "AutoEnable";
++    private static final String PREF_AUTO_ENABLE_START_HOUR = "AutoEnableStartHour";
++    private static final String PREF_AUTO_ENABLE_START_MINUTE = "AutoEnableStartMinute";
++    private static final String PREF_AUTO_ENABLE_END_HOUR = "AutoEnableEndHour";
++    private static final String PREF_AUTO_ENABLE_END_MINUTE = "AutoEnableEndMinute";
+ 
+     private static final String DEFAULT_VALUE = "15";
+ 
+@@ -69,4 +73,32 @@
+         return prefs.getBoolean(PREF_AUTO_ENABLE, false);
+     }
+ 
++    public static void setAutoEnableTime(int startHour, int startMinute, int endHour, int endMinute) {
++        prefs.edit()
++                .putInt(PREF_AUTO_ENABLE_START_HOUR, startHour)
++                .putInt(PREF_AUTO_ENABLE_START_MINUTE, startMinute)
++                .putInt(PREF_AUTO_ENABLE_END_HOUR, endHour)
++                .putInt(PREF_AUTO_ENABLE_END_MINUTE, endMinute)
++                .apply();
++    }
++
++    public static int autoEnableStartTimeHour() {
++        return prefs.getInt(PREF_AUTO_ENABLE_START_HOUR, 22); // Default to 10 PM
++    }
++
++    public static int autoEnableStartTimeMinute() {
++        return prefs.getInt(PREF_AUTO_ENABLE_START_MINUTE, 0); // Default to 00 minutes
++    }
++
++    public static int autoEnableEndTimeHour() {
++        return prefs.getInt(PREF_AUTO_ENABLE_END_HOUR, 7); // Default to 7 AM
++    }
++
++    public static int autoEnableEndTimeMinute() {
++        return prefs.getInt(PREF_AUTO_ENABLE_END_MINUTE, 0); // Default to 00 minutes
++    }
++
++    public static boolean is  AutoEnableTimeRangeActive(int currentHour, int currentMinute) {
++        return isTimeInBetween(autoEnableStartTimeHour(), autoEnableStartTimeMinute(),
++                autoEnableEndTimeHour(), autoEnableEndTimeMinute(), currentHour, currentMinute);
++    }
+ }
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/playback/PlaybackService.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/service/playback/PlaybackService.java
+@@ -67,6 +67,7 @@
+ import java.util.Collections;
+ import java.util.List;
+ import java.util.concurrent.TimeUnit;
++import java.util.Calendar;
+ 
+ import de.danoeh.antennapod.core.R;
+ import de.danoeh.antennapod.event.MessageEvent;
+@@ -796,7 +797,11 @@
+                     setupPositionObserver();
+                     stateManager.validStartCommandWasReceived();
+                     stateManager.startForeground(R.id.notification_playing, notificationBuilder.build());
+-                    // set sleep timer if auto-enabled
+-                    if (newInfo.oldPlayerStatus != null && newInfo.oldPlayerStatus != PlayerStatus.SEEKING
+-                            && SleepTimerPreferences.autoEnable() && !sleepTimerActive()) {
++
++                    Calendar now = Calendar.getInstance();
++                    int currentHour = now.get(Calendar.HOUR_OF_DAY);
++                    int currentMinute = now.get(Calendar.MINUTE);
++
++                    if (SleepTimerPreferences.autoEnable() && !sleepTimerActive()
++                            && SleepTimerPreferences.isAutoEnableTimeRangeActive(currentHour, currentMinute)) {
+                         setSleepTimer(SleepTimerPreferences.timerMillis());
+                         EventBus.getDefault().post(new MessageEvent(getString(R.string.sleep_timer_enabled_label),
+                                  PlaybackService.this::disableSleepTimer));
+--- a/ui/i18n/src/main/res/values/strings.xml
++++ b/ui/i18n/src/main/res/values/strings.xml
+@@ -613,6 +613,9 @@
+     <plurals name="time_hours_quantified">
+         <item quantity="one">1 hour</item>
+         <item quantity="other">%d hours</item>
+-    </plurals>
++    </plurals>    
+     <string name="auto_enable_label">Auto-enable</string>
+     <string name="sleep_timer_enabled_label">Sleep timer enabled</string>
++    <string name="auto_enable_start_time_label">Start time</string>
++    <string name="auto_enable_end_time_label">End time</string>
+ 
+     <!-- Synchronisation -->
+     <string name="synchronization_choose_title">Choose synchronization provider</string>

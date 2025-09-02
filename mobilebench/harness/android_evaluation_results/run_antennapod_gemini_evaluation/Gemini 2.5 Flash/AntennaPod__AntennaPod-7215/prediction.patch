@@ -1,0 +1,32 @@
+--- a/parser/media/src/main/java/de/danoeh/antennapod/parser/media/vorbis/VorbisCommentReader.java
++++ b/parser/media/src/main/java/de/danoeh/antennapod/parser/media/vorbis/VorbisCommentReader.java
+@@ -33,7 +33,7 @@
+             findOggPage();
+             findCommentHeader();
+             VorbisCommentHeader commentHeader = readCommentHeader();
+-            Log.d(TAG, commentHeader.toString());
++            Log.d(TAG, "VorbisCommentHeader " + commentHeader.toString());
+             for (int i = 0; i < commentHeader.getUserCommentLength(); i++) {
+                 readUserComment();
+             }
+@@ -67,10 +67,10 @@
+         try {
+             long vectorLength = EndianUtils.readSwappedUnsignedInteger(input);
+             if (vectorLength > 20 * 1024 * 1024) {
+-                String keyPart = readUtf8String(10);
++                String keyPart = readContentVectorKey(Math.min(vectorLength, 10));
+                 throw new VorbisCommentReaderException("User comment unrealistically long. "
+                         + "key=" + keyPart + ", length=" + vectorLength);
+             }
+             String key = readContentVectorKey(vectorLength).toLowerCase(Locale.US);
+             boolean shouldReadValue = handles(key);
+             Log.d(TAG, "key=" + key + ", length=" + vectorLength + ", handles=" + shouldReadValue);
+@@ -166,7 +166,7 @@
+                 builder.append(c);
+             }
+         }
+-        return null; // no key found
++        return builder.toString(); // no '=' found, return what we have
+     }
+ 
+     /**

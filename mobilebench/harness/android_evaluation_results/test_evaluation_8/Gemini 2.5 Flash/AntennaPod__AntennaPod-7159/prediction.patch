@@ -1,0 +1,52 @@
+--- a/ui/chapters/src/main/java/de/danoeh/antennapod/ui/chapters/ChapterUtils.java
++++ b/ui/chapters/src/main/java/de/danoeh/antennapod/ui/chapters/ChapterUtils.java
+@@ -15,6 +15,7 @@
+ import de.danoeh.antennapod.parser.media.id3.ChapterReader;
+ import de.danoeh.antennapod.parser.media.id3.ID3ReaderException;
+ import de.danoeh.antennapod.model.playback.Playable;
++import de.danoeh.antennapod.parser.media.mp4.Mp4ChapterReader;
+ import de.danoeh.antennapod.parser.media.vorbis.VorbisCommentChapterReader;
+ import de.danoeh.antennapod.parser.media.vorbis.VorbisCommentReaderException;
+ import okhttp3.CacheControl;
+@@ -97,6 +98,19 @@
+         } catch (IOException | VorbisCommentReaderException e) {
+             Log.e(TAG, "Unable to load vorbis chapters: " + e.getMessage());
+         }
++
++        try (CountingInputStream in = openStream(playable, context)) {
++            List<Chapter> chapters = readMp4ChaptersFromInputStream(in);
++            if (!chapters.isEmpty()) {
++                Log.i(TAG, "Chapters loaded");
++                return chapters;
++            }
++        } catch (InterruptedIOException e) {
++            throw e;
++        } catch (IOException e) {
++            Log.e(TAG, "Unable to load MP4 chapters: " + e.getMessage());
++        }
++
+         return null;
+     }
+ 
+@@ -168,6 +182,21 @@
+         return chapters;
+     }
+ 
++    @NonNull
++    private static List<Chapter> readMp4ChaptersFromInputStream(InputStream input) throws IOException {
++        Mp4ChapterReader reader = new Mp4ChapterReader(input);
++        reader.readInputStream();
++        List<Chapter> chapters = reader.getChapters();
++        if (chapters == null) {
++            return Collections.emptyList();
++        }
++        Collections.sort(chapters, new ChapterStartTimeComparator());
++        enumerateEmptyChapterTitles(chapters);
++        if (chaptersValid(chapters)) {
++            return chapters;
++        }
++        return Collections.emptyList();
++    }
+     @NonNull
+     private static List<Chapter> readOggChaptersFromInputStream(InputStream input) throws VorbisCommentReaderException {
+         VorbisCommentChapterReader reader = new VorbisCommentChapterReader(new BufferedInputStream(input));

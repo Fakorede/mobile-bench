@@ -1,0 +1,58 @@
+--- a/core/src/main/java/de/danoeh/antennapod/core/feed/LocalFeedUpdater.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/feed/LocalFeedUpdater.java
+@@ -126,7 +126,7 @@
+         feed.getPreferences().setAutoDownload(false);
+         feed.getPreferences().setAutoDeleteAction(FeedPreferences.AutoDeleteAction.NO);
+         feed.setDescription(context.getString(R.string.local_feed_description));
+-        feed.setAuthor(context.getString(R.string.local_folder));
++        feed.setAuthor(context.getString(R.string.local_folder)); // TODO: This is not a good default
+ 
+         // update items, delete items without existing file;
+         // only delete items if the folder contains at least one element to avoid accidentally
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/download/handler/FeedParserTask.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/service/download/handler/FeedParserTask.java
+@@ -45,7 +45,7 @@
+         feed.setFile_url(request.getDestination());
+         feed.setId(request.getFeedfileId());
+         feed.setDownloaded(true);
+-        feed.setPreferences(new FeedPreferences(0, true, FeedPreferences.AutoDeleteAction.GLOBAL,
++        feed.setPreferences(new FeedPreferences(0, false, FeedPreferences.AutoDeleteAction.GLOBAL,
+                 VolumeAdaptionSetting.OFF, request.getUsername(), request.getPassword()));
+         feed.setPageNr(request.getArguments().getInt(DownloadRequest.REQUEST_ARG_PAGE_NR, 0));
+ 
+--- a/core/src/main/java/de/danoeh/antennapod/core/storage/DBTasks.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/storage/DBTasks.java
+@@ -302,7 +302,7 @@
+             Log.d(TAG, "Found no existing Feed with title "
+                             + newFeed.getTitle() + ". Adding as new one.");
+ 
+-            // Add a new Feed
++            // Add a new Feed. Do not mark the most recent item as new.
+             // all new feeds will have the most recent item marked as unplayed
+             FeedItem mostRecent = newFeed.getMostRecentItem();
+             if (mostRecent != null) {
+@@ -369,11 +369,8 @@
+                         savedFeed.getItems().add(idx, item);
+                     }
+ 
+-                    // only mark the item new if it was published after or at the same time
+-                    // as the most recent item
+-                    // (if the most recent date is null then we can assume there are no items
+-                    // and this is the first, hence 'new')
+-                    // New items that do not have a pubDate set are always marked as new
++                    // Only mark the item new if it was published after or at the same time as the most recent item.
++                    // New items that do not have a pubDate set are always marked as new.
+                     if (item.getPubDate() == null || priorMostRecentDate == null
+                             || priorMostRecentDate.before(item.getPubDate())
+                             || priorMostRecentDate.equals(item.getPubDate())) {
+--- a/model/src/main/java/de/danoeh/antennapod/model/feed/Feed.java
++++ b/model/src/main/java/de/danoeh/antennapod/model/feed/Feed.java
+@@ -176,7 +176,7 @@
+      * This constructor is used for requesting a feed download (it must not be used for anything else!). It should be
+      * used if the title of the feed is already known.
+      */
+-    public Feed(String url, String lastUpdate, String title, String username, String password) {
++    public Feed(String url, String lastUpdate, String title, String username, String password) { // TODO: Remove this constructor
+         this(url, lastUpdate, title);
+         preferences = new FeedPreferences(0, true, FeedPreferences.AutoDeleteAction.GLOBAL, VolumeAdaptionSetting.OFF, username, password);
+     }

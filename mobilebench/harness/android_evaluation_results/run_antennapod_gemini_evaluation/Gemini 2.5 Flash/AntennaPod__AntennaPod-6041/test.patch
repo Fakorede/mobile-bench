@@ -1,0 +1,248 @@
+diff --git a/app/src/androidTest/java/de/test/antennapod/EspressoTestUtils.java b/app/src/androidTest/java/de/test/antennapod/EspressoTestUtils.java
+index df3dbb7f875..70282a6f34c 100644
+--- a/app/src/androidTest/java/de/test/antennapod/EspressoTestUtils.java
++++ b/app/src/androidTest/java/de/test/antennapod/EspressoTestUtils.java
+@@ -172,12 +172,16 @@ public static void clearPreferences() {
+         RatingDialog.saveRated();
+     }
+ 
+-    public static void setLastNavFragment(String tag) {
++    public static void setLaunchScreen(String tag) {
+         InstrumentationRegistry.getInstrumentation().getTargetContext()
+                 .getSharedPreferences(NavDrawerFragment.PREF_NAME, Context.MODE_PRIVATE)
+                 .edit()
+                 .putString(NavDrawerFragment.PREF_LAST_FRAGMENT_TAG, tag)
+                 .commit();
++        PreferenceManager.getDefaultSharedPreferences(InstrumentationRegistry.getInstrumentation().getTargetContext())
++                .edit()
++                .putString(UserPreferences.PREF_DEFAULT_PAGE, UserPreferences.DEFAULT_PAGE_REMEMBER)
++                .commit();
+     }
+ 
+     public static void clearDatabase() {
+diff --git a/app/src/androidTest/java/de/test/antennapod/dialogs/ShareDialogTest.java b/app/src/androidTest/java/de/test/antennapod/dialogs/ShareDialogTest.java
+index c68e13438d2..49a252ea1bc 100644
+--- a/app/src/androidTest/java/de/test/antennapod/dialogs/ShareDialogTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/dialogs/ShareDialogTest.java
+@@ -48,7 +48,7 @@ public void setUp() throws Exception {
+         context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+         EspressoTestUtils.clearPreferences();
+         EspressoTestUtils.clearDatabase();
+-        EspressoTestUtils.setLastNavFragment(AllEpisodesFragment.TAG);
++        EspressoTestUtils.setLaunchScreen(AllEpisodesFragment.TAG);
+         UITestUtils uiTestUtils = new UITestUtils(context);
+         uiTestUtils.setup();
+         uiTestUtils.addLocalFeedData(true);
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/MainActivityTest.java b/app/src/androidTest/java/de/test/antennapod/ui/MainActivityTest.java
+index 81d7731c502..a55670ed6b5 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/MainActivityTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/MainActivityTest.java
+@@ -1,16 +1,15 @@
+ package de.test.antennapod.ui;
+ 
+-import android.app.Activity;
+ import android.content.Intent;
+-
+ import androidx.test.espresso.Espresso;
+ import androidx.test.espresso.intent.rule.IntentsTestRule;
+ import androidx.test.ext.junit.runners.AndroidJUnit4;
+ import androidx.test.platform.app.InstrumentationRegistry;
+-
+-import com.robotium.solo.Solo;
+-
++import de.danoeh.antennapod.R;
++import de.danoeh.antennapod.activity.MainActivity;
++import de.danoeh.antennapod.model.feed.Feed;
+ import de.danoeh.antennapod.storage.database.PodDBAdapter;
++import de.test.antennapod.EspressoTestUtils;
+ import org.junit.After;
+ import org.junit.Before;
+ import org.junit.Rule;
+@@ -19,27 +18,14 @@
+ 
+ import java.io.IOException;
+ 
+-import de.danoeh.antennapod.R;
+-import de.danoeh.antennapod.activity.MainActivity;
+-import de.danoeh.antennapod.model.feed.Feed;
+-import de.test.antennapod.EspressoTestUtils;
+-
+ import static androidx.test.espresso.Espresso.onView;
+ import static androidx.test.espresso.action.ViewActions.click;
+ import static androidx.test.espresso.action.ViewActions.replaceText;
+ import static androidx.test.espresso.action.ViewActions.scrollTo;
+-import static androidx.test.espresso.assertion.ViewAssertions.matches;
+-import static androidx.test.espresso.contrib.ActivityResultMatchers.hasResultCode;
+-import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
+-import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
+ import static androidx.test.espresso.matcher.ViewMatchers.withId;
+ import static androidx.test.espresso.matcher.ViewMatchers.withText;
+-import static de.test.antennapod.EspressoTestUtils.clickPreference;
+ import static de.test.antennapod.EspressoTestUtils.openNavDrawer;
+ import static de.test.antennapod.EspressoTestUtils.waitForViewGlobally;
+-import static org.hamcrest.Matchers.allOf;
+-import static org.junit.Assert.assertThat;
+-import static org.junit.Assert.assertTrue;
+ 
+ /**
+  * User interface tests for MainActivity.
+@@ -47,7 +33,6 @@
+ @RunWith(AndroidJUnit4.class)
+ public class MainActivityTest {
+ 
+-    private Solo solo;
+     private UITestUtils uiTestUtils;
+ 
+     @Rule
+@@ -62,8 +47,6 @@ public void setUp() throws IOException {
+ 
+         uiTestUtils = new UITestUtils(InstrumentationRegistry.getInstrumentation().getTargetContext());
+         uiTestUtils.setup();
+-
+-        solo = new Solo(InstrumentationRegistry.getInstrumentation(), activityRule.getActivity());
+     }
+ 
+     @After
+@@ -91,79 +74,4 @@ public void testAddFeed() throws Exception {
+         // wait for podcast feed item list
+         waitForViewGlobally(withId(R.id.butShowSettings), 15000);
+     }
+-
+-    @Test
+-    public void testBackButtonBehaviorGoToPage() {
+-        openNavDrawer();
+-        onView(withText(R.string.settings_label)).perform(click());
+-        clickPreference(R.string.user_interface_label);
+-        clickPreference(R.string.pref_back_button_behavior_title);
+-
+-        onView(withText(R.string.back_button_go_to_page)).perform(click());
+-        onView(withText(R.string.subscriptions_label)).perform(click());
+-        onView(withText(R.string.confirm_label)).perform(click());
+-
+-        solo.goBackToActivity(MainActivity.class.getSimpleName());
+-        solo.goBack();
+-        solo.goBack();
+-        onView(allOf(withId(R.id.toolbar), isDisplayed())).check(
+-                matches(hasDescendant(withText(R.string.subscriptions_label))));
+-        solo.goBack();
+-        assertThat(activityRule.getActivityResult(), hasResultCode(Activity.RESULT_CANCELED));
+-    }
+-
+-    @Test
+-    public void testBackButtonBehaviorOpenDrawer() {
+-        openNavDrawer();
+-        onView(withText(R.string.settings_label)).perform(click());
+-        clickPreference(R.string.user_interface_label);
+-        clickPreference(R.string.pref_back_button_behavior_title);
+-        onView(withText(R.string.back_button_open_drawer)).perform(click());
+-        solo.goBackToActivity(MainActivity.class.getSimpleName());
+-        solo.goBack();
+-        solo.goBack();
+-        assertTrue(((MainActivity) solo.getCurrentActivity()).isDrawerOpen());
+-    }
+-
+-    @Test
+-    public void testBackButtonBehaviorDoubleTap() {
+-        openNavDrawer();
+-        onView(withText(R.string.settings_label)).perform(click());
+-        clickPreference(R.string.user_interface_label);
+-        clickPreference(R.string.pref_back_button_behavior_title);
+-        onView(withText(R.string.back_button_double_tap)).perform(click());
+-        solo.goBackToActivity(MainActivity.class.getSimpleName());
+-        solo.goBack();
+-        solo.goBack();
+-        solo.goBack();
+-        assertThat(activityRule.getActivityResult(), hasResultCode(Activity.RESULT_CANCELED));
+-    }
+-
+-    @Test
+-    public void testBackButtonBehaviorPrompt() throws Exception {
+-        openNavDrawer();
+-        onView(withText(R.string.settings_label)).perform(click());
+-        clickPreference(R.string.user_interface_label);
+-        clickPreference(R.string.pref_back_button_behavior_title);
+-        onView(withText(R.string.back_button_show_prompt)).perform(click());
+-        solo.goBackToActivity(MainActivity.class.getSimpleName());
+-        solo.goBack();
+-        solo.goBack();
+-        onView(withText(R.string.yes)).perform(click());
+-        Thread.sleep(100);
+-        assertThat(activityRule.getActivityResult(), hasResultCode(Activity.RESULT_CANCELED));
+-    }
+-
+-    @Test
+-    public void testBackButtonBehaviorDefault() {
+-        openNavDrawer();
+-        onView(withText(R.string.settings_label)).perform(click());
+-        clickPreference(R.string.user_interface_label);
+-        clickPreference(R.string.pref_back_button_behavior_title);
+-        onView(withText(R.string.back_button_default)).perform(click());
+-        solo.goBackToActivity(MainActivity.class.getSimpleName());
+-        solo.goBack();
+-        solo.goBack();
+-        assertThat(activityRule.getActivityResult(), hasResultCode(Activity.RESULT_CANCELED));
+-    }
+ }
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+index b8f2faa6394..25eb60ff49c 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+@@ -28,9 +28,6 @@
+ import de.danoeh.antennapod.core.storage.APQueueCleanupAlgorithm;
+ import de.danoeh.antennapod.core.storage.EpisodeCleanupAlgorithm;
+ import de.danoeh.antennapod.core.storage.ExceptFavoriteCleanupAlgorithm;
+-import de.danoeh.antennapod.fragment.AllEpisodesFragment;
+-import de.danoeh.antennapod.fragment.QueueFragment;
+-import de.danoeh.antennapod.fragment.SubscriptionFragment;
+ import de.test.antennapod.EspressoTestUtils;
+ 
+ import static androidx.test.espresso.Espresso.onData;
+@@ -503,35 +500,6 @@ public void testFastForwardChange() {
+         }
+     }
+ 
+-    @Test
+-    public void testBackButtonBehaviorGoToPageSelector() {
+-        clickPreference(R.string.user_interface_label);
+-        clickPreference(R.string.pref_back_button_behavior_title);
+-        onView(withText(R.string.back_button_go_to_page)).perform(click());
+-        onView(withText(R.string.queue_label)).perform(click());
+-        onView(withText(R.string.confirm_label)).perform(click());
+-        Awaitility.await().atMost(1000, MILLISECONDS)
+-                .until(() -> UserPreferences.getBackButtonBehavior() == UserPreferences.BackButtonBehavior.GO_TO_PAGE);
+-        Awaitility.await().atMost(1000, MILLISECONDS)
+-                .until(() -> UserPreferences.getBackButtonGoToPage().equals(QueueFragment.TAG));
+-        clickPreference(R.string.pref_back_button_behavior_title);
+-        onView(withText(R.string.back_button_go_to_page)).perform(click());
+-        onView(withText(R.string.episodes_label)).perform(click());
+-        onView(withText(R.string.confirm_label)).perform(click());
+-        Awaitility.await().atMost(1000, MILLISECONDS)
+-                .until(() -> UserPreferences.getBackButtonBehavior() == UserPreferences.BackButtonBehavior.GO_TO_PAGE);
+-        Awaitility.await().atMost(1000, MILLISECONDS)
+-                .until(() -> UserPreferences.getBackButtonGoToPage().equals(AllEpisodesFragment.TAG));
+-        clickPreference(R.string.pref_back_button_behavior_title);
+-        onView(withText(R.string.back_button_go_to_page)).perform(click());
+-        onView(withText(R.string.subscriptions_label)).perform(click());
+-        onView(withText(R.string.confirm_label)).perform(click());
+-        Awaitility.await().atMost(1000, MILLISECONDS)
+-                .until(() -> UserPreferences.getBackButtonBehavior() == UserPreferences.BackButtonBehavior.GO_TO_PAGE);
+-        Awaitility.await().atMost(1000, MILLISECONDS)
+-                .until(() -> UserPreferences.getBackButtonGoToPage().equals(SubscriptionFragment.TAG));
+-    }
+-
+     @Test
+     public void testDeleteRemovesFromQueue() {
+         clickPreference(R.string.storage_pref);
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/QueueFragmentTest.java b/app/src/androidTest/java/de/test/antennapod/ui/QueueFragmentTest.java
+index 460dfdb3e7b..da323af76c2 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/QueueFragmentTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/QueueFragmentTest.java
+@@ -33,7 +33,7 @@ public class QueueFragmentTest {
+     public void setUp() {
+         EspressoTestUtils.clearPreferences();
+         EspressoTestUtils.clearDatabase();
+-        EspressoTestUtils.setLastNavFragment(QueueFragment.TAG);
++        EspressoTestUtils.setLaunchScreen(QueueFragment.TAG);
+         activityRule.launchActivity(new Intent());
+     }
+ 

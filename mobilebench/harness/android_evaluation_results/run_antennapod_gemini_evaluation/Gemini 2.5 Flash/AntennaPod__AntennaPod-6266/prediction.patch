@@ -1,0 +1,62 @@
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/InboxFragment.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/InboxFragment.java
+@@ -19,6 +19,7 @@
+ import de.danoeh.antennapod.core.storage.DBReader;
+ import de.danoeh.antennapod.core.storage.DBWriter;
+ import de.danoeh.antennapod.model.feed.FeedItem;
++import de.danoeh.antennapod.model.feed.SortOrder;
+ import de.danoeh.antennapod.model.feed.FeedItemFilter;
+ 
+ import java.util.List;
+@@ -33,6 +34,7 @@
+     private static final String PREF_NAME = "PrefNewEpisodesFragment";
+     private static final String PREF_DO_NOT_PROMPT_REMOVE_ALL_FROM_INBOX = "prefDoNotPromptRemovalAllFromInbox";
+     private SharedPreferences prefs;
++    private SortOrder sortOrder = SortOrder.DATE_NEW_OLD;
+ 
+     @NonNull
+     @Override
+@@ -41,6 +43,7 @@
+         toolbar.inflateMenu(R.menu.inbox);
+         toolbar.setTitle(R.string.inbox_label);
+         prefs = getActivity().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
++        sortOrder = SortOrder.fromCodeString(prefs.getString(KEY_SORT_ORDER, SortOrder.DATE_NEW_OLD.code));
+         updateToolbar();
+         emptyView.setIcon(R.drawable.ic_inbox);
+         emptyView.setTitle(R.string.no_inbox_head_label);
+@@ -66,6 +69,11 @@
+                 removeAllFromInbox();
+             } else {
+                 showRemoveAllDialog();
++            }
++            return true;
++        } else if (item.getItemId() == R.id.sort_options) {
++            if (sortOrder == SortOrder.DATE_NEW_OLD) {
++                sortOrder = SortOrder.DATE_OLD_NEW;
+             }
+             return true;
+         }
+@@ -109,4 +117,10 @@
+         builder.setNegativeButton(R.string.cancel_label, null);
+         builder.show();
+     }
++
++    @Override
++    public void onPause() {
++        super.onPause();
++        prefs.edit().putString(KEY_SORT_ORDER, sortOrder.code).apply();
++    }
+ }
+--- a/app/src/main/res/menu/inbox.xml
++++ b/app/src/main/res/menu/inbox.xml
+@@ -25,4 +25,10 @@
+         custom:showAsAction="collapseActionView"
+         android:icon="@drawable/ic_check"/>
+ 
++    <item
++        android:id="@+id/sort_options"
++        android:title="@string/sort"
++        android:icon="@drawable/ic_sort"
++        custom:showAsAction="ifRoom"/>
++
+ </menu>

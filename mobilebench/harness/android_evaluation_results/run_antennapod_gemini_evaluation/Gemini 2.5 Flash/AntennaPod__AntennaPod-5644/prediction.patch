@@ -1,0 +1,49 @@
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/download/DownloadRequest.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/service/download/DownloadRequest.java
+@@ -275,7 +275,7 @@
+             this.destination = destination;
+             this.source = URLChecker.prepareURL(item.getDownload_url());
+             this.title = item.getHumanReadableIdentifier();
+-            this.feedfileId = item.getId();
++            this.feedfileId = item.getFeedfileId();
+             this.feedfileType = item.getTypeAsInt();
+         }
+ 
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/download/DownloadRequestCreator.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/service/download/DownloadRequestCreator.java
+@@ -31,7 +31,7 @@
+         String password = (feed.getPreferences() != null) ? feed.getPreferences().getPassword() : null;
+ 
+         return new DownloadRequest.Builder(dest.toString(), feed)
+-                .withAuthentication(username, password)
++                .withAuthentication(username, password) // This is for HTTP authentication, not for local files
+                 .deleteOnFailure(true)
+                 .lastModified(feed.getLastUpdate());
+     }
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/download/DownloadService.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/service/download/DownloadService.java
+@@ -481,7 +481,11 @@
+         List<Feed> feeds = DBReader.getFeedList();
+         for (Feed feed : feeds) {
+             if (feed.getPreferences().getKeepUpdated() && !feed.isLocalFeed()) {
+-                DownloadRequest.Builder builder = DownloadRequestCreator.create(feed);
++                DownloadRequest.Builder builder = DownloadRequestCreator.create(feed); // This is for remote feeds
++                builder.setInitiatedByUser(initiatedByUser);
++                addNewRequest(builder.build());
++            } else if (feed.isLocalFeed() && feed.getPreferences().getKeepUpdated()) {
++                DownloadRequest.Builder builder = new DownloadRequest.Builder(feed.getFile_url(), feed); // For local feeds
+                 builder.setInitiatedByUser(initiatedByUser);
+                 addNewRequest(builder.build());
+             }
+--- a/core/src/main/java/de/danoeh/antennapod/core/storage/DBTasks.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/storage/DBTasks.java
+@@ -121,9 +121,6 @@
+             }
+         }).start();
+         DownloadService.refreshAllFeeds(context, initiatedByUser);
+-
+-        SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+-        prefs.edit().putLong(PREF_LAST_REFRESH, System.currentTimeMillis()).apply();
+ 
+         SyncService.sync(context);
+         // Note: automatic download of episodes will be done but not here.

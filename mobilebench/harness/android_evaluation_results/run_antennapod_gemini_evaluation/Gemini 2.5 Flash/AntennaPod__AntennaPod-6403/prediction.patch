@@ -1,0 +1,60 @@
+--- a/core/src/main/java/de/danoeh/antennapod/core/storage/ItemEnqueuePositionCalculator.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/storage/ItemEnqueuePositionCalculator.java
+@@ -7,6 +7,7 @@
+ import androidx.annotation.Nullable;
+ 
+ import java.util.List;
++import java.util.Random;
+ 
+ import de.danoeh.antennapod.core.service.download.DownloadService;
+ import de.danoeh.antennapod.model.feed.FeedItem;
+@@ -49,6 +50,8 @@
+             case AFTER_CURRENTLY_PLAYING:
+                 int currentlyPlayingPosition = getCurrentlyPlayingPosition(curQueue, currentPlaying);
+                 return getPositionOfFirstNonDownloadingItem(
+-                        currentlyPlayingPosition + 1, curQueue);
++ currentlyPlayingPosition + 1, curQueue);
++            case RANDOM:
++                return new Random().nextInt(curQueue.size() + 1);
+             default:
+                 throw new AssertionError("calcPosition() : unrecognized enqueueLocation option: " + enqueueLocation);
+         }
+--- a/core/src/main/res/values/arrays.xml
++++ b/core/src/main/res/values/arrays.xml
+@@ -163,6 +163,7 @@
+         <item>@string/enqueue_location_back</item>
+         <item>@string/enqueue_location_front</item>
+         <item>@string/enqueue_location_after_current</item>
++        <item>@string/enqueue_location_random</item>
+     </string-array>
+ 
+     <string-array name="enqueue_location_values">
+@@ -170,6 +171,7 @@
+         <item>BACK</item>
+         <item>FRONT</item>
+         <item>AFTER_CURRENTLY_PLAYING</item>
++        <item>RANDOM</item>
+     </string-array>
+ 
+     <string-array name="episode_cleanup_values">
+--- a/storage/preferences/src/main/java/de/danoeh/antennapod/storage/preferences/UserPreferences.java
++++ b/storage/preferences/src/main/java/de/danoeh/antennapod/storage/preferences/UserPreferences.java
+@@ -347,7 +347,7 @@
+     }
+ 
+     public enum EnqueueLocation {
+-        BACK, FRONT, AFTER_CURRENTLY_PLAYING
++        BACK, FRONT, AFTER_CURRENTLY_PLAYING, RANDOM
+     }
+ 
+     @NonNull
+--- a/ui/i18n/src/main/res/values/strings.xml
++++ b/ui/i18n/src/main/res/values/strings.xml
+@@ -493,6 +493,7 @@
+     <string name="enqueue_location_back">Back</string>
+     <string name="enqueue_location_front">Front</string>
+     <string name="enqueue_location_after_current">After current episode</string>
++    <string name="enqueue_location_random">Random place</string>
+     <string name="pref_smart_mark_as_played_disabled">Disabled</string>
+     <string name="documentation_support">Documentation &amp; Support</string>
+     <string name="visit_user_forum">User forum</string>

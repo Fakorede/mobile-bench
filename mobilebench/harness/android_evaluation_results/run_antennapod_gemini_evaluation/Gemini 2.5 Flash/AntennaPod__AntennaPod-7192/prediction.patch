@@ -1,0 +1,18 @@
+--- a/storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
++++ b/storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
+@@ -695,10 +695,12 @@
+             values.put(KEY_READ, played);
+             db.update(TABLE_NAME_FEED_ITEMS, values, KEY_ID + "=?", new String[]{String.valueOf(item.getId())});
+             item.setPlayed(played == FeedItem.PLAYED);
+-
+-            if (resetMediaPosition) {
++            
++            if (item.getMedia() != null) {
+                 values.clear();
+-                values.put(KEY_POSITION, 0);
++                if (resetMediaPosition) {
++                    values.put(KEY_POSITION, 0);
++                }
+                 db.update(TABLE_NAME_FEED_MEDIA, values, KEY_ID + "=?",
+                         new String[]{String.valueOf(item.getMedia().getId())});
+                 item.getMedia().setPosition(0);

@@ -48,6 +48,3 @@ python create_evaluation_prompts.py \
 Raw Task Instances → create_instance.py → Formatted Prompts → create_prompt_dataset.py → Training Dataset
 ```
 
-
-python android_test_runner.py /home/researchuser/dev/mobile-bench/data/tasks/test.jsonl /home/researchuser/dev/mobile-bench/data/tasks/test_tested_instances.jsonl 15 17 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
-

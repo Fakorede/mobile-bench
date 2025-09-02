@@ -1,0 +1,19 @@
+--- a/app/src/main/java/de/danoeh/antennapod/menuhandler/FeedItemMenuHandler.java
++++ b/app/src/main/java/de/danoeh/antennapod/menuhandler/FeedItemMenuHandler.java
+@@ -10,6 +10,7 @@
+ import de.danoeh.antennapod.core.feed.FeedItem;
+ import de.danoeh.antennapod.core.feed.FeedMedia;
+ import de.danoeh.antennapod.core.preferences.UserPreferences;
++import de.danoeh.antennapod.core.service.download.DownloadStatus;
+ import de.danoeh.antennapod.core.storage.DBReader;
+ import de.danoeh.antennapod.core.storage.DBTasks;
+ import de.danoeh.antennapod.core.storage.DBWriter;
+@@ -102,7 +103,7 @@
+         }
+ 
+         if (item.has
+-                Media() && !item.getMedia().isDownloaded()) {
++Media() && !item.getMedia().isDownloaded() && item.getMedia().getDownload_url() != null) {
+             if (item.getMedia().isDownloading()) {
+                 menu.findItem(R.id.cancel_download_item).setVisible(true);
+             } else {

@@ -13,9 +13,9 @@ pyyaml
 requests
 tenacity
 tiktoken
-typing-extensions
 tqdm
+transformers
+typing-extensions
 unidiff
 # uuid
 xmltodict
-

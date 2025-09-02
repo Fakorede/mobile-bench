@@ -1,0 +1,14 @@
+{
+  "instance_id": "AntennaPod__AntennaPod-6852",
+  "model_name": "Gemini 2.5 Flash",
+  "success": false,
+  "error_message": "Failed to clone repository",
+  "repo_cloned": false,
+  "config_parsed": false,
+  "container_created": false,
+  "base_commit_checked_out": false,
+  "test_patch_applied": false,
+  "prediction_patch_applied": false,
+  "test_execution": null,
+  "total_duration": 10.175855159759521
+}

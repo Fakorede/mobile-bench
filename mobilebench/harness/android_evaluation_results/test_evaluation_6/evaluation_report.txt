@@ -1,0 +1,22 @@
+Android-Bench Evaluation Report
+========================================
+Run ID: test_evaluation_6
+Total Instances: 1
+Successful: 1
+Failed: 0
+Success Rate: 100.0%
+
+Test Statistics:
+--------------------
+Total Tests Run: 0
+Total Tests Passed: 0
+Total Tests Failed: 0
+Test Pass Rate: 0.0%
+
+Performance Metrics:
+--------------------
+Average Duration: 65.0s
+Total Runtime: 0.02h
+
+Failed Instances:
+-----------------

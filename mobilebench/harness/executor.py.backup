@@ -1,0 +1,574 @@
+#!/usr/bin/env python3
+"""
+Test execution engine for Android-bench evaluation.
+"""
+
+import re
+import logging
+import time
+import tempfile
+import os
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TestResult:
+    """Represents a single test result."""
+    test_name: str
+    class_name: str
+    status: str  # PASSED, FAILED, SKIPPED, ERROR
+    duration: float = 0.0
+    failure_message: str = ""
+    error_message: str = ""
+
+
+@dataclass
+class TestExecutionResult:
+    """Represents complete test execution results."""
+    total_tests: int
+    passed: int
+    failed: int
+    skipped: int
+    errors: int
+    duration: float
+    exit_code: int
+    raw_output: str
+    test_results: List[TestResult]
+    build_successful: bool = False
+    
+    def get_tests_by_status(self, status: str) -> List[TestResult]:
+        """Get tests filtered by status."""
+        return [test for test in self.test_results if test.status == status]
+    
+    def get_passed_tests(self) -> List[str]:
+        """Get list of passed test names."""
+        return [f"{test.class_name}.{test.test_name}" for test in self.get_tests_by_status("PASSED")]
+    
+    def get_failed_tests(self) -> List[str]:
+        """Get list of failed test names."""
+        return [f"{test.class_name}.{test.test_name}" for test in self.get_tests_by_status("FAILED")]
+    
+    def get_skipped_tests(self) -> List[str]:
+        """Get list of skipped test names."""
+        return [f"{test.class_name}.{test.test_name}" for test in self.get_tests_by_status("SKIPPED")]
+    
+    def get_error_tests(self) -> List[str]:
+        """Get list of tests with errors."""
+        return [f"{test.class_name}.{test.test_name}" for test in self.get_tests_by_status("ERROR")]
+
+
+class AndroidTestExecutor:
+    """Handles Android test execution and result parsing."""
+    
+    PATCH_APPLY_STRATEGIES = [
+        "git apply --verbose",
+        "git apply --verbose --reject",
+        "git apply --verbose --ignore-space-change --ignore-whitespace",
+        "patch -p1",
+        "patch --batch --fuzz=5 -p1"
+    ]
+    
+    def __init__(self, container_manager, config_parser):
+        self.container_manager = container_manager
+        self.config_parser = config_parser
+        
+    def execute_instance(self, instance_id: str, instance_data, prediction_data, 
+                    repo_path: str) -> TestExecutionResult:
+        """Execute full evaluation workflow for a single instance."""
+        
+        try:
+            # Step 1: Parse build configuration
+            logger.info(f"Parsing build configuration for {instance_id}")
+            config = self.config_parser.parse_build_config()
+            
+            # Step 2: Create and start container
+            logger.info(f"Creating container for {instance_id}")
+            container = self.container_manager.create_container(instance_id, config, repo_path)
+            self.container_manager.start_container(instance_id)
+            
+            # Step 3: Install SDK components
+            logger.info(f"Installing SDK components for {instance_id}")
+            self.container_manager.install_sdk_components(instance_id, config)
+            
+            # Step 4: Checkout base commit
+            logger.info(f"Checking out base commit for {instance_id}")
+            base_checkout_success = self._checkout_base_commit(instance_id, instance_data['base_commit'])
+            if not base_checkout_success:
+                raise RuntimeError("Failed to checkout base commit")
+            
+            # Step 5: Apply test patch
+            logger.info(f"Applying test patch for {instance_id}")
+            test_patch_success = self._apply_patch(instance_id, instance_data['test_patch'], "test_patch")
+            if not test_patch_success:
+                raise RuntimeError("Failed to apply test patch")
+            
+            # Step 6: Apply prediction patch
+            logger.info(f"Applying prediction patch for {instance_id}")
+            prediction_patch = self._extract_patch_from_prediction(prediction_data['full_output'])
+            prediction_patch_success = self._apply_patch(instance_id, prediction_patch, "prediction_patch")
+            if not prediction_patch_success:
+                raise RuntimeError("Failed to apply prediction patch")
+            
+            # Step 7: Run tests
+            logger.info(f"Running tests for {instance_id}")
+            test_tasks = self.config_parser.extract_test_tasks_from_patch(instance_data['test_patch'])
+            result = self._run_gradle_tests(instance_id, test_tasks)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error executing instance {instance_id}: {e}")
+            # Return failed result
+            return TestExecutionResult(
+                total_tests=0,
+                passed=0,
+                failed=0,
+                skipped=0,
+                errors=1,
+                duration=0,
+                exit_code=1,
+                raw_output=str(e),
+                test_results=[],
+                build_successful=False
+            )
+        
+        finally:
+            # Cleanup container
+            try:
+                self.container_manager.cleanup_container(instance_id)
+            except Exception as e:
+                logger.warning(f"Failed to cleanup container for {instance_id}: {e}")
+    
+    def _checkout_base_commit(self, instance_id: str, base_commit: str) -> bool:
+        """Checkout the base commit and reset to clean state."""
+        try:
+            # Fix git ownership issue first
+            exit_code, output = self.container_manager.exec_command(
+                instance_id,
+                "git config --global --add safe.directory /workspace",
+                workdir="/workspace"
+            )
+            
+            if exit_code != 0:
+                logger.warning(f"Git safe directory warning for {instance_id}: {output}")
+            
+            # Reset to clean state first
+            exit_code, output = self.container_manager.exec_command(
+                instance_id,
+                "git reset --hard HEAD && git clean -fd",
+                workdir="/workspace"
+            )
+            
+            if exit_code != 0:
+                logger.warning(f"Git reset/clean warning for {instance_id}: {output}")
+            
+            # Fetch to ensure we have the commit
+            exit_code, output = self.container_manager.exec_command(
+                instance_id,
+                "git fetch origin --unshallow",
+                workdir="/workspace"
+            )
+            
+            if exit_code != 0:
+                logger.warning(f"Git unshallow failed for {instance_id}: {output}")
+                # Fallback to regular fetch
+                exit_code, output = self.container_manager.exec_command(
+                    instance_id,
+                    "git fetch origin",
+                    workdir="/workspace"
+                )
+                if exit_code != 0:
+                    logger.warning(f"Git fetch still failed for {instance_id}: {output}")
+            
+            # Checkout the specific base commit
+            exit_code, output = self.container_manager.exec_command(
+                instance_id,
+                f"git checkout {base_commit}",
+                workdir="/workspace"
+            )
+            
+            if exit_code != 0:
+                logger.error(f"Failed to checkout {base_commit} for {instance_id}: {output}")
+                return False
+                
+            # Verify we're on the right commit
+            exit_code, current_commit = self.container_manager.exec_command(
+                instance_id,
+                "git rev-parse HEAD",
+                workdir="/workspace"
+            )
+            
+            if exit_code == 0 and current_commit.strip().startswith(base_commit):
+                logger.info(f"Successfully checked out {base_commit} for {instance_id}")
+                return True
+            else:
+                logger.error(f"Commit verification failed for {instance_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error during checkout for {instance_id}: {e}")
+            return False
+    
+    def _extract_patch_from_prediction(self, full_output: str) -> str:
+        """Extract patch content from model's full output."""
+        if not full_output:
+            return ""
+        
+        # Look for diff blocks in markdown code blocks
+        import re
+        
+        # Pattern for markdown code blocks with diff
+        diff_pattern = r'```(?:diff)?\n(.*?)```'
+        matches = re.findall(diff_pattern, full_output, re.DOTALL)
+        
+        if matches:
+            return matches[0].strip()
+        
+        # If no markdown blocks, check if the entire output is a diff
+        if full_output.strip().startswith('diff --git') or full_output.strip().startswith('---'):
+            return full_output.strip()
+        
+        return ""
+    
+    def _apply_patch(self, instance_id: str, patch_content: str, patch_name: str) -> bool:
+        """Apply a patch to the repository using multiple strategies."""
+        try:
+            # Validate patch content
+            if not patch_content.strip():
+                logger.info(f"Empty patch for {instance_id} - nothing to apply")
+                return True
+            
+            # Create patch file in container
+            container_patch_path = f"/tmp/{patch_name}.patch"
+            
+            # Write patch content to a temporary file first
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch') as temp_file:
+                temp_file.write(patch_content)
+                temp_patch_path = temp_file.name
+            
+            try:
+                # Copy patch file to container
+                self.container_manager.copy_to_container(
+                    instance_id, temp_patch_path, f"/tmp/{patch_name}.patch"
+                )
+                
+                # Try different patch application strategies
+                for strategy in self.PATCH_APPLY_STRATEGIES:
+                    logger.info(f"Trying patch strategy: {strategy}")
+                    
+                    if strategy.startswith('git apply'):
+                        cmd = f"{strategy} {container_patch_path}"
+                    else:  # patch command
+                        cmd = f"{strategy} < {container_patch_path}"
+                    
+                    exit_code, output = self.container_manager.exec_command(
+                        instance_id, cmd, workdir="/workspace"
+                    )
+                    
+                    if exit_code == 0:
+                        logger.info(f"Successfully applied patch with: {strategy}")
+                        return True
+                    else:
+                        logger.debug(f"Patch strategy failed: {strategy}")
+                        logger.debug(f"Error output: {output}")
+                
+                # If all strategies failed, try to auto-fix the patch
+                logger.info(f"All patch strategies failed, attempting auto-fix for {instance_id}")
+                return self._auto_fix_and_apply_patch(instance_id, patch_content, patch_name)
+                
+            finally:
+                # Clean up temporary file
+                os.unlink(temp_patch_path)
+                
+        except Exception as e:
+            logger.error(f"Error applying patch for {instance_id}: {e}")
+            return False
+    
+    def _auto_fix_and_apply_patch(self, instance_id: str, patch_content: str, patch_name: str) -> bool:
+        """Attempt to automatically fix and apply patch."""
+        try:
+            # Simple fixes: remove context lines, adjust headers
+            lines = patch_content.split('\n')
+            fixed_lines = []
+            
+            for line in lines:
+                # Skip context lines that might be causing issues
+                if line.startswith(' ') and len(line) > 1:
+                    continue
+                    
+                # Fix common header issues
+                if line.startswith('@@') and '@@' in line[2:]:
+                    # Try to simplify the hunk header
+                    parts = line.split('@@')
+                    if len(parts) >= 3:
+                        fixed_lines.append(f"@@{parts[1]}@@")
+                        continue
+                
+                fixed_lines.append(line)
+            
+            fixed_patch = '\n'.join(fixed_lines)
+            
+            # Try to apply the fixed patch DIRECTLY, not recursively
+            if fixed_patch.strip():
+                # Create patch file in container
+                container_patch_path = f"/tmp/{patch_name}_auto_fixed.patch"
+                
+                # Write patch content to a temporary file first
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch') as temp_file:
+                    temp_file.write(fixed_patch)
+                    temp_patch_path = temp_file.name
+                
+                try:
+                    # Copy patch file to container
+                    self.container_manager.copy_to_container(
+                        instance_id, temp_patch_path, container_patch_path
+                    )
+                    
+                    # Try multiple strategies with the auto-fixed patch
+                    auto_fix_strategies = [
+                        f"git apply --verbose {container_patch_path}",
+                        f"patch -p1 < {container_patch_path}",
+                        f"patch --batch --fuzz=5 -p1 < {container_patch_path}"
+                    ]
+                    
+                    for strategy in auto_fix_strategies:
+                        logger.info(f"Trying auto-fix strategy: {strategy}")
+                        exit_code, output = self.container_manager.exec_command(
+                            instance_id, strategy, workdir="/workspace"
+                        )
+                        
+                        if exit_code == 0:
+                            logger.info(f"Successfully applied auto-fixed patch with: {strategy}")
+                            return True
+                        else:
+                            logger.debug(f"Auto-fix strategy failed: {strategy}")
+                            logger.debug(f"Error output: {output}")
+                    
+                    logger.warning(f"All auto-fix strategies failed for {instance_id}")
+                    return False
+                        
+                finally:
+                    # Clean up temporary file
+                    os.unlink(temp_patch_path)
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error auto-fixing patch for {instance_id}: {e}")
+            return False
+    
+    def _run_gradle_tests(self, instance_id: str, test_tasks: List[str]) -> TestExecutionResult:
+        """Run gradle tests and parse results."""
+        if not test_tasks:
+            logger.warning(f"No test tasks found for {instance_id}")
+            return TestExecutionResult(
+                total_tests=0,
+                passed=0,
+                failed=0,
+                skipped=0,
+                errors=0,
+                duration=0,
+                exit_code=0,
+                raw_output="No test tasks found",
+                test_results=[],
+                build_successful=True
+            )
+        
+        # Prepare environment for testing
+        self._prepare_test_environment(instance_id)
+        
+        start_time = time.time()
+        all_results = []
+        combined_output = ""
+        final_exit_code = 0
+        
+        for task in test_tasks:
+            logger.info(f"Executing test task: {task}")
+            
+            # Run the specific test task
+            exit_code, output = self._execute_gradle_test(instance_id, task)
+            
+            combined_output += f"\n{'='*50}\n"
+            combined_output += f"Task: {task}\n"
+            combined_output += f"Exit Code: {exit_code}\n"
+            combined_output += f"{'='*50}\n"
+            combined_output += output
+            combined_output += f"\n{'='*50}\n"
+            
+            if exit_code != 0:
+                final_exit_code = exit_code
+            
+            # Parse results from this task
+            task_results = self._parse_test_results(output, task)
+            all_results.extend(task_results)
+        
+        total_duration = time.time() - start_time
+        
+        # Combine and summarize all results
+        combined_result = self._create_execution_result(
+            all_results, final_exit_code, combined_output, total_duration
+        )
+        
+        logger.info(f"Test execution completed: {combined_result.passed}/{combined_result.total_tests} passed")
+        
+        return combined_result
+    
+    def _prepare_test_environment(self, instance_id: str):
+        """Prepare the environment for test execution."""
+        logger.info(f"Preparing test environment for {instance_id}")
+        
+        # Clean previous builds
+        exit_code, output = self.container_manager.exec_command(
+            instance_id, 
+            "./gradlew clean --no-daemon",
+            workdir="/workspace"
+        )
+        if exit_code != 0:
+            logger.warning(f"Clean failed: {output}")
+        
+        # Ensure gradlew is executable
+        self.container_manager.exec_command(
+            instance_id,
+            "chmod +x gradlew",
+            workdir="/workspace"
+        )
+        
+        # Download dependencies (but don't fail if this doesn't work)
+        exit_code, output = self.container_manager.exec_command(
+            instance_id,
+            "./gradlew dependencies --no-daemon --quiet",
+            workdir="/workspace"
+        )
+        if exit_code != 0:
+            logger.warning(f"Dependency download had issues: {output}")
+    
+    def _execute_gradle_test(self, instance_id: str, test_task: str) -> Tuple[int, str]:
+        """Execute a specific gradle test task."""
+        
+        # Build the gradle command
+        gradle_cmd = f"./gradlew {test_task} --no-daemon --stacktrace --continue"
+        
+        logger.info(f"Executing: {gradle_cmd}")
+        
+        # Execute with timeout (30 minutes max)
+        start_time = time.time()
+        exit_code, output = self.container_manager.exec_command(
+            instance_id,
+            gradle_cmd,
+            workdir="/workspace"
+        )
+        
+        execution_time = time.time() - start_time
+        logger.info(f"Test execution completed in {execution_time:.2f}s with exit code {exit_code}")
+        
+        return exit_code, output
+    
+    def _parse_test_results(self, output: str, task_name: str) -> List[TestResult]:
+        """Parse gradle test output to extract individual test results."""
+        test_results = []
+        
+        # Parse console output for test results
+        return self._parse_console_output(output, task_name)
+    
+    def _parse_console_output(self, output: str, task_name: str) -> List[TestResult]:
+        """Parse test results from gradle console output."""
+        test_results = []
+        
+        # Patterns for different test result formats
+        patterns = {
+            'test_execution': [
+                r'(\w+(?:\.\w+)*) > (\w+) (PASSED|FAILED|SKIPPED)',
+                r'(\w+(?:\.\w+)*) > (\w+) (PASSED|FAILED|SKIPPED) \((\d+\.?\d*)s\)',
+                r'(\w+(?:\.\w+)*):(\w+) (PASSED|FAILED|SKIPPED)',
+            ],
+            'test_summary': [
+                r'(\d+) tests completed, (\d+) failed, (\d+) skipped',
+                r'Tests: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+)',
+            ]
+        }
+        
+        # Parse individual test results
+        for line in output.split('\n'):
+            line = line.strip()
+            
+            for pattern in patterns['test_execution']:
+                match = re.search(pattern, line)
+                if match:
+                    groups = match.groups()
+                    class_name = groups[0]
+                    test_name = groups[1]
+                    status = groups[2]
+                    duration = float(groups[3]) if len(groups) > 3 and groups[3] else 0.0
+                    
+                    # Look for failure/error details in subsequent lines
+                    failure_msg = ""
+                    error_msg = ""
+                    
+                    if status in ['FAILED', 'ERROR']:
+                        failure_msg = self._extract_failure_message(output, class_name, test_name)
+                    
+                    test_result = TestResult(
+                        test_name=test_name,
+                        class_name=class_name,
+                        status=status,
+                        duration=duration,
+                        failure_message=failure_msg,
+                        error_message=error_msg if status == 'ERROR' else ""
+                    )
+                    test_results.append(test_result)
+                    break
+        
+        return test_results
+    
+    def _extract_failure_message(self, output: str, class_name: str, test_name: str) -> str:
+        """Extract failure message for a specific test."""
+        # Look for failure details in the output
+        failure_patterns = [
+            rf'{class_name}\.{test_name}.*?FAILED.*?\n(.*?)\n',
+            rf'{test_name}.*?FAILED.*?\n(.*?)\n',
+            rf'> {test_name}.*?\n(.*?at .*?)\n'
+        ]
+        
+        for pattern in failure_patterns:
+            match = re.search(pattern, output, re.DOTALL)
+            if match:
+                return match.group(1).strip()
+        
+        return ""
+    
+    def _create_execution_result(self, test_results: List[TestResult], 
+                               exit_code: int, raw_output: str, 
+                               duration: float) -> TestExecutionResult:
+        """Create a comprehensive test execution result."""
+        
+        total_tests = len(test_results)
+        passed = len([t for t in test_results if t.status == 'PASSED'])
+        failed = len([t for t in test_results if t.status == 'FAILED'])
+        skipped = len([t for t in test_results if t.status == 'SKIPPED'])
+        errors = len([t for t in test_results if t.status == 'ERROR'])
+        
+        # Determine if build was successful based on output
+        build_successful = 'BUILD SUCCESSFUL' in raw_output
+        
+        return TestExecutionResult(
+            total_tests=total_tests,
+            passed=passed,
+            failed=failed,
+            skipped=skipped,
+            errors=errors,
+            duration=duration,
+            exit_code=exit_code,
+            raw_output=raw_output,
+            test_results=test_results,
+            build_successful=build_successful
+        )
+
+
+if __name__ == "__main__":
+    # Test the executor
+    logging.basicConfig(level=logging.INFO)
+    print("Android Test Executor module loaded successfully")

@@ -1,0 +1,138 @@
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/preferences/UserInterfacePreferencesFragment.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/preferences/UserInterfacePreferencesFragment.java
+@@ -4,6 +4,7 @@
+ import android.os.Build;
+ import android.os.Bundle;
+ import android.widget.ListView;
++import androidx.annotation.NonNull;
+ import androidx.appcompat.app.AlertDialog;
+ import com.google.android.material.snackbar.Snackbar;
+ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+@@ -46,6 +47,14 @@
+                             ActivityCompat.recreate(getActivity());
+                             return true;
+                         });
++        findPreference(UserPreferences.PREF_TRUE_BLACK)
++                .setOnPreferenceChangeListener(
++                        (preference, newValue) -> {
++                            if ((Boolean) newValue) {
++                                findPreference(UserPreferences.PREF_THEME).setValue("2"); // Set to True Black
++                            }
++                            return true;
++                        });
+ 
+         findPreference(UserPreferences.PREF_SHOW_TIME_LEFT)
+                 .setOnPreferenceChangeListener(
+--- a/app/src/main/java/de/danoeh/antennapod/preferences/PreferenceUpgrader.java
++++ b/app/src/main/java/de/danoeh/antennapod/preferences/PreferenceUpgrader.java
+@@ -84,6 +84,10 @@
+                 UserPreferences.setEnqueueLocation(enqueueLocation);
+             }
+         }
++        if (oldVersion < 2070200) {
++            // True black mode was previously part of the theme setting
++            prefs.edit().putBoolean(UserPreferences.PREF_TRUE_BLACK, UserPreferences.getTheme() == UserPreferences.ThemePreference.BLACK).apply();
++        }
+         if (oldVersion < 2010300) {
+             // Migrate hardware button preferences
+             if (prefs.getBoolean("prefHardwareForwardButtonSkips", false)) {
+--- a/app/src/main/res/xml/preferences_user_interface.xml
++++ b/app/src/main/res/xml/preferences_user_interface.xml
+@@ -14,6 +14,11 @@
+                 android:key="prefTintedColors"
+                 android:summary="@string/pref_tinted_theme_message"
+                 android:defaultValue="false" />
++        <SwitchPreferenceCompat
++                android:title="@string/pref_true_black_title"
++                android:key="prefTrueBlack"
++                android:summary="@string/pref_true_black_summary"
++                android:defaultValue="false" />
+         <Preference
+                 android:key="prefHiddenDrawerItems"
+                 android:summary="@string/pref_nav_drawer_items_sum"
+--- a/core/src/main/java/de/danoeh/antennapod/core/preferences/ThemeSwitcher.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/preferences/ThemeSwitcher.java
+@@ -62,7 +62,11 @@
+         if (theme == UserPreferences.ThemePreference.SYSTEM) {
+             int nightMode = context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+             if (nightMode == Configuration.UI_MODE_NIGHT_YES) {
+-                return UserPreferences.ThemePreference.DARK;
++                if (UserPreferences.isTrueBlack()) {
++                    return UserPreferences.ThemePreference.BLACK;
++                } else {
++                    return UserPreferences.ThemePreference.DARK;
++                }
+             } else {
+                 return UserPreferences.ThemePreference.LIGHT;
+ 
+--- a/core/src/main/res/values/arrays.xml
++++ b/core/src/main/res/values/arrays.xml
+@@ -139,13 +139,11 @@
+     <string-array name="theme_options">
+         <item>@string/pref_theme_title_use_system</item>
+         <item>@string/pref_theme_title_light</item>
+-        <item>@string/pref_theme_title_dark</item>
+-        <item>@string/pref_theme_title_trueblack</item>
++        <item>@string/pref_theme_title_dark</item> <!-- This will be the default dark theme -->
+     </string-array>
+ 
+     <string-array name="theme_values">
+         <item>system</item>
+         <item>0</item>
+         <item>1</item>
+-        <item>2</item>
+     </string-array>
+ 
+     <string-array name="nav_drawer_titles">
+--- a/storage/preferences/src/main/java/de/danoeh/antennapod/storage/preferences/UserPreferences.java
++++ b/storage/preferences/src/main/java/de/danoeh/antennapod/storage/preferences/UserPreferences.java
+@@ -51,6 +51,7 @@
+     // User Interface
+     public static final String PREF_THEME = "prefTheme";
+     public static final String PREF_TINTED_COLORS = "prefTintedColors";
++    public static final String PREF_TRUE_BLACK = "prefTrueBlack";
+     public static final String PREF_HIDDEN_DRAWER_ITEMS = "prefHiddenDrawerItems";
+     public static final String PREF_DRAWER_FEED_ORDER = "prefDrawerFeedOrder";
+     public static final String PREF_DRAWER_FEED_COUNTER = "prefDrawerFeedIndicator";
+@@ -166,10 +167,16 @@
+             case "0":
+                 return ThemePreference.LIGHT;
+             case "1":
+-                return ThemePreference.DARK;
++                if (isTrueBlack()) {
++                    return ThemePreference.BLACK;
++                } else {
++                    return ThemePreference.DARK;
++                }
+             case "2":
+                 return ThemePreference.BLACK;
+             default:
++                // If system theme is selected, and true black is enabled, return true black
++                // Otherwise, return system theme (which will resolve to light/dark based on system setting)
+                 return ThemePreference.SYSTEM;
+         }
+     }
+@@ -177,6 +184,10 @@
+     public static boolean getIsThemeColorTinted() {
+         return Build.VERSION.SDK_INT >= 31 && prefs.getBoolean(PREF_TINTED_COLORS, false);
+     }
++
++    public static boolean isTrueBlack() {
++        return prefs.getBoolean(PREF_TRUE_BLACK, false);
++    }
+ 
+     public static List<String> getHiddenDrawerItems() {
+         String hiddenItems = prefs.getString(PREF_HIDDEN_DRAWER_ITEMS, "");
+--- a/ui/i18n/src/main/res/values/strings.xml
++++ b/ui/i18n/src/main/res/values/strings.xml
+@@ -459,7 +459,9 @@
+     <string name="pref_show_remain_time_summary">Display remaining time of episodes when checked. If unchecked, display total duration of episodes.</string>
+     <string name="pref_theme_title_use_system">Use system theme</string>
+     <string name="pref_theme_title_light">Light</string>
+-    <string name="pref_theme_title_dark">Dark</string>
++    <string name="pref_theme_title_dark">Dark</string> <!-- This will be the default dark theme -->
++    <string name="pref_true_black_title">True black mode (AMOLED)</string>
++    <string name="pref_true_black_summary">Use true black colors for the dark theme to save battery on AMOLED screens.</string>
+     <string name="pref_theme_title_trueblack">Black (AMOLED ready)</string>
+     <string name="pref_episode_cache_unlimited">Unlimited</string>
+     <string name="pref_playback_speed_sum">Customize the speeds available for variable speed playback</string>

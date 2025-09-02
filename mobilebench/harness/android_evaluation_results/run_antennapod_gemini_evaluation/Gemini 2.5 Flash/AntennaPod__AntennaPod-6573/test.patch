@@ -1,0 +1,96 @@
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/FeedSettingsTest.java b/app/src/androidTest/java/de/test/antennapod/ui/FeedSettingsTest.java
+index 861c62f1bff..187c9e16dac 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/FeedSettingsTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/FeedSettingsTest.java
+@@ -73,7 +73,7 @@ public void testClickFeedSettings() {
+         clickPreference(R.string.auto_delete_label);
+         onView(withText(R.string.cancel_label)).perform(click());
+ 
+-        clickPreference(R.string.feed_volume_reduction);
++        clickPreference(R.string.feed_volume_adapdation);
+         onView(withText(R.string.cancel_label)).perform(click());
+     }
+ }
+diff --git a/core/src/test/java/de/danoeh/antennapod/core/feed/VolumeAdaptionSettingTest.java b/core/src/test/java/de/danoeh/antennapod/core/feed/VolumeAdaptionSettingTest.java
+index 4241707bc5d..30767bdc884 100644
+--- a/core/src/test/java/de/danoeh/antennapod/core/feed/VolumeAdaptionSettingTest.java
++++ b/core/src/test/java/de/danoeh/antennapod/core/feed/VolumeAdaptionSettingTest.java
+@@ -31,11 +31,35 @@ public void mapHeavyReductionToInteger() {
+         assertThat(setting.toInteger(), is(equalTo(2)));
+     }
+ 
++    @Test
++    public void mapLightBoostToInteger() {
++        VolumeAdaptionSetting setting = VolumeAdaptionSetting.LIGHT_BOOST;
++
++        assertThat(setting.toInteger(), is(equalTo(3)));
++    }
++
++    @Test
++    public void mapMediumBoostToInteger() {
++        VolumeAdaptionSetting setting = VolumeAdaptionSetting.MEDIUM_BOOST;
++
++        assertThat(setting.toInteger(), is(equalTo(4)));
++    }
++
++    @Test
++    public void mapHeavyBoostToInteger() {
++        VolumeAdaptionSetting setting = VolumeAdaptionSetting.HEAVY_BOOST;
++
++        assertThat(setting.toInteger(), is(equalTo(5)));
++    }
++
+     @Test
+     public void mapIntegerToVolumeAdaptionSetting() {
+         assertThat(VolumeAdaptionSetting.fromInteger(0), is(equalTo(VolumeAdaptionSetting.OFF)));
+         assertThat(VolumeAdaptionSetting.fromInteger(1), is(equalTo(VolumeAdaptionSetting.LIGHT_REDUCTION)));
+         assertThat(VolumeAdaptionSetting.fromInteger(2), is(equalTo(VolumeAdaptionSetting.HEAVY_REDUCTION)));
++        assertThat(VolumeAdaptionSetting.fromInteger(3), is(equalTo(VolumeAdaptionSetting.LIGHT_BOOST)));
++        assertThat(VolumeAdaptionSetting.fromInteger(4), is(equalTo(VolumeAdaptionSetting.MEDIUM_BOOST)));
++        assertThat(VolumeAdaptionSetting.fromInteger(5), is(equalTo(VolumeAdaptionSetting.HEAVY_BOOST)));
+     }
+ 
+     @Test(expected =  IllegalArgumentException.class)
+@@ -45,7 +69,7 @@ public void cannotMapNegativeValues() {
+ 
+     @Test(expected =  IllegalArgumentException.class)
+     public void cannotMapValuesOutOfRange() {
+-        VolumeAdaptionSetting.fromInteger(3);
++        VolumeAdaptionSetting.fromInteger(6);
+     }
+ 
+     @Test
+@@ -62,4 +86,31 @@ public void lightReductionYieldsHigherValueThanHeavyReduction() {
+ 
+         assertTrue("Light reduction must have higher factor than heavy reduction", lightReductionFactor > heavyReductionFactor);
+     }
+-}
+\ No newline at end of file
++
++    @Test
++    public void lightBoostYieldsHigherValueThanLightReduction() {
++        float lightReductionFactor = VolumeAdaptionSetting.LIGHT_REDUCTION.getAdaptionFactor();
++
++        float lightBoostFactor = VolumeAdaptionSetting.LIGHT_BOOST.getAdaptionFactor();
++
++        assertTrue("Light boost must have higher factor than light reduction", lightBoostFactor > lightReductionFactor);
++    }
++
++    @Test
++    public void mediumBoostYieldsHigherValueThanLightBoost() {
++        float lightBoostFactor = VolumeAdaptionSetting.LIGHT_BOOST.getAdaptionFactor();
++
++        float mediumBoostFactor = VolumeAdaptionSetting.MEDIUM_BOOST.getAdaptionFactor();
++
++        assertTrue("Medium boost must have higher factor than light boost", mediumBoostFactor > lightBoostFactor);
++    }
++
++    @Test
++    public void heavyBoostYieldsHigherValueThanMediumBoost() {
++        float mediumBoostFactor = VolumeAdaptionSetting.MEDIUM_BOOST.getAdaptionFactor();
++
++        float heavyBoostFactor = VolumeAdaptionSetting.HEAVY_BOOST.getAdaptionFactor();
++
++        assertTrue("Heavy boost must have higher factor than medium boost", heavyBoostFactor > mediumBoostFactor);
++    }
++}

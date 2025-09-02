@@ -1,0 +1,23 @@
+Android-Bench Evaluation Report
+========================================
+Run ID: test_evaluation_8
+Total Instances: 1
+Successful: 0
+Failed: 1
+Success Rate: 0.0%
+
+Test Statistics:
+--------------------
+Total Tests Run: 0
+Total Tests Passed: 0
+Total Tests Failed: 0
+Test Pass Rate: 0.0%
+
+Performance Metrics:
+--------------------
+Average Duration: 0.0s
+Total Runtime: 0.02h
+
+Failed Instances:
+-----------------
+  - AntennaPod__AntennaPod-7159: Failed to apply test patch

@@ -1,0 +1,14 @@
+--- a/app/src/main/java/de/danoeh/antennapod/activity/MainActivity.java
++++ b/app/src/main/java/de/danoeh/antennapod/activity/MainActivity.java
+@@ -327,6 +327,10 @@
+                     loadFragment(tag, args);
+                 }
+                 ((MainActivity) getActivity()).getBottomSheet().setState(BottomSheetBehavior.STATE_COLLAPSED);
++            } else if (tag.equals(EpisodesFragment.TAG)) {
++                Fragment fragment = getSupportFragmentManager().findFragmentByTag(MAIN_FRAGMENT_TAG);
++                if (fragment instanceof EpisodesFragment) {
++                    ((EpisodesFragment) fragment).resetPage();
++                }
+             }
+         }
+         NavDrawerFragment.saveLastNavFragment(this, tag);

@@ -1,0 +1,45 @@
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/playback/ExoPlayerWrapper.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/service/playback/ExoPlayerWrapper.java
+@@ -237,7 +237,7 @@
+     }
+ 
+     public void setVolume(float v, float v1) {
+-        exoPlayer.setVolume(v);
++        exoPlayer.setVolume(v * UserPreferences.getVolumeBoost());
+     }
+ 
+     public void start() {
+--- a/core/src/main/res/values/arrays.xml
++++ b/core/src/main/res/values/arrays.xml
+@@ -309,4 +309,16 @@
+         <item>@string/episodes_label</item>
+         <item>@string/subscriptions_label</item>
+         <item>@string/remember_last_page</item>
++    </string-array>
++
++    <string-array name="volume_boost_entries">
++        <item>100%</item>
++        <item>125%</item>
++        <item>150%</item>
++        <item>175%</item>
++        <item>200%</item>
++    </string-array>
++    <string-array name="volume_boost_values">
++        <item>1.0</item>
++        <item>1.25</item>
++        <item>1.5</item>
++        <item>1.75</item>
++        <item>2.0</item>
+     </string-array>
+ </resources>
+--- a/ui/i18n/src/main/res/values/strings.xml
++++ b/ui/i18n/src/main/res/values/strings.xml
+@@ -830,4 +830,8 @@
+     <string name="shortcut_subscription_label">Subscription shortcut</string>
+     <string name="shortcut_select_subscription">Select subscription</string>
+     <string name="add_shortcut">Add shortcut</string>
++    <string name="pref_volume_boost_title">Volume boost</string>
++    <string name="pref_volume_boost_summary">Boost audio volume over 100%%. Disabled by default for safety reasons.</string>
++    <string name="pref_volume_boost_enabled_toast">Volume boost enabled. Please be careful with your ears!</string>
++    <string name="pref_volume_boost_disabled_toast">Volume boost disabled.</string>
+ </resources>

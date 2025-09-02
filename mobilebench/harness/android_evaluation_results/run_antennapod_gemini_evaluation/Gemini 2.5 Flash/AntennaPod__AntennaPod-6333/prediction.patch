@@ -1,0 +1,30 @@
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/download/DownloadService.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/service/download/DownloadService.java
+@@ -313,6 +313,7 @@
+             } else if (status.getReason() == DownloadError.ERROR_HTTP_DATA_ERROR
+                     && Integer.parseInt(status.getReasonDetailed()) == 416) {
+ 
++                notificationManager.postRetryNotification(downloader.getDownloadRequest());
+                 Log.d(TAG, "Requested invalid range, restarting download from the beginning");
+                 FileUtils.deleteQuietly(new File(downloader.getDownloadRequest().getDestination()));
+                 DownloadServiceInterface.get().download(this, false, downloader.getDownloadRequest());
+@@ -750,6 +751,19 @@
+         nm.notify(downloadRequest.getSource().hashCode(), builder.build());
+     }
+ 
++    public void postRetryNotification(final DownloadRequest downloadRequest) {
++        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NotificationUtils.CHANNEL_ID_DOWNLOAD_ERROR);
++        builder.setTicker(context.getText(R.string.download_failed_notification_title))
++                .setContentTitle(context.getText(R.string.download_failed_notification_title))
++                .setContentText(context.getText(R.string.download_failed_notification_msg))
++                .setSmallIcon(R.drawable.ic_notification_sync_error)
++                .setAutoCancel(true)
++                .setContentIntent(getReportNotificationContentIntent(context))
++                .addAction(R.drawable.ic_notification_sync, context.getString(R.string.retry_label),
++                        DownloadServiceInterface.get().get )
++                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
++        ((NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE)).notify(R.id.notification_download_report, builder.build());
++    }
+     public PendingIntent getReportNotificationContentIntent(Context context) {
+         Intent intent = new MainActivityStarter(context)
+                 .withFragmentLoaded("DownloadsFragment")

@@ -1,0 +1,90 @@
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/FeedSettingsTest.java b/app/src/androidTest/java/de/test/antennapod/ui/FeedSettingsTest.java
+index 187c9e16dac..c34ab19c098 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/FeedSettingsTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/FeedSettingsTest.java
+@@ -70,7 +70,7 @@ public void testClickFeedSettings() {
+         clickPreference(R.string.pref_feed_skip);
+         onView(withText(R.string.cancel_label)).perform(click());
+ 
+-        clickPreference(R.string.auto_delete_label);
++        clickPreference(R.string.pref_auto_delete_playback_title);
+         onView(withText(R.string.cancel_label)).perform(click());
+ 
+         clickPreference(R.string.feed_volume_adapdation);
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+index 93d9fe1290e..3e6267ac40f 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+@@ -173,11 +173,12 @@ public void testContinuousPlayback() {
+     @Test
+     public void testAutoDelete() {
+         clickPreference(R.string.downloads_pref);
+-        final boolean autoDelete = UserPreferences.isAutoDelete();
+         onView(withText(R.string.pref_auto_delete_title)).perform(click());
++        final boolean autoDelete = UserPreferences.isAutoDelete();
++        onView(withText(R.string.pref_auto_delete_playback_title)).perform(click());
+         Awaitility.await().atMost(1000, MILLISECONDS)
+                 .until(() -> autoDelete != UserPreferences.isAutoDelete());
+-        onView(withText(R.string.pref_auto_delete_title)).perform(click());
++        onView(withText(R.string.pref_auto_delete_playback_title)).perform(click());
+         Awaitility.await().atMost(1000, MILLISECONDS)
+                 .until(() -> autoDelete == UserPreferences.isAutoDelete());
+     }
+@@ -185,8 +186,10 @@ public void testAutoDelete() {
+     @Test
+     public void testAutoDeleteLocal() {
+         clickPreference(R.string.downloads_pref);
+-        final boolean initialAutoDelete = UserPreferences.isAutoDeleteLocal();
+-        assertFalse(initialAutoDelete);
++        onView(withText(R.string.pref_auto_delete_title)).perform(click());
++        onView(withText(R.string.pref_auto_delete_playback_title)).perform(click());
++        assertTrue(UserPreferences.isAutoDelete());
++        assertFalse(UserPreferences.isAutoDeleteLocal());
+ 
+         onView(withText(R.string.pref_auto_local_delete_title)).perform(click());
+         onView(withText(R.string.yes)).perform(click());
+@@ -289,7 +292,7 @@ public void testAutomaticDownload() {
+     @Test
+     public void testEpisodeCleanupFavoriteOnly() {
+         clickPreference(R.string.downloads_pref);
+-        onView(withText(R.string.pref_automatic_download_title)).perform(click());
++        onView(withText(R.string.pref_auto_delete_title)).perform(click());
+         onView(withText(R.string.pref_episode_cleanup_title)).perform(click());
+         onView(withId(R.id.select_dialog_listview)).perform(swipeDown());
+         onView(withText(R.string.episode_cleanup_except_favorite_removal)).perform(click());
+@@ -300,7 +303,7 @@ public void testEpisodeCleanupFavoriteOnly() {
+     @Test
+     public void testEpisodeCleanupQueueOnly() {
+         clickPreference(R.string.downloads_pref);
+-        onView(withText(R.string.pref_automatic_download_title)).perform(click());
++        onView(withText(R.string.pref_auto_delete_title)).perform(click());
+         onView(withText(R.string.pref_episode_cleanup_title)).perform(click());
+         onView(withId(R.id.select_dialog_listview)).perform(swipeDown());
+         onView(withText(R.string.episode_cleanup_queue_removal)).perform(click());
+@@ -311,7 +314,7 @@ public void testEpisodeCleanupQueueOnly() {
+     @Test
+     public void testEpisodeCleanupNeverAlg() {
+         clickPreference(R.string.downloads_pref);
+-        onView(withText(R.string.pref_automatic_download_title)).perform(click());
++        onView(withText(R.string.pref_auto_delete_title)).perform(click());
+         onView(withText(R.string.pref_episode_cleanup_title)).perform(click());
+         onView(withId(R.id.select_dialog_listview)).perform(swipeUp());
+         onView(withText(R.string.episode_cleanup_never)).perform(click());
+@@ -322,7 +325,7 @@ public void testEpisodeCleanupNeverAlg() {
+     @Test
+     public void testEpisodeCleanupClassic() {
+         clickPreference(R.string.downloads_pref);
+-        onView(withText(R.string.pref_automatic_download_title)).perform(click());
++        onView(withText(R.string.pref_auto_delete_title)).perform(click());
+         onView(withText(R.string.pref_episode_cleanup_title)).perform(click());
+         onView(withText(R.string.episode_cleanup_after_listening)).perform(click());
+         Awaitility.await().atMost(1000, MILLISECONDS)
+@@ -339,7 +342,7 @@ public void testEpisodeCleanupClassic() {
+     @Test
+     public void testEpisodeCleanupNumDays() {
+         clickPreference(R.string.downloads_pref);
+-        clickPreference(R.string.pref_automatic_download_title);
++        onView(withText(R.string.pref_auto_delete_title)).perform(click());
+         clickPreference(R.string.pref_episode_cleanup_title);
+         String search = res.getQuantityString(R.plurals.episode_cleanup_days_after_listening, 3, 3);
+         onView(withText(search)).perform(scrollTo());

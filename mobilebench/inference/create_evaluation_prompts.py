@@ -14,6 +14,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from create_instance import add_text_inputs, PROMPT_FUNCTIONS
+from tokenize_dataset import TOKENIZER_FUNCS, get_model_family
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ def find_input_files(input_path):
         return [input_path]
     elif input_path.is_dir():
         # Find all task instance files in directory
-        patterns = ["*task-instances.jsonl", "*task-instances.jsonl.all", "*.jsonl", "*.json"]
+        patterns = ["*task-instances.jsonl", "*task-instances.jsonl.all", "*.jsonl"]
         files = []
         for pattern in patterns:
             files.extend(input_path.glob(pattern))
@@ -52,7 +53,7 @@ def find_input_files(input_path):
         return [Path(f) for f in sorted(files)]
 
 
-def get_output_filename(input_file, output_dir, prompt_style, file_source, smart_selection=False):
+def get_output_filename(input_file, output_dir, prompt_style, file_source, model_name=None):
     """Generate output filename based on input file and parameters."""
     input_file = Path(input_file)
     base_name = input_file.stem
@@ -66,20 +67,43 @@ def get_output_filename(input_file, output_dir, prompt_style, file_source, smart
         base_name = base_name[:-len(".jsonl")]
     
     # Add parameters to filename
-    suffix = "_smart" if smart_selection else ""
-    output_name = f"{base_name}_prompts_{prompt_style}_{file_source}{suffix}.jsonl"
+    output_name = f"{base_name}_prompts_{prompt_style}_{file_source}"
+    
+    # Add model family if specified
+    if model_name:
+        model_family = get_model_family(model_name)
+        output_name += f"_{model_family}"
+    
+    output_name += ".jsonl"
     return Path(output_dir) / output_name
 
 
-def validate_arguments(file_source, max_context_len, tokenizer_name):
+def validate_arguments(file_source, max_context_len, tokenizer_name, model_name):
     """Validate command line arguments."""
     if max_context_len is not None:
         assert file_source not in {"all", "oracle"}, (
             "Cannot use max_context_len with oracle or all file sources"
         )
-        assert tokenizer_name is not None, (
-            "Must provide tokenizer_name if max_context_len is not None"
-        )
+        
+        # Allow either tokenizer_name or model_name
+        if tokenizer_name is None and model_name is None:
+            raise ValueError("Must provide either tokenizer_name or model_name if max_context_len is not None")
+        
+        # If model_name is provided, derive tokenizer family
+        if model_name is not None:
+            derived_family = get_model_family(model_name)
+            if derived_family not in TOKENIZER_FUNCS:
+                raise ValueError(f"No tokenizer available for model family: {derived_family}")
+            
+            # Override tokenizer_name with derived family
+            return derived_family
+        
+        # Validate tokenizer_name if provided directly
+        if tokenizer_name not in TOKENIZER_FUNCS:
+            available = list(TOKENIZER_FUNCS.keys())
+            raise ValueError(f"Invalid tokenizer_name: {tokenizer_name}. Available: {available}")
+    
+    return tokenizer_name
 
 
 def process_single_file(
@@ -91,11 +115,6 @@ def process_single_file(
     k=None,
     max_context_len=None,
     tokenizer_name=None,
-    enable_smart_selection=True,
-    enable_caching=True,
-    max_files=20,
-    chunk_large_contexts=True,
-    cache_dir=None,
 ):
     """Process a single task instance file."""
     logger.info(f"Processing {input_file}")
@@ -134,11 +153,6 @@ def process_single_file(
             max_context_len=max_context_len,
             tokenizer_name=tokenizer_name,
             progress_file=str(output_file),
-            enable_smart_selection=enable_smart_selection,
-            enable_caching=enable_caching,
-            max_files=max_files,
-            chunk_large_contexts=chunk_large_contexts,
-            cache_dir=cache_dir,
         )
         
         # Count successful prompts
@@ -171,15 +185,11 @@ def main(
     k=None,
     max_context_len=None,
     tokenizer_name=None,
-    enable_smart_selection=True,
-    enable_caching=True,
-    max_files=20,
-    chunk_large_contexts=True,
-    cache_dir=None,
+    model_name=None,
 ):
     """
     Main function to create evaluation prompts from task instances.
-    Supports batch processing of multiple files with smart features.
+    Supports batch processing of multiple files.
     
     Args:
         input_path: Path to task instances file, directory, or glob pattern
@@ -189,16 +199,15 @@ def main(
         retrieval_file: Path to retrieval results (only for bm25)
         k: Max number of files for retrieval (only for bm25)
         max_context_len: Max context length in tokens (only for bm25)
-        tokenizer_name: Tokenizer to use for context length (only for bm25)
-        enable_smart_selection: Use smart file selection for oracle mode
-        enable_caching: Cache processed contexts
-        max_files: Maximum number of files to include in oracle mode
-        chunk_large_contexts: Split large contexts into chunks
-        cache_dir: Directory for caching
+        tokenizer_name: Tokenizer family to use (gpt, claude, gemini)
+        model_name: Model name to auto-detect tokenizer family from
     """
     
-    # Validate arguments
-    validate_arguments(file_source, max_context_len, tokenizer_name)
+    # Validate arguments and resolve tokenizer
+    resolved_tokenizer = validate_arguments(file_source, max_context_len, tokenizer_name, model_name)
+    
+    # Use resolved tokenizer for processing
+    final_tokenizer_name = resolved_tokenizer or tokenizer_name
     
     # Validate prompt style
     if prompt_style not in PROMPT_FUNCTIONS:
@@ -216,22 +225,13 @@ def main(
     
     logger.info(f"Found {len(input_files)} files to process")
     logger.info(f"Output directory: {output_dir}")
-    
-    # Log configuration
-    if file_source == "oracle":
-        logger.info(f"Smart selection: {'enabled' if enable_smart_selection else 'disabled'}")
-        logger.info(f"Max files: {max_files}")
-        logger.info(f"Chunking: {'enabled' if chunk_large_contexts else 'disabled'}")
-    logger.info(f"Caching: {'enabled' if enable_caching else 'disabled'}")
-    if cache_dir:
-        logger.info(f"Cache directory: {cache_dir}")
+    if final_tokenizer_name:
+        logger.info(f"Using tokenizer: {final_tokenizer_name}")
+    if model_name:
+        logger.info(f"Target model: {model_name} (family: {get_model_family(model_name)})")
     
     # Create output directory
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    
-    # Create cache directory if caching enabled
-    if enable_caching and cache_dir:
-        Path(cache_dir).mkdir(parents=True, exist_ok=True)
     
     # Process each file
     total_prompts = 0
@@ -239,7 +239,7 @@ def main(
     
     for input_file in tqdm(input_files, desc="Processing files"):
         output_file = get_output_filename(
-            input_file, output_dir, prompt_style, file_source, enable_smart_selection
+            input_file, output_dir, prompt_style, file_source, model_name
         )
         
         try:
@@ -251,12 +251,7 @@ def main(
                 retrieval_file=retrieval_file,
                 k=k,
                 max_context_len=max_context_len,
-                tokenizer_name=tokenizer_name,
-                enable_smart_selection=enable_smart_selection,
-                enable_caching=enable_caching,
-                max_files=max_files,
-                chunk_large_contexts=chunk_large_contexts,
-                cache_dir=cache_dir,
+                tokenizer_name=final_tokenizer_name,
             )
             
             # Count prompts in this file
@@ -331,74 +326,15 @@ if __name__ == "__main__":
         "--tokenizer_name",
         type=str,
         default=None,
-        choices=["gpt4", "llama", "claude"],  # Add available tokenizers
-        help="Tokenizer to use for context length counting"
-    )
-    
-    # Smart features for oracle mode
-    parser.add_argument(
-        "--enable_smart_selection",
-        action="store_true",
-        default=True,
-        help="Enable smart file selection for oracle mode (default: True)"
+        choices=list(TOKENIZER_FUNCS.keys()) if TOKENIZER_FUNCS else ["gpt", "claude", "gemini"],
+        help="Tokenizer family to use for context length counting"
     )
     parser.add_argument(
-        "--disable_smart_selection",
-        action="store_true",
-        help="Disable smart file selection for oracle mode"
-    )
-    parser.add_argument(
-        "--max_files",
-        type=int,
-        default=20,
-        help="Maximum number of files to include in oracle mode (default: 20)"
-    )
-    
-    # Caching
-    parser.add_argument(
-        "--enable_caching",
-        action="store_true",
-        default=True,
-        help="Enable caching of processed contexts (default: True)"
-    )
-    parser.add_argument(
-        "--disable_caching",
-        action="store_true",
-        help="Disable caching of processed contexts"
-    )
-    parser.add_argument(
-        "--cache_dir",
+        "--model_name",
         type=str,
-        default="cache/contexts",
-        help="Directory for caching processed contexts (default: cache/contexts)"
-    )
-    
-    # Chunking
-    parser.add_argument(
-        "--chunk_large_contexts",
-        action="store_true",
-        default=True,
-        help="Enable chunking of large contexts (default: True)"
-    )
-    parser.add_argument(
-        "--disable_chunking",
-        action="store_true",
-        help="Disable chunking of large contexts"
+        default=None,
+        help="Model name to auto-detect tokenizer family (e.g., 'gpt-4o', 'claude-sonnet-4', 'gemini-2.5-flash')"
     )
     
     args = parser.parse_args()
-    
-    # Handle disable flags
-    if args.disable_smart_selection:
-        args.enable_smart_selection = False
-    if args.disable_caching:
-        args.enable_caching = False
-    if args.disable_chunking:
-        args.chunk_large_contexts = False
-    
-    # Remove disable flags from args
-    delattr(args, 'disable_smart_selection')
-    delattr(args, 'disable_caching') 
-    delattr(args, 'disable_chunking')
-    
     main(**vars(args))

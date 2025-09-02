@@ -1,0 +1,12 @@
+diff --git a/app/src/androidTest/java/de/test/antennapod/storage/AutoDownloadTest.java b/app/src/androidTest/java/de/test/antennapod/storage/AutoDownloadTest.java
+index 23c129cb19..c9b8ef3714 100644
+--- a/app/src/androidTest/java/de/test/antennapod/storage/AutoDownloadTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/storage/AutoDownloadTest.java
+@@ -100,7 +100,6 @@ private void playEpisode(@NonNull FeedItem item) {
+         new PlaybackServiceStarter(context, media)
+                 .callEvenIfRunning(true)
+                 .startWhenPrepared(true)
+-                .shouldStream(true)
+                 .start();
+         Awaitility.await("episode is playing")
+                 .atMost(2000, MILLISECONDS)

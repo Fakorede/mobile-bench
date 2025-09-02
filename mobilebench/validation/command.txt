@@ -1,0 +1,75 @@
+test_command = f"""
+cd /workspace &&
+echo "=== Starting Targeted Test Execution for Android Project ===" &&
+echo "Instance ID: {instance_id}" &&
+echo "Working directory: $(pwd)" &&
+echo "Test files: $(echo '{test_files}' | tr "'" '"')" &&
+echo "Build variants detected: {build_variants}" &&
+echo "Test tasks: {test_tasks}" &&
+
+# Improved Java version detection
+echo "=== Detecting and setting Java version ===" &&
+java_version=$(grep -r "JavaVersion\\.VERSION_" . 2>/dev/null | head -1 | grep -o '[0-9]\\+' | head -1)
+if [ -z "$java_version" ]; then
+    java_version=$(grep -r "jvmTarget.*=.*['\\\"]\\([0-9]\\+\\)" . 2>/dev/null | head -1 | sed 's/.*jvmTarget.*=.*['\\\"]\\([0-9]\\+\\).*/\\1/')
+fi
+if [ -z "$java_version" ]; then
+    java_version=$(grep -r "compileOptions" -A 3 . 2>/dev/null | grep -o '[0-9]\\+' | head -1)
+fi
+if [ -z "$java_version" ] || [ "$java_version" -lt "8" ]; then 
+    java_version="17"
+fi
+echo "Using Java version: $java_version"
+
+case $java_version in
+    8) export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 ;;
+    11) export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 ;;
+    17) export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ;;
+    21) export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ;;
+    *) export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ;;
+esac
+if [ -d "$JAVA_HOME" ]; then 
+    export PATH="$JAVA_HOME/bin:$PATH"
+    echo "Set JAVA_HOME to: $JAVA_HOME"
+fi
+
+# Android environment
+export ANDROID_HOME='/opt/android-sdk'
+export ANDROID_SDK_ROOT='/opt/android-sdk'
+export HOME=/tmp
+export GRADLE_USER_HOME=/tmp/.gradle
+mkdir -p /tmp/.gradle
+
+# Optimized Gradle configuration for testing
+echo "=== Configuring Gradle ===" &&
+cat > /tmp/.gradle/gradle.properties << 'GRADLE_EOF'
+org.gradle.daemon=false
+org.gradle.parallel=true
+org.gradle.workers.max=4
+org.gradle.configureondemand=true
+org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC
+android.enableJetifier=true
+android.useAndroidX=true
+android.suppressUnsupportedCompileSdk=true
+GRADLE_EOF
+
+echo "=== Gradle version and project info ===" &&
+./gradlew --version | head -5 &&
+./gradlew projects --quiet 2>/dev/null | head -10 || echo "Could not list projects"
+
+echo "=== Stopping existing Gradle daemons ===" &&
+./gradlew --stop 2>/dev/null || true &&
+
+echo "=== Executing targeted tests: {gradle_command} ===" &&
+{gradle_command} 2>&1 || echo "Test execution completed (may have failures)"
+
+echo "=== Collecting test results ===" &&
+find . -name "TEST-*.xml" -type f 2>/dev/null | head -20 | while read file; do
+    echo "=== XML RESULT: $file ==="
+    cat "$file" 2>/dev/null || echo "Could not read $file"
+    echo "=== END XML ==="
+done
+
+echo "=== Test execution summary ===" &&
+find . -path "*/test-results/*" -name "*.xml" -type f 2>/dev/null | wc -l | xargs echo "Total XML result files found:"
+"""

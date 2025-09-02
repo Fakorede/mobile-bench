@@ -13,7 +13,7 @@ import logging
 import hashlib
 import pickle
 from typing import Dict, List, Set, Tuple, Optional
-from mobilebench.inference.android_config import AndroidProjectConfig
+# from mobilebench.inference.android_config import AndroidProjectConfig
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)

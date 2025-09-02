@@ -1,0 +1,31 @@
+{
+  "summary": {
+    "total_tests": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "duration": 44.83625769615173,
+    "exit_code": 0,
+    "build_successful": true
+  },
+  "test_lists": {
+    "passed_tests": [
+      "de.danoeh.antennapod.parser.media.vorbis.VorbisCommentMetadataReaderTest.testRealFilesAuphonic"
+    ],
+    "failed_tests": [],
+    "skipped_tests": [],
+    "error_tests": []
+  },
+  "detailed_results": [
+    {
+      "test_name": "testRealFilesAuphonic",
+      "class_name": "de.danoeh.antennapod.parser.media.vorbis.VorbisCommentMetadataReaderTest",
+      "full_name": "de.danoeh.antennapod.parser.media.vorbis.VorbisCommentMetadataReaderTest.testRealFilesAuphonic",
+      "status": "PASSED",
+      "duration": 0.0,
+      "failure_message": "",
+      "error_message": ""
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+diff --git a/app/src/androidTest/java/de/test/antennapod/dialogs/ShareDialogTest.java b/app/src/androidTest/java/de/test/antennapod/dialogs/ShareDialogTest.java
+index 3c32407a5ab..c68e13438d2 100644
+--- a/app/src/androidTest/java/de/test/antennapod/dialogs/ShareDialogTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/dialogs/ShareDialogTest.java
+@@ -8,7 +8,7 @@
+ import androidx.test.platform.app.InstrumentationRegistry;
+ import de.danoeh.antennapod.R;
+ import de.danoeh.antennapod.activity.MainActivity;
+-import de.danoeh.antennapod.fragment.EpisodesFragment;
++import de.danoeh.antennapod.fragment.AllEpisodesFragment;
+ import de.test.antennapod.EspressoTestUtils;
+ import de.test.antennapod.ui.UITestUtils;
+ import org.hamcrest.Matcher;
+@@ -48,7 +48,7 @@ public void setUp() throws Exception {
+         context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+         EspressoTestUtils.clearPreferences();
+         EspressoTestUtils.clearDatabase();
+-        EspressoTestUtils.setLastNavFragment(EpisodesFragment.TAG);
++        EspressoTestUtils.setLastNavFragment(AllEpisodesFragment.TAG);
+         UITestUtils uiTestUtils = new UITestUtils(context);
+         uiTestUtils.setup();
+         uiTestUtils.addLocalFeedData(true);
+@@ -57,8 +57,6 @@ public void setUp() throws Exception {
+ 
+         openNavDrawer();
+         onDrawerItem(withText(R.string.episodes_label)).perform(click());
+-        onView(isRoot()).perform(waitForView(withText(R.string.all_episodes_short_label), 1000));
+-        onView(withText(R.string.all_episodes_short_label)).perform(click());
+ 
+         Matcher<View> allEpisodesMatcher;
+         allEpisodesMatcher = Matchers.allOf(withId(android.R.id.list), isDisplayed(), hasMinimumChildCount(2));
+diff --git a/app/src/androidTest/java/de/test/antennapod/playback/PlaybackTest.java b/app/src/androidTest/java/de/test/antennapod/playback/PlaybackTest.java
+index 67a660ae114..78cf59907c5 100644
+--- a/app/src/androidTest/java/de/test/antennapod/playback/PlaybackTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/playback/PlaybackTest.java
+@@ -251,11 +251,9 @@ protected void pauseEpisode() {
+     protected void startLocalPlayback() {
+         openNavDrawer();
+         onDrawerItem(withText(R.string.episodes_label)).perform(click());
+-        onView(isRoot()).perform(waitForView(withText(R.string.all_episodes_short_label), 1000));
+-        onView(withText(R.string.all_episodes_short_label)).perform(click());
+ 
+         final List<FeedItem> episodes = DBReader.getRecentlyPublishedEpisodes(0, 10, FeedItemFilter.unfiltered());
+-        Matcher<View> allEpisodesMatcher = allOf(withId(android.R.id.list), isDisplayed(), hasMinimumChildCount(2));
++        Matcher<View> allEpisodesMatcher = allOf(withId(R.id.recyclerView), isDisplayed(), hasMinimumChildCount(2));
+         onView(isRoot()).perform(waitForView(allEpisodesMatcher, 1000));
+         onView(allEpisodesMatcher).perform(actionOnItemAtPosition(0, clickChildViewWithId(R.id.secondaryActionButton)));
+ 
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/NavigationDrawerTest.java b/app/src/androidTest/java/de/test/antennapod/ui/NavigationDrawerTest.java
+index 98d983a02c8..97c199e26ca 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/NavigationDrawerTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/NavigationDrawerTest.java
+@@ -11,7 +11,7 @@
+ import de.danoeh.antennapod.fragment.CompletedDownloadsFragment;
+ import de.danoeh.antennapod.model.feed.Feed;
+ import de.danoeh.antennapod.core.preferences.UserPreferences;
+-import de.danoeh.antennapod.fragment.EpisodesFragment;
++import de.danoeh.antennapod.fragment.AllEpisodesFragment;
+ import de.danoeh.antennapod.fragment.NavDrawerFragment;
+ import de.danoeh.antennapod.fragment.PlaybackHistoryFragment;
+ import de.danoeh.antennapod.fragment.QueueFragment;
+@@ -148,7 +148,7 @@ public void testDrawerPreferencesHideSomeElements() {
+ 
+         List<String> hidden = UserPreferences.getHiddenDrawerItems();
+         assertEquals(2, hidden.size());
+-        assertTrue(hidden.contains(EpisodesFragment.TAG));
++        assertTrue(hidden.contains(AllEpisodesFragment.TAG));
+         assertTrue(hidden.contains(PlaybackHistoryFragment.TAG));
+     }
+ 
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+index ef5719d6fab..b8f2faa6394 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+@@ -28,7 +28,7 @@
+ import de.danoeh.antennapod.core.storage.APQueueCleanupAlgorithm;
+ import de.danoeh.antennapod.core.storage.EpisodeCleanupAlgorithm;
+ import de.danoeh.antennapod.core.storage.ExceptFavoriteCleanupAlgorithm;
+-import de.danoeh.antennapod.fragment.EpisodesFragment;
++import de.danoeh.antennapod.fragment.AllEpisodesFragment;
+ import de.danoeh.antennapod.fragment.QueueFragment;
+ import de.danoeh.antennapod.fragment.SubscriptionFragment;
+ import de.test.antennapod.EspressoTestUtils;
+@@ -521,7 +521,7 @@ public void testBackButtonBehaviorGoToPageSelector() {
+         Awaitility.await().atMost(1000, MILLISECONDS)
+                 .until(() -> UserPreferences.getBackButtonBehavior() == UserPreferences.BackButtonBehavior.GO_TO_PAGE);
+         Awaitility.await().atMost(1000, MILLISECONDS)
+-                .until(() -> UserPreferences.getBackButtonGoToPage().equals(EpisodesFragment.TAG));
++                .until(() -> UserPreferences.getBackButtonGoToPage().equals(AllEpisodesFragment.TAG));
+         clickPreference(R.string.pref_back_button_behavior_title);
+         onView(withText(R.string.back_button_go_to_page)).perform(click());
+         onView(withText(R.string.subscriptions_label)).perform(click());

@@ -1,0 +1,90 @@
+diff --git a/app/src/androidTest/java/de/test/antennapod/service/download/HttpDownloaderTest.java b/app/src/androidTest/java/de/test/antennapod/service/download/HttpDownloaderTest.java
+index 76cba47066f..aa55a1e59c7 100644
+--- a/app/src/androidTest/java/de/test/antennapod/service/download/HttpDownloaderTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/service/download/HttpDownloaderTest.java
+@@ -72,12 +72,14 @@ private FeedFileImpl setupFeedFile(String downloadUrl, String title, boolean del
+     }
+ 
+     private Downloader download(String url, String title, boolean expectedResult) {
+-        return download(url, title, expectedResult, true, null, null, true);
++        return download(url, title, expectedResult, true, null, null);
+     }
+ 
+-    private Downloader download(String url, String title, boolean expectedResult, boolean deleteExisting, String username, String password, boolean deleteOnFail) {
++    private Downloader download(String url, String title, boolean expectedResult, boolean deleteExisting,
++                                String username, String password) {
+         FeedFile feedFile = setupFeedFile(url, title, deleteExisting);
+-        DownloadRequest request = new DownloadRequest(feedFile.getFile_url(), url, title, 0, feedFile.getTypeAsInt(), username, password, deleteOnFail, null, false);
++        DownloadRequest request = new DownloadRequest(feedFile.getFile_url(), url, title, 0, feedFile.getTypeAsInt(),
++                username, password, null, false);
+         Downloader downloader = new HttpDownloader(request);
+         downloader.call();
+         DownloadResult status = downloader.getResult();
+@@ -112,7 +114,8 @@ public void test404() {
+     public void testCancel() {
+         final String url = httpServer.getBaseUrl() + "/delay/3";
+         FeedFileImpl feedFile = setupFeedFile(url, "delay", true);
+-        final Downloader downloader = new HttpDownloader(new DownloadRequest(feedFile.getFile_url(), url, "delay", 0, feedFile.getTypeAsInt(), null, null, true, null, false));
++        final Downloader downloader = new HttpDownloader(new DownloadRequest(feedFile.getFile_url(), url, "delay", 0,
++                feedFile.getTypeAsInt(), null, null, null, false));
+         Thread t = new Thread() {
+             @Override
+             public void run() {
+@@ -128,12 +131,11 @@ public void run() {
+         }
+         DownloadResult result = downloader.getResult();
+         assertFalse(result.isSuccessful());
+-        assertFalse(new File(feedFile.getFile_url()).exists());
+     }
+ 
+     @Test
+     public void testDeleteOnFailShouldDelete() {
+-        Downloader downloader = download(url404, "testDeleteOnFailShouldDelete", false, true, null, null, true);
++        Downloader downloader = download(url404, "testDeleteOnFailShouldDelete", false, true, null, null);
+         assertFalse(new File(downloader.getDownloadRequest().getDestination()).exists());
+     }
+ 
+@@ -143,18 +145,18 @@ public void testDeleteOnFailShouldNotDelete() throws IOException {
+         File dest = new File(destDir, filename);
+         dest.delete();
+         assertTrue(dest.createNewFile());
+-        Downloader downloader = download(url404, filename, false, false, null, null, false);
++        Downloader downloader = download(url404, filename, false, false, null, null);
+         assertTrue(new File(downloader.getDownloadRequest().getDestination()).exists());
+     }
+ 
+     @Test
+     public void testAuthenticationShouldSucceed() throws InterruptedException {
+-        download(urlAuth, "testAuthSuccess", true, true, "user", "passwd", true);
++        download(urlAuth, "testAuthSuccess", true, true, "user", "passwd");
+     }
+ 
+     @Test
+     public void testAuthenticationShouldFail() {
+-        Downloader downloader = download(urlAuth, "testAuthSuccess", false, true, "user", "Wrong passwd", true);
++        Downloader downloader = download(urlAuth, "testAuthSuccess", false, true, "user", "Wrong passwd");
+         assertEquals(DownloadError.ERROR_UNAUTHORIZED, downloader.getResult().getReason());
+     }
+ 
+diff --git a/net/download/service-interface/src/test/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadRequestTest.java b/net/download/service-interface/src/test/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadRequestTest.java
+index 2709744f7b8..a48934cfeb7 100644
+--- a/net/download/service-interface/src/test/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadRequestTest.java
++++ b/net/download/service-interface/src/test/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadRequestTest.java
+@@ -41,17 +41,14 @@ public void downloadRequestTestEquals() {
+         String password = "testPassword";
+         FeedMedia item = createFeedItem(1);
+         DownloadRequest request1 = new DownloadRequest.Builder(destStr, item)
+-                .deleteOnFailure(true)
+                 .withAuthentication(username, password)
+                 .build();
+ 
+         DownloadRequest request2 = new DownloadRequest.Builder(destStr, item)
+-                .deleteOnFailure(true)
+                 .withAuthentication(username, password)
+                 .build();
+ 
+         DownloadRequest request3 = new DownloadRequest.Builder(destStr, item)
+-                .deleteOnFailure(true)
+                 .withAuthentication("diffUsername", "diffPassword")
+                 .build();
+ 

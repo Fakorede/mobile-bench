@@ -1,0 +1,70 @@
+{
+  "instance_id": "AntennaPod__AntennaPod-6530",
+  "model_name": "Gemini 2.5 Flash",
+  "success": true,
+  "error_message": "",
+  "repo_cloned": true,
+  "config_parsed": true,
+  "container_created": true,
+  "base_commit_checked_out": true,
+  "test_patch_applied": true,
+  "prediction_patch_applied": true,
+  "test_execution": {
+    "total_tests": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "duration": 40.30348253250122,
+    "exit_code": 0,
+    "build_successful": true,
+    "passed_tests": [
+      "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_NoAuth",
+      "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.downloadRequestTestEquals",
+      "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_WithAuth",
+      "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_MixAuth"
+    ],
+    "failed_tests": [],
+    "skipped_tests": [],
+    "error_tests": [],
+    "detailed_test_results": [
+      {
+        "test_name": "parcelInArrayListTest_NoAuth",
+        "class_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest",
+        "full_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_NoAuth",
+        "status": "PASSED",
+        "duration": 0.0,
+        "failure_message": "",
+        "error_message": ""
+      },
+      {
+        "test_name": "downloadRequestTestEquals",
+        "class_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest",
+        "full_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.downloadRequestTestEquals",
+        "status": "PASSED",
+        "duration": 0.0,
+        "failure_message": "",
+        "error_message": ""
+      },
+      {
+        "test_name": "parcelInArrayListTest_WithAuth",
+        "class_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest",
+        "full_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_WithAuth",
+        "status": "PASSED",
+        "duration": 0.0,
+        "failure_message": "",
+        "error_message": ""
+      },
+      {
+        "test_name": "parcelInArrayListTest_MixAuth",
+        "class_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest",
+        "full_name": "de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_MixAuth",
+        "status": "PASSED",
+        "duration": 0.0,
+        "failure_message": "",
+        "error_message": ""
+      }
+    ]
+  },
+  "total_duration": 162.65191960334778
+}

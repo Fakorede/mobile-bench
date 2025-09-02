@@ -1,0 +1,63 @@
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/download/DownloadServiceInterfaceImpl.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/service/download/DownloadServiceInterfaceImpl.java
+@@ -45,9 +45,6 @@
+         OneTimeWorkRequest.Builder workRequest = new OneTimeWorkRequest.Builder(EpisodeDownloadWorker.class)
+                 .setInitialDelay(0L, TimeUnit.MILLISECONDS)
+                 .addTag(DownloadServiceInterface.WORK_TAG)
+-                .addTag(DownloadServiceInterface.WORK_TAG_EPISODE_URL + item.getMedia().getDownload_url());
++                .addTag(DownloadServiceInterface.WORK_TAG_EPISODE_URL + item.getMedia().getDownload_url()); // Unique work name
+         Data.Builder builder = new Data.Builder();
+         builder.putLong(WORK_DATA_MEDIA_ID, item.getMedia().getId());
+-        if (!item.isTagged(FeedItem.TAG_QUEUE) && UserPreferences.enqueueDownloadedEpisodes()) {
+-            DBWriter.addQueueItem(context, false, item.getId());
+-            builder.putBoolean(WORK_DATA_WAS_QUEUED, true);
+-        }
+         workRequest.setInputData(builder.build());
+         return workRequest;
+     }
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/download/EpisodeDownloadWorker.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/service/download/EpisodeDownloadWorker.java
+@@ -21,6 +21,7 @@
+ import de.danoeh.antennapod.core.storage.DBReader;
+ import de.danoeh.antennapod.core.storage.DBWriter;
+ import de.danoeh.antennapod.core.util.gui.NotificationUtils;
++import de.danoeh.antennapod.storage.preferences.UserPreferences;
+ import de.danoeh.antennapod.event.MessageEvent;
+ import de.danoeh.antennapod.model.download.DownloadError;
+ import de.danoeh.antennapod.model.download.DownloadResult;
+@@ -167,14 +168,17 @@
+         }
+ 
+         if (downloader.cancelled) {
+-            if (getInputData().getBoolean(DownloadServiceInterface.WORK_DATA_WAS_QUEUED, false)) {
+-                try {
+-                    DBWriter.removeQueueItem(getApplicationContext(), false, media.getItem()).get();
+-                } catch (ExecutionException | InterruptedException e) {
+-                    e.printStackTrace();
+-                }
++            // If the download was cancelled, we don't want to add it to the queue
++            return Result.success();
++        }
++
++        if (UserPreferences.enqueueDownloadedEpisodes() && !media.getItem().isTagged(FeedItem.TAG_QUEUE)) {
++            try {
++                DBWriter.addQueueItem(getApplicationContext(), false, media.getItem().getId()).get();
++            } catch (ExecutionException | InterruptedException e) {
++                Log.e(TAG, "Error adding item to queue: " + e.getMessage());
+             }
+-            return Result.success();
+         }
+ 
+         DownloadResult status = downloader.getResult();
+--- a/core/src/main/java/de/danoeh/antennapod/core/storage/DBWriter.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/storage/DBWriter.java
+@@ -420,9 +420,6 @@
+                         events.add(QueueEvent.added(item, insertPosition));
+  
+                         item.addTag(FeedItem.TAG_QUEUE);
+-                        if (item.isNew()) {
+-                            markAsUnplayedIds.add(item.getId());
+-                        }
+                         updatedItems.add(item);
+                         queueModified = true;
+                         if (item.isNew()) {

@@ -1,0 +1,13 @@
+--- a/app/src/play/java/de/danoeh/antennapod/dialog/RatingDialog.java
++++ b/app/src/play/java/de/danoeh/antennapod/dialog/RatingDialog.java
+@@ -27,7 +27,7 @@
+     private RatingDialog() {
+     }
+ 
+-    private static final String TAG = RatingDialog.class.getSimpleName();
+-    private static final int AFTER_DAYS = 14;
++    private static final String TAG = "RatingDialog";
++    private static final int AFTER_DAYS = 30;
+ 
+     private static WeakReference<Context> mContext;
+     private static SharedPreferences mPreferences;

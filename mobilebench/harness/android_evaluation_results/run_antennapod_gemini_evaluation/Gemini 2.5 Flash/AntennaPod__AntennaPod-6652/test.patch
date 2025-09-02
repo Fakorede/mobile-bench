@@ -1,0 +1,21 @@
+diff --git a/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java b/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
+index 716d68d144..70f551a9c8 100644
+--- a/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
++++ b/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
+@@ -2,6 +2,7 @@
+ 
+ import android.content.Context;
+ import de.danoeh.antennapod.model.feed.FeedItem;
++import de.danoeh.antennapod.model.feed.FeedMedia;
+ 
+ public class DownloadServiceInterfaceStub extends DownloadServiceInterface {
+ 
+@@ -14,7 +15,7 @@ public void download(Context context, FeedItem item) {
+     }
+ 
+     @Override
+-    public void cancel(Context context, String url) {
++    public void cancel(Context context, FeedMedia media) {
+     }
+ 
+     @Override

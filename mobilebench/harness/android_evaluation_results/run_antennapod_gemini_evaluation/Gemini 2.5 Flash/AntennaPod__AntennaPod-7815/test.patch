@@ -1,0 +1,144 @@
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/UITestUtils.java b/app/src/androidTest/java/de/test/antennapod/ui/UITestUtils.java
+index 4b93dcee9b9..8eef573d07a 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/UITestUtils.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/UITestUtils.java
+@@ -183,7 +183,7 @@ public void addLocalFeedData(boolean downloadEpisodes) throws Exception {
+ 
+             queue.add(feed.getItems().get(0));
+             if (feed.getItems().get(1).hasMedia()) {
+-                feed.getItems().get(1).getMedia().setPlaybackCompletionDate(new Date());
++                feed.getItems().get(1).getMedia().setLastPlayedTimeHistory(new Date());
+             }
+         }
+         localFeedDataAdded = true;
+diff --git a/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbCleanupTests.java b/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbCleanupTests.java
+index c9a707327a0..737b4b93677 100644
+--- a/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbCleanupTests.java
++++ b/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbCleanupTests.java
+@@ -130,9 +130,9 @@ void populateItems(final int numItems, Feed feed, List<FeedItem> items,
+                        boolean addToFavorites) throws IOException {
+         for (int i = 0; i < numItems; i++) {
+             Date itemDate = new Date(numItems - i);
+-            Date playbackCompletionDate = null;
++            Date lastPlayedTimeHistory = null;
+             if (itemState == FeedItem.PLAYED) {
+-                playbackCompletionDate = itemDate;
++                lastPlayedTimeHistory = itemDate;
+             }
+             FeedItem item = new FeedItem(0, "title", "id" + i, "link", itemDate, itemState, feed);
+ 
+@@ -140,7 +140,7 @@ void populateItems(final int numItems, Feed feed, List<FeedItem> items,
+             assertTrue(f.createNewFile());
+             files.add(f);
+             item.setMedia(new FeedMedia(0, item, 1, 0, 1L, "m",
+-                    f.getAbsolutePath(), "url", System.currentTimeMillis(), playbackCompletionDate, 0, 0));
++                    f.getAbsolutePath(), "url", System.currentTimeMillis(), lastPlayedTimeHistory, 0, 0));
+             items.add(item);
+         }
+ 
+diff --git a/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbReaderTest.java b/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbReaderTest.java
+index a3dc9bd6fae..8f54609b013 100644
+--- a/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbReaderTest.java
++++ b/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbReaderTest.java
+@@ -324,9 +324,9 @@ public void testGetPlaybackHistoryLength() {
+                 adapter.open();
+                 for (int i = 0; i < playedItems; ++i) {
+                     FeedMedia m = feed.getItems().get(i).getMedia();
+-                    m.setPlaybackCompletionDate(new Date(i + 1));
++                    m.setLastPlayedTimeHistory(new Date(i + 1));
+ 
+-                    adapter.setFeedMediaPlaybackCompletionDate(m);
++                    adapter.setFeedMediaLastPlayedTimeHistory(m);
+                 }
+                 adapter.close();
+ 
+@@ -506,8 +506,8 @@ public void testGetPlaybackHistory() {
+             adapter.open();
+             for (int i = 0; i < playedItems; i++) {
+                 FeedMedia m = feed.getItems().get(i).getMedia();
+-                m.setPlaybackCompletionDate(new Date(i + 1));
+-                adapter.setFeedMediaPlaybackCompletionDate(m);
++                m.setLastPlayedTimeHistory(new Date(i + 1));
++                adapter.setFeedMediaLastPlayedTimeHistory(m);
+                 ids[ids.length - 1 - i] = m.getItem().getId();
+             }
+             adapter.close();
+@@ -520,7 +520,7 @@ public void testGetPlaybackHistory() {
+                     numReturnedItems, saved.size());
+             for (int i = 0; i < numReturnedItems; i++) {
+                 FeedItem item = saved.get(i);
+-                assertNotNull(item.getMedia().getPlaybackCompletionDate());
++                assertNotNull(item.getMedia().getLastPlayedTimeHistory());
+                 assertEquals(String.format("Wrong sort order with offset %d and limit %d: ",
+                                 paramOffset, paramLimit),
+                         item.getId(), ids[paramOffset + i]);
+diff --git a/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbWriterTest.java b/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbWriterTest.java
+index 4fc41a73b4c..d61e2076661 100644
+--- a/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbWriterTest.java
++++ b/net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbWriterTest.java
+@@ -94,7 +94,8 @@ public void tearDown() {
+     @Test
+     public void testSetFeedMediaPlaybackInformation() throws Exception {
+         final int position = 50;
+-        final long lastPlayedTime = 1000;
++        final long lastPlayedTimeStatistics = 1000;
++        final Date lastPlayedTimeHistory = new Date();
+         final int playedDuration = 60;
+         final int duration = 100;
+ 
+@@ -110,8 +111,9 @@ public void testSetFeedMediaPlaybackInformation() throws Exception {
+         DBWriter.setFeedItem(item).get(TIMEOUT, TimeUnit.SECONDS);
+ 
+         media.setPosition(position);
+-        media.setLastPlayedTime(lastPlayedTime);
++        media.setLastPlayedTimeStatistics(lastPlayedTimeStatistics);
+         media.setPlayedDuration(playedDuration);
++        media.setLastPlayedTimeHistory(lastPlayedTimeHistory);
+ 
+         DBWriter.setFeedMediaPlaybackInformation(item.getMedia()).get(TIMEOUT, TimeUnit.SECONDS);
+ 
+@@ -119,7 +121,8 @@ public void testSetFeedMediaPlaybackInformation() throws Exception {
+         FeedMedia mediaFromDb = itemFromDb.getMedia();
+ 
+         assertEquals(position, mediaFromDb.getPosition());
+-        assertEquals(lastPlayedTime, mediaFromDb.getLastPlayedTime());
++        assertEquals(lastPlayedTimeStatistics, mediaFromDb.getLastPlayedTimeStatistics());
++        assertEquals(lastPlayedTimeHistory, mediaFromDb.getLastPlayedTimeHistory());
+         assertEquals(playedDuration, mediaFromDb.getPlayedDuration());
+         assertEquals(duration, mediaFromDb.getDuration());
+     }
+@@ -467,12 +470,12 @@ public void testDeleteFeedItems() throws Exception {
+         adapter.close();
+     }
+ 
+-    private FeedMedia playbackHistorySetup(Date playbackCompletionDate) {
++    private FeedMedia playbackHistorySetup(Date lastPlayedTimeHistory) {
+         Feed feed = new Feed("url", null, "title");
+         feed.setItems(new ArrayList<>());
+         FeedItem item = new FeedItem(0, "title", "id", "link", new Date(), FeedItem.PLAYED, feed);
+         FeedMedia media = new FeedMedia(0, item, 10, 0, 1, "mime", null,
+-                "url", 0, playbackCompletionDate, 0, 0);
++                "url", 0, lastPlayedTimeHistory, 0, 0);
+         feed.getItems().add(item);
+         item.setMedia(media);
+         PodDBAdapter adapter = PodDBAdapter.getInstance();
+@@ -493,7 +496,7 @@ public void testAddItemToPlaybackHistoryNotPlayedYet() throws Exception {
+         adapter.close();
+ 
+         assertNotNull(media);
+-        assertNotNull(media.getPlaybackCompletionDate());
++        assertNotNull(media.getLastPlayedTimeHistory());
+     }
+ 
+     @Test
+@@ -508,8 +511,8 @@ public void testAddItemToPlaybackHistoryAlreadyPlayed() throws Exception {
+         adapter.close();
+ 
+         assertNotNull(media);
+-        assertNotNull(media.getPlaybackCompletionDate());
+-        assertNotEquals(media.getPlaybackCompletionDate().getTime(), oldDate);
++        assertNotNull(media.getLastPlayedTimeHistory());
++        assertNotEquals(media.getLastPlayedTimeHistory().getTime(), oldDate);
+     }
+ 
+     @SuppressWarnings("SameParameterValue")

@@ -1,0 +1,110 @@
+
+==================================================
+Task: :parser:media:testDebugUnitTest --tests de.danoeh.antennapod.parser.media.vorbis.VorbisCommentMetadataReaderTest
+Exit Code: 0
+==================================================
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.6/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Configuration on demand is an incubating feature.
+> Task :parser:media:preBuild UP-TO-DATE
+> Task :model:preBuild UP-TO-DATE
+> Task :model:preDebugBuild UP-TO-DATE
+> Task :parser:media:preDebugBuild UP-TO-DATE
+> Task :model:dataBindingMergeDependencyArtifactsDebug
+> Task :parser:media:dataBindingMergeDependencyArtifactsDebug
+> Task :model:generateDebugResValues
+> Task :parser:media:generateDebugResValues
+> Task :model:generateDebugResources
+> Task :parser:media:generateDebugResources
+> Task :parser:media:packageDebugResources
+> Task :model:packageDebugResources
+> Task :parser:media:generateDebugBuildConfig
+> Task :model:dataBindingGenBaseClassesDebug
+> Task :model:generateDebugBuildConfig
+> Task :parser:media:dataBindingGenBaseClassesDebug
+> Task :parser:media:parseDebugLocalResources
+> Task :model:parseDebugLocalResources
+> Task :parser:media:processDebugManifest
+> Task :model:processDebugManifest
+> Task :parser:media:preDebugUnitTestBuild UP-TO-DATE
+> Task :model:javaPreCompileDebug
+> Task :parser:media:javaPreCompileDebug
+> Task :parser:media:javaPreCompileDebugUnitTest
+> Task :parser:media:writeDebugAarMetadata
+> Task :model:generateDebugRFile
+> Task :parser:media:compileDebugLibraryResources
+> Task :model:compileDebugLibraryResources
+> Task :parser:media:generateDebugUnitTestResValues
+> Task :parser:media:generateDebugRFile
+> Task :parser:media:mapDebugUnitTestSourceSetPaths
+> Task :parser:media:generateDebugUnitTestResources
+> Task :parser:media:extractDeepLinksDebug
+> Task :parser:media:mergeDebugShaders
+> Task :parser:media:compileDebugShaders NO-SOURCE
+> Task :parser:media:generateDebugAssets UP-TO-DATE
+> Task :parser:media:generateDebugUnitTestAssets UP-TO-DATE
+> Task :parser:media:packageDebugAssets
+> Task :parser:media:processDebugUnitTestJavaRes
+> Task :parser:media:mergeDebugUnitTestResources
+
+> Task :model:compileDebugJavaWithJavac
+
+> Task :model:processDebugJavaRes
+> Task :model:writeDebugAarMetadata
+> Task :model:extractDeepLinksDebug
+> Task :model:bundleLibCompileToJarDebug
+> Task :model:bundleLibRuntimeToJarDebug
+> Task :model:mergeDebugShaders
+> Task :model:compileDebugShaders NO-SOURCE
+> Task :model:generateDebugAssets UP-TO-DATE
+> Task :model:packageDebugAssets
+> Task :parser:media:checkDebugUnitTestAarMetadata
+> Task :parser:media:compileDebugJavaWithJavac
+> Task :parser:media:bundleLibRuntimeToJarDebug
+> Task :parser:media:bundleLibCompileToJarDebug
+> Task :parser:media:processDebugUnitTestManifest
+> Task :parser:media:mergeDebugAssets
+> Task :parser:media:mergeDebugUnitTestAssets
+> Task :parser:media:processDebugJavaRes
+> Task :parser:media:processDebugUnitTestResources
+> Task :parser:media:compileDebugUnitTestJavaWithJavac
+> Task :parser:media:packageDebugUnitTestForUnitTest
+> Task :parser:media:generateDebugUnitTestConfig
+
+> Task :parser:media:testDebugUnitTest
+
+de.danoeh.antennapod.parser.media.vorbis.VorbisCommentMetadataReaderTest > testRealFilesAuphonic PASSED
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.6/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 42s
+50 actionable tasks: 50 executed
+Warning: SDK processing. This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+/workspace/model/src/main/java/de/danoeh/antennapod/model/feed/FeedItem.java:22: warning: [serial] serializable class FeedItem has no definition of serialVersionUID
+public class FeedItem implements Serializable {
+       ^
+/workspace/model/src/main/java/de/danoeh/antennapod/model/feed/FeedPreferences.java:13: warning: [serial] serializable class FeedPreferences has no definition of serialVersionUID
+public class FeedPreferences implements Serializable {
+       ^
+/workspace/model/src/main/java/de/danoeh/antennapod/model/feed/FeedItemFilter.java:9: warning: [serial] serializable class FeedItemFilter has no definition of serialVersionUID
+public class FeedItemFilter implements Serializable {
+       ^
+/workspace/model/src/main/java/de/danoeh/antennapod/model/feed/FeedFilter.java:10: warning: [serial] serializable class FeedFilter has no definition of serialVersionUID
+public class FeedFilter implements Serializable {
+       ^
+/workspace/model/src/main/java/de/danoeh/antennapod/model/feed/FeedMedia.java:21: warning: [serial] serializable class FeedMedia has no definition of serialVersionUID
+public class FeedMedia implements Playable {
+       ^
+/workspace/model/src/main/java/de/danoeh/antennapod/model/feed/FeedMedia.java:21: warning: [overrides] Class FeedMedia overrides equals, but neither it nor any superclass overrides hashCode method
+public class FeedMedia implements Playable {
+       ^
+/workspace/model/src/main/java/de/danoeh/antennapod/model/playback/RemoteMedia.java:23: warning: [serial] serializable class RemoteMedia has no definition of serialVersionUID
+public class RemoteMedia implements Playable {
+       ^
+7 warnings
+
+==================================================

@@ -1,0 +1,13 @@
+diff --git a/core/src/test/java/de/danoeh/antennapod/core/storage/DbReaderTest.java b/core/src/test/java/de/danoeh/antennapod/core/storage/DbReaderTest.java
+index 93f158b66c..c44c6ae433 100644
+--- a/core/src/test/java/de/danoeh/antennapod/core/storage/DbReaderTest.java
++++ b/core/src/test/java/de/danoeh/antennapod/core/storage/DbReaderTest.java
+@@ -237,7 +237,7 @@ private List<FeedItem> saveDownloadedItems(int numItems) {
+         public void testGetDownloadedItems() {
+             final int numItems = 10;
+             List<FeedItem> downloaded = saveDownloadedItems(numItems);
+-            List<FeedItem> downloadedSaved = DBReader.getDownloadedItems();
++            List<FeedItem> downloadedSaved = DBReader.getDownloadedItems(null);
+             assertNotNull(downloadedSaved);
+             assertEquals(downloaded.size(), downloadedSaved.size());
+             for (FeedItem item : downloadedSaved) {

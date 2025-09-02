@@ -1,0 +1,903 @@
+#!/usr/bin/env python3
+"""
+Enhanced Android Test Executor with smart module-specific test discovery.
+This prevents the "No tests found" error by only running tests in modules where they exist.
+"""
+
+import re
+import logging
+import time
+import tempfile
+import os
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TestResult:
+    """Represents a single test result."""
+    test_name: str
+    class_name: str
+    status: str  # PASSED, FAILED, SKIPPED, ERROR
+    duration: float = 0.0
+    failure_message: str = ""
+    error_message: str = ""
+
+
+@dataclass
+class TestExecutionResult:
+    """Represents complete test execution results."""
+    total_tests: int
+    passed: int
+    failed: int
+    skipped: int
+    errors: int
+    duration: float
+    exit_code: int
+    raw_output: str
+    test_results: List[TestResult]
+    build_successful: bool = False
+    
+    def get_tests_by_status(self, status: str) -> List[TestResult]:
+        """Get tests filtered by status."""
+        return [test for test in self.test_results if test.status == status]
+    
+    def get_passed_tests(self) -> List[str]:
+        """Get list of passed test names."""
+        return [f"{test.class_name}.{test.test_name}" for test in self.get_tests_by_status("PASSED")]
+    
+    def get_failed_tests(self) -> List[str]:
+        """Get list of failed test names."""
+        return [f"{test.class_name}.{test.test_name}" for test in self.get_tests_by_status("FAILED")]
+    
+    def get_skipped_tests(self) -> List[str]:
+        """Get list of skipped test names."""
+        return [f"{test.class_name}.{test.test_name}" for test in self.get_tests_by_status("SKIPPED")]
+    
+    def get_error_tests(self) -> List[str]:
+        """Get list of tests with errors."""
+        return [f"{test.class_name}.{test.test_name}" for test in self.get_tests_by_status("ERROR")]
+
+
+class AndroidTestExecutor:
+    """Enhanced Android test executor with smart module-specific test discovery."""
+    
+    PATCH_APPLY_STRATEGIES = [
+        "git apply --verbose",
+        "git apply --verbose --reject",
+        "git apply --verbose --ignore-space-change --ignore-whitespace",
+        "patch -p1",
+        "patch --batch --fuzz=5 -p1"
+    ]
+    
+    def __init__(self, container_manager, config_parser):
+        self.container_manager = container_manager
+        self.config_parser = config_parser
+        
+    def execute_instance(self, instance_id: str, instance_data, prediction_data, 
+                    repo_path: str) -> TestExecutionResult:
+        """Execute full evaluation workflow for a single instance with enhanced test discovery."""
+        
+        try:
+            # Step 1: Parse build configuration
+            logger.info(f"Parsing build configuration for {instance_id}")
+            config = self.config_parser.parse_build_config()
+            
+            # Step 2: Create and start container
+            logger.info(f"Creating container for {instance_id}")
+            container = self.container_manager.create_container(instance_id, config, repo_path)
+            self.container_manager.start_container(instance_id)
+            
+            # Step 3: Install SDK components
+            logger.info(f"Installing SDK components for {instance_id}")
+            self.container_manager.install_sdk_components(instance_id, config)
+            
+            # Step 4: Checkout base commit
+            logger.info(f"Checking out base commit for {instance_id}")
+            base_checkout_success = self._checkout_base_commit(instance_id, instance_data['base_commit'])
+            if not base_checkout_success:
+                raise RuntimeError("Failed to checkout base commit")
+            
+            # Step 5: Apply test patch
+            logger.info(f"Applying test patch for {instance_id}")
+            test_patch_success = self._apply_patch(instance_id, instance_data['test_patch'], "test_patch")
+            if not test_patch_success:
+                raise RuntimeError("Failed to apply test patch")
+            
+            # Step 6: Apply prediction patch
+            logger.info(f"Applying prediction patch for {instance_id}")
+            prediction_patch = self._extract_patch_from_prediction(prediction_data['full_output'])
+            prediction_patch_success = self._apply_patch(instance_id, prediction_patch, "prediction_patch")
+            if not prediction_patch_success:
+                raise RuntimeError("Failed to apply prediction patch")
+            
+            # Step 7: Enhanced test discovery and execution
+            logger.info(f"Discovering and running tests for {instance_id}")
+            test_tasks = self._discover_and_validate_test_tasks(instance_id, instance_data['test_patch'])
+            result = self._run_gradle_tests(instance_id, test_tasks)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error executing instance {instance_id}: {e}")
+            return TestExecutionResult(
+                total_tests=0, passed=0, failed=0, skipped=0, errors=1,
+                duration=0, exit_code=1, raw_output=str(e),
+                test_results=[], build_successful=False
+            )
+        finally:
+            # Cleanup
+            try:
+                self.container_manager.cleanup_container(instance_id)
+            except Exception as e:
+                logger.warning(f"Error during cleanup for {instance_id}: {e}")
+
+    def _checkout_base_commit(self, instance_id: str, base_commit: str) -> bool:
+        """Checkout the base commit and reset to clean state."""
+        try:
+            # Fix git ownership issue first
+            exit_code, output = self.container_manager.exec_command(
+                instance_id,
+                "git config --global --add safe.directory /workspace",
+                workdir="/workspace"
+            )
+            
+            if exit_code != 0:
+                logger.warning(f"Git safe directory warning for {instance_id}: {output}")
+            
+            # Reset to clean state first
+            exit_code, output = self.container_manager.exec_command(
+                instance_id,
+                "git reset --hard HEAD && git clean -fd",
+                workdir="/workspace"
+            )
+            
+            if exit_code != 0:
+                logger.warning(f"Git reset/clean warning for {instance_id}: {output}")
+            
+            # Fetch to ensure we have the commit
+            exit_code, output = self.container_manager.exec_command(
+                instance_id,
+                "git fetch origin --unshallow",
+                workdir="/workspace"
+            )
+            
+            if exit_code != 0:
+                logger.warning(f"Git unshallow failed for {instance_id}: {output}")
+                # Fallback to regular fetch
+                exit_code, output = self.container_manager.exec_command(
+                    instance_id,
+                    "git fetch origin",
+                    workdir="/workspace"
+                )
+                if exit_code != 0:
+                    logger.warning(f"Git fetch still failed for {instance_id}: {output}")
+            
+            # Checkout the specific base commit
+            exit_code, output = self.container_manager.exec_command(
+                instance_id,
+                f"git checkout {base_commit}",
+                workdir="/workspace"
+            )
+            
+            if exit_code != 0:
+                logger.error(f"Failed to checkout {base_commit} for {instance_id}: {output}")
+                return False
+                
+            # Verify we're on the right commit
+            exit_code, current_commit = self.container_manager.exec_command(
+                instance_id,
+                "git rev-parse HEAD",
+                workdir="/workspace"
+            )
+            
+            if exit_code == 0 and current_commit.strip().startswith(base_commit):
+                logger.info(f"Successfully checked out {base_commit} for {instance_id}")
+                return True
+            else:
+                logger.error(f"Commit verification failed for {instance_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error during checkout for {instance_id}: {e}")
+            return False
+
+    def _extract_patch_from_prediction(self, full_output: str) -> str:
+        """Extract patch content from model's full output."""
+        if not full_output:
+            return ""
+        
+        # Look for diff blocks in markdown code blocks
+        import re
+        
+        # Pattern for markdown code blocks with diff
+        diff_pattern = r'```(?:diff)?\n(.*?)```'
+        matches = re.findall(diff_pattern, full_output, re.DOTALL)
+        
+        if matches:
+            return matches[0].strip()
+        
+        # If no markdown blocks, check if the entire output is a diff
+        if full_output.strip().startswith('diff --git') or full_output.strip().startswith('---'):
+            return full_output.strip()
+        
+        return ""
+    
+    def _apply_patch(self, instance_id: str, patch_content: str, patch_name: str) -> bool:
+        """Apply a patch to the repository using multiple strategies."""
+        try:
+            # Validate patch content
+            if not patch_content.strip():
+                logger.info(f"Empty patch for {instance_id} - nothing to apply")
+                return True
+            
+            # Create patch file in container
+            container_patch_path = f"/tmp/{patch_name}.patch"
+            
+            # Write patch content to a temporary file first
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch') as temp_file:
+                temp_file.write(patch_content)
+                temp_patch_path = temp_file.name
+            
+            try:
+                # Copy patch file to container
+                self.container_manager.copy_to_container(
+                    instance_id, temp_patch_path, f"/tmp/{patch_name}.patch"
+                )
+                
+                # Try different patch application strategies
+                for strategy in self.PATCH_APPLY_STRATEGIES:
+                    logger.info(f"Trying patch strategy: {strategy}")
+                    
+                    if strategy.startswith('git apply'):
+                        cmd = f"{strategy} {container_patch_path}"
+                    else:  # patch command
+                        cmd = f"{strategy} < {container_patch_path}"
+                    
+                    exit_code, output = self.container_manager.exec_command(
+                        instance_id, cmd, workdir="/workspace"
+                    )
+                    
+                    if exit_code == 0:
+                        logger.info(f"Successfully applied patch with: {strategy}")
+                        return True
+                    else:
+                        logger.debug(f"Patch strategy failed: {strategy}")
+                        logger.debug(f"Error output: {output}")
+                
+                # If all strategies failed, try to auto-fix the patch
+                logger.info(f"All patch strategies failed, attempting auto-fix for {instance_id}")
+                return self._auto_fix_and_apply_patch(instance_id, patch_content, patch_name)
+                
+            finally:
+                # Clean up temporary file
+                os.unlink(temp_patch_path)
+                
+        except Exception as e:
+            logger.error(f"Error applying patch for {instance_id}: {e}")
+            return False
+    
+    def _auto_fix_and_apply_patch(self, instance_id: str, patch_content: str, patch_name: str) -> bool:
+        """Attempt to automatically fix and apply patch."""
+        try:
+            # Simple fixes: remove context lines, adjust headers
+            lines = patch_content.split('\n')
+            fixed_lines = []
+            
+            for line in lines:
+                # Skip context lines that might be causing issues
+                if line.startswith(' ') and len(line) > 1:
+                    continue
+                    
+                # Fix common header issues
+                if line.startswith('@@') and '@@' in line[2:]:
+                    # Try to simplify the hunk header
+                    parts = line.split('@@')
+                    if len(parts) >= 3:
+                        fixed_lines.append(f"@@{parts[1]}@@")
+                        continue
+                
+                fixed_lines.append(line)
+            
+            fixed_patch = '\n'.join(fixed_lines)
+            
+            # Try to apply the fixed patch DIRECTLY, not recursively
+            if fixed_patch.strip():
+                # Create patch file in container
+                container_patch_path = f"/tmp/{patch_name}_auto_fixed.patch"
+                
+                # Write patch content to a temporary file first
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch') as temp_file:
+                    temp_file.write(fixed_patch)
+                    temp_patch_path = temp_file.name
+                
+                try:
+                    # Copy patch file to container
+                    self.container_manager.copy_to_container(
+                        instance_id, temp_patch_path, container_patch_path
+                    )
+                    
+                    # Try multiple strategies with the auto-fixed patch
+                    auto_fix_strategies = [
+                        f"git apply --verbose {container_patch_path}",
+                        f"patch -p1 < {container_patch_path}",
+                        f"patch --batch --fuzz=5 -p1 < {container_patch_path}"
+                    ]
+                    
+                    for strategy in auto_fix_strategies:
+                        logger.info(f"Trying auto-fix strategy: {strategy}")
+                        exit_code, output = self.container_manager.exec_command(
+                            instance_id, strategy, workdir="/workspace"
+                        )
+                        
+                        if exit_code == 0:
+                            logger.info(f"Successfully applied auto-fixed patch with: {strategy}")
+                            return True
+                        else:
+                            logger.debug(f"Auto-fix strategy failed: {strategy}")
+                            logger.debug(f"Error output: {output}")
+                    
+                    logger.warning(f"All auto-fix strategies failed for {instance_id}")
+                    return False
+                        
+                finally:
+                    # Clean up temporary file
+                    os.unlink(temp_patch_path)
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error auto-fixing patch for {instance_id}: {e}")
+            return False
+
+    def _discover_and_validate_test_tasks(self, instance_id: str, test_patch: str) -> List[str]:
+        """
+        Enhanced test discovery that validates tests exist in their target modules.
+        This prevents the "No tests found" error.
+        """
+        logger.info(f"Starting enhanced test discovery for {instance_id}")
+        
+        # Get initial test tasks from patch analysis
+        initial_tasks = self.config_parser.extract_test_tasks_from_patch(test_patch)
+        
+        if not initial_tasks:
+            logger.warning(f"No test tasks found in patch for {instance_id}")
+            return []
+        
+        logger.info(f"Initial test tasks: {initial_tasks}")
+        
+        # Validate each test task by checking if tests actually exist
+        validated_tasks = []
+        
+        for task in initial_tasks:
+            if self._validate_test_task_exists(instance_id, task):
+                validated_tasks.append(task)
+                logger.info(f"Validated test task: {task}")
+            else:
+                logger.warning(f"Test task validation failed, skipping: {task}")
+        
+        if not validated_tasks:
+            logger.warning(f"No valid test tasks found after validation for {instance_id}")
+            # Fallback: try to discover tests using alternative methods
+            validated_tasks = self._fallback_test_discovery(instance_id, test_patch)
+        
+        logger.info(f"Final validated test tasks: {validated_tasks}")
+        return validated_tasks
+
+    def _validate_test_task_exists(self, instance_id: str, test_task: str) -> bool:
+        """
+        Validate that a test task will actually find tests to run.
+        Uses gradle --dry-run to check without executing.
+        """
+        try:
+            # Extract module and test class from task
+            module_name, test_class = self._parse_test_task(test_task)
+            
+            if not module_name or not test_class:
+                logger.warning(f"Could not parse test task: {test_task}")
+                return False
+            
+            # Check if the test class file exists in the module
+            test_file_exists = self._check_test_file_exists(instance_id, module_name, test_class)
+            
+            if not test_file_exists:
+                logger.warning(f"Test file does not exist for {test_class} in module {module_name}")
+                return False
+            
+            # Additional validation: dry-run the gradle task
+            return self._dry_run_test_task(instance_id, test_task)
+            
+        except Exception as e:
+            logger.error(f"Error validating test task {test_task}: {e}")
+            return False
+
+    def _parse_test_task(self, test_task: str) -> Tuple[Optional[str], Optional[str]]:
+        """Parse gradle test task to extract module name and test class."""
+        
+        # Pattern: :module:testDebugUnitTest --tests TestClass
+        task_pattern = r':([^:]+):test\w+\s+--tests\s+([^\s]+)'
+        match = re.match(task_pattern, test_task)
+        
+        if match:
+            return match.group(1), match.group(2)
+        
+        # Pattern: testDebugUnitTest --tests TestClass (no module specified)
+        task_pattern2 = r'test\w+\s+--tests\s+([^\s]+)'
+        match2 = re.match(task_pattern2, test_task)
+        
+        if match2:
+            return None, match2.group(1)
+        
+        return None, None
+
+    def _check_test_file_exists(self, instance_id: str, module_name: str, test_class: str) -> bool:
+        """Check if test file exists in the specified module."""
+        
+        # Convert class name to file paths
+        class_file_paths = [
+            test_class.replace('.', '/') + '.java',
+            test_class.replace('.', '/') + '.kt',
+            test_class.split('.')[-1] + '.java',
+            test_class.split('.')[-1] + '.kt'
+        ]
+        
+        # Test directories to check
+        test_dirs = [
+            f"{module_name}/src/test/java",
+            f"{module_name}/src/test/kotlin", 
+            f"{module_name}/src/androidTest/java",
+            f"{module_name}/src/androidTest/kotlin"
+        ]
+        
+        for test_dir in test_dirs:
+            for class_file_path in class_file_paths:
+                full_path = f"/workspace/{test_dir}/{class_file_path}"
+                
+                # Check if file exists in container
+                exit_code, _ = self.container_manager.exec_command(
+                    instance_id,
+                    f"test -f {full_path}",
+                    workdir="/workspace"
+                )
+                
+                if exit_code == 0:
+                    logger.debug(f"Found test file: {full_path}")
+                    return True
+        
+        return False
+
+    def _dry_run_test_task(self, instance_id: str, test_task: str) -> bool:
+        """
+        Perform a dry run of the test task to check if it would find tests.
+        """
+        try:
+            # Use gradle task info to check if tests would be found
+            dry_run_cmd = f"./gradlew {test_task} --dry-run"
+            
+            exit_code, output = self.container_manager.exec_command(
+                instance_id,
+                dry_run_cmd,
+                workdir="/workspace"
+            )
+            
+            # Check for common indicators that tests would be found
+            if exit_code == 0:
+                # Look for positive indicators in output
+                positive_indicators = [
+                    "would be executed",
+                    "SKIPPED", 
+                    "UP-TO-DATE"
+                ]
+                
+                if any(indicator in output for indicator in positive_indicators):
+                    return True
+            
+            # Additional check: use gradle tasks command to verify task exists
+            tasks_cmd = f"./gradlew tasks --all | grep -i test"
+            exit_code2, tasks_output = self.container_manager.exec_command(
+                instance_id,
+                tasks_cmd,
+                workdir="/workspace"  
+            )
+            
+            # Extract base task name (without --tests parameter)
+            base_task = test_task.split(' --tests')[0]
+            if base_task in tasks_output:
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Error during dry run validation: {e}")
+            return False
+
+    def _fallback_test_discovery(self, instance_id: str, test_patch: str) -> List[str]:
+        """
+        Fallback test discovery when initial validation fails.
+        Searches the filesystem for actual test files and creates appropriate tasks.
+        """
+        logger.info("Attempting fallback test discovery")
+        
+        fallback_tasks = []
+        
+        try:
+            # Extract test class names from patch
+            test_classes = self._extract_test_classes_from_patch(test_patch)
+            
+            if not test_classes:
+                logger.warning("No test classes found in patch for fallback discovery")
+                return []
+            
+            # Discover project modules
+            modules = self._discover_available_modules(instance_id)
+            
+            variant = self.config_parser.config['test_variant'].capitalize()
+            
+            # For each test class, find which modules contain it
+            for test_class in test_classes:
+                logger.debug(f"Searching for test class: {test_class}")
+                
+                for module in modules:
+                    if self._check_test_file_exists(instance_id, module, test_class):
+                        # Determine test type and create appropriate task
+                        test_type = self._determine_test_type(instance_id, module, test_class)
+                        
+                        if test_type == 'unit':
+                            task = f":{module}:test{variant}UnitTest --tests {test_class}"
+                        elif test_type == 'instrumented':
+                            task = f":{module}:connected{variant}AndroidTest -Pandroid.testInstrumentationRunnerArguments.class={test_class}"
+                        else:
+                            # Default to unit test
+                            task = f":{module}:test{variant}UnitTest --tests {test_class}"
+                        
+                        fallback_tasks.append(task)
+                        logger.info(f"Fallback discovered: {task}")
+                        break  # Found the test, no need to check other modules
+            
+        except Exception as e:
+            logger.error(f"Error in fallback test discovery: {e}")
+        
+        return fallback_tasks
+
+    def _extract_test_classes_from_patch(self, test_patch: str) -> List[str]:
+        """Extract test class names from the patch content."""
+        test_classes = []
+        
+        # Extract file paths from patch
+        file_patterns = [
+            r'\+\+\+ b/(.+\.java)',
+            r'\+\+\+ b/(.+\.kt)',
+            r'diff --git a/.+ b/(.+\.java)',
+            r'diff --git a/.+ b/(.+\.kt)'
+        ]
+        
+        test_files = set()
+        for pattern in file_patterns:
+            matches = re.findall(pattern, test_patch)
+            test_files.update(matches)
+        
+        # Convert file paths to class names
+        for test_file in test_files:
+            if 'test' in test_file.lower():
+                class_name = self.config_parser._convert_file_to_class_name(test_file)
+                if class_name:
+                    test_classes.append(class_name)
+        
+        return test_classes
+
+    def _discover_available_modules(self, instance_id: str) -> List[str]:
+        """Discover available modules in the project."""
+        try:
+            # Use gradle to list all modules
+            exit_code, output = self.container_manager.exec_command(
+                instance_id,
+                "./gradlew projects",
+                workdir="/workspace"
+            )
+            
+            if exit_code == 0:
+                modules = []
+                for line in output.split('\n'):
+                    if '+--- Project' in line or '\\--- Project' in line:
+                        # Extract module name from gradle projects output
+                        module_match = re.search(r"Project '([^']+)'", line)
+                        if module_match:
+                            module_name = module_match.group(1)
+                            if module_name.startswith(':'):
+                                module_name = module_name[1:]  # Remove leading colon
+                            modules.append(module_name)
+                
+                if modules:
+                    logger.debug(f"Discovered modules via gradle: {modules}")
+                    return modules
+            
+            # Fallback: scan filesystem
+            exit_code, output = self.container_manager.exec_command(
+                instance_id,
+                "find /workspace -maxdepth 2 -name 'build.gradle' -o -name 'build.gradle.kts' | grep -v '/workspace/build.gradle'",
+                workdir="/workspace"
+            )
+            
+            if exit_code == 0:
+                modules = []
+                for line in output.strip().split('\n'):
+                    if line:
+                        # Extract module name from path
+                        module_path = line.replace('/workspace/', '').replace('/build.gradle', '').replace('/build.gradle.kts', '')
+                        if '/' not in module_path:  # Only top-level modules
+                            modules.append(module_path)
+                
+                logger.debug(f"Discovered modules via filesystem: {modules}")
+                return modules
+            
+        except Exception as e:
+            logger.error(f"Error discovering modules: {e}")
+        
+        # Default fallback modules
+        return ['app', 'parser', 'model', 'ui', 'core']
+
+    def _determine_test_type(self, instance_id: str, module: str, test_class: str) -> str:
+        """Determine if test is unit test or instrumented test."""
+        
+        # Check androidTest directories first
+        android_test_dirs = [
+            f"{module}/src/androidTest/java",
+            f"{module}/src/androidTest/kotlin"
+        ]
+        
+        class_file_paths = [
+            test_class.replace('.', '/') + '.java',
+            test_class.replace('.', '/') + '.kt',
+            test_class.split('.')[-1] + '.java',
+            test_class.split('.')[-1] + '.kt'
+        ]
+        
+        for test_dir in android_test_dirs:
+            for class_file_path in class_file_paths:
+                full_path = f"/workspace/{test_dir}/{class_file_path}"
+                
+                exit_code, _ = self.container_manager.exec_command(
+                    instance_id,
+                    f"test -f {full_path}",
+                    workdir="/workspace"
+                )
+                
+                if exit_code == 0:
+                    return 'instrumented'
+        
+        return 'unit'
+
+    def _run_gradle_tests(self, instance_id: str, test_tasks: List[str]) -> TestExecutionResult:
+        """Run gradle tests with enhanced error handling and retry logic."""
+        
+        if not test_tasks:
+            logger.warning(f"No test tasks found for {instance_id}")
+            return TestExecutionResult(
+                total_tests=0,
+                passed=0,
+                failed=0,
+                skipped=0,
+                errors=0,
+                duration=0,
+                exit_code=0,
+                raw_output="No test tasks found",
+                test_results=[],
+                build_successful=True
+            )
+        
+        # Prepare environment for testing
+        self._prepare_test_environment(instance_id)
+        
+        start_time = time.time()
+        all_results = []
+        combined_output = ""
+        final_exit_code = 0
+        
+        for task in test_tasks:
+            logger.info(f"Executing test task: {task}")
+            
+            # Run the specific test task with retry logic
+            exit_code, output = self._execute_gradle_test_with_retry(instance_id, task)
+            
+            combined_output += f"\n{'='*50}\n"
+            combined_output += f"Task: {task}\n"
+            combined_output += f"Exit Code: {exit_code}\n"
+            combined_output += f"{'='*50}\n"
+            combined_output += output
+            combined_output += f"\n{'='*50}\n"
+            
+            if exit_code != 0:
+                final_exit_code = exit_code
+            
+            # Parse results from this task
+            task_results = self._parse_test_results(output, task)
+            all_results.extend(task_results)
+        
+        total_duration = time.time() - start_time
+        
+        # Combine and summarize all results
+        combined_result = self._create_execution_result(
+            all_results, final_exit_code, combined_output, total_duration
+        )
+        
+        logger.info(f"Test execution completed: {combined_result.passed}/{combined_result.total_tests} passed")
+        
+        return combined_result
+
+    def _execute_gradle_test_with_retry(self, instance_id: str, test_task: str, max_retries: int = 2) -> Tuple[int, str]:
+        """Execute gradle test with retry logic for common failures."""
+        
+        for attempt in range(max_retries + 1):
+            if attempt > 0:
+                logger.info(f"Retrying test task (attempt {attempt + 1}/{max_retries + 1}): {test_task}")
+                
+                # Clean build artifacts before retry
+                self.container_manager.exec_command(
+                    instance_id,
+                    "./gradlew clean --no-daemon",
+                    workdir="/workspace"
+                )
+            
+            exit_code, output = self._execute_gradle_test(instance_id, test_task)
+            
+            # Check if this is a "no tests found" error that we should not retry
+            if "No tests found for given includes" in output:
+                logger.warning(f"No tests found error - not retrying: {test_task}")
+                break
+            
+            # Check if test passed or had actual test failures (not build failures)
+            if exit_code == 0 or "BUILD SUCCESSFUL" in output:
+                break
+            
+            # If this was the last attempt, break
+            if attempt == max_retries:
+                break
+                
+            # Wait a bit before retry
+            time.sleep(2)
+        
+        return exit_code, output
+
+    def _prepare_test_environment(self, instance_id: str):
+        """Prepare the environment for test execution."""
+        logger.info(f"Preparing test environment for {instance_id}")
+        
+        # Clean previous builds
+        exit_code, output = self.container_manager.exec_command(
+            instance_id, 
+            "./gradlew clean --no-daemon",
+            workdir="/workspace"
+        )
+        if exit_code != 0:
+            logger.warning(f"Clean failed: {output}")
+        
+        # Ensure gradlew is executable
+        self.container_manager.exec_command(
+            instance_id,
+            "chmod +x gradlew",
+            workdir="/workspace"
+        )
+        
+        # Download dependencies (but don't fail if this doesn't work)
+        exit_code, output = self.container_manager.exec_command(
+            instance_id,
+            "./gradlew dependencies --no-daemon --quiet",
+            workdir="/workspace"
+        )
+        if exit_code != 0:
+            logger.warning(f"Dependency download had issues: {output}")
+
+    def _execute_gradle_test(self, instance_id: str, test_task: str) -> Tuple[int, str]:
+        """Execute a specific gradle test task."""
+        
+        # Build the gradle command
+        gradle_cmd = f"./gradlew {test_task} --no-daemon --stacktrace --continue"
+        
+        logger.info(f"Executing: {gradle_cmd}")
+        
+        # Execute with timeout (30 minutes max)
+        start_time = time.time()
+        exit_code, output = self.container_manager.exec_command(
+            instance_id,
+            gradle_cmd,
+            workdir="/workspace"
+        )
+        
+        execution_time = time.time() - start_time
+        logger.info(f"Test execution completed in {execution_time:.2f}s with exit code {exit_code}")
+        
+        return exit_code, output
+    
+    def _parse_test_results(self, output: str, task_name: str) -> List[TestResult]:
+        """Parse gradle test output to extract individual test results."""
+        test_results = []
+        
+        # Parse console output for test results
+        return self._parse_console_output(output, task_name)
+    
+    def _parse_console_output(self, output: str, task_name: str) -> List[TestResult]:
+        """Parse test results from gradle console output."""
+        test_results = []
+        
+        # Patterns for different test result formats
+        patterns = {
+            'test_execution': [
+                r'(\w+(?:\.\w+)*) > (\w+) (PASSED|FAILED|SKIPPED)',
+                r'(\w+(?:\.\w+)*) > (\w+) (PASSED|FAILED|SKIPPED) \((\d+\.?\d*)s\)',
+            ]
+        }
+        
+        for pattern_type, pattern_list in patterns.items():
+            for pattern in pattern_list:
+                matches = re.findall(pattern, output)
+                for match in matches:
+                    if len(match) >= 3:
+                        class_name = match[0]
+                        test_name = match[1] 
+                        status = match[2]
+                        duration = float(match[3]) if len(match) > 3 and match[3] else 0.0
+                        
+                        # Extract failure message if test failed
+                        failure_message = ""
+                        if status == "FAILED":
+                            failure_message = self._extract_failure_message(output, f"{class_name}.{test_name}")
+                        
+                        test_results.append(TestResult(
+                            test_name=test_name,
+                            class_name=class_name,
+                            status=status,
+                            duration=duration,
+                            failure_message=failure_message
+                        ))
+        
+        return test_results
+
+    def _extract_failure_message(self, output: str, test_name: str) -> str:
+        """Extract failure message for a specific test."""
+        failure_patterns = [
+            rf'{test_name}.*?\n(.*?(?:AssertionError|Exception|Error).*?)\n',
+            rf'> {test_name}.*?\n(.*?at .*?)\n'
+        ]
+        
+        for pattern in failure_patterns:
+            match = re.search(pattern, output, re.DOTALL)
+            if match:
+                return match.group(1).strip()
+        
+        return ""
+    
+    def _create_execution_result(self, test_results: List[TestResult], 
+                               exit_code: int, raw_output: str, 
+                               duration: float) -> TestExecutionResult:
+        """Create a comprehensive test execution result."""
+        
+        total_tests = len(test_results)
+        passed = len([t for t in test_results if t.status == 'PASSED'])
+        failed = len([t for t in test_results if t.status == 'FAILED'])
+        skipped = len([t for t in test_results if t.status == 'SKIPPED'])
+        errors = len([t for t in test_results if t.status == 'ERROR'])
+        
+        # Determine if build was successful based on output
+        build_successful = 'BUILD SUCCESSFUL' in raw_output
+        
+        return TestExecutionResult(
+            total_tests=total_tests,
+            passed=passed,
+            failed=failed,
+            skipped=skipped,
+            errors=errors,
+            duration=duration,
+            exit_code=exit_code,
+            raw_output=raw_output,
+            test_results=test_results,
+            build_successful=build_successful
+        )
+
+
+if __name__ == "__main__":
+    # Test the executor
+    logging.basicConfig(level=logging.INFO)
+    print("Enhanced Android Test Executor module loaded successfully")

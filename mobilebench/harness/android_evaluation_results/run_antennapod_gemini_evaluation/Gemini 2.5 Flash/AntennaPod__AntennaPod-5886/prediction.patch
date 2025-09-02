@@ -1,0 +1,93 @@
+--- a/core/src/main/java/de/danoeh/antennapod/core/storage/DBReader.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/storage/DBReader.java
+@@ -49,11 +49,6 @@
+ 
+     private static final String TAG = "DBReader";
+ 
+-    /**
+-     * Maximum size of the list returned by {@link #getPlaybackHistory()}.
+-     */
+-    public static final int PLAYBACK_HISTORY_SIZE = 50;
+-
+     /**
+      * Maximum size of the list returned by {@link #getDownloadLog()}.
+      */
+@@ -420,17 +415,16 @@
+      * Loads the playback history from the database. A FeedItem is in the playback history if playback of the correpsonding episode
+      * has been completed at least once.
+      *
+-     * @return The playback history. The FeedItems are sorted by their media's playbackCompletionDate in descending order.
+-     * The size of the returned list is limited by {@link #PLAYBACK_HISTORY_SIZE}.
++     * @return The playback history. The FeedItems are sorted by their media's lastPlayedTimeHistory in descending order.
+      */
+     @NonNull
+     public static List<FeedItem> getPlaybackHistory() {
+         Log.d(TAG, "getPlaybackHistory() called");
+-
+-        PodDBAdapter adapter = PodDBAdapter.getInstance();
+-        adapter.open();
+-
+-        Cursor mediaCursor = null;
++        PodDBAdapter adapter = PodDBAdapter.getInstance();
++        adapter.open();
++
++        Cursor mediaCursor = adapter.getPlaybackHistoryCursor();
++
+         Cursor itemCursor = null;
+         try {
+             mediaCursor = adapter.getCompletedMediaCursor(PLAYBACK_HISTORY_SIZE);
+--- a/storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
++++ b/storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
+@@ -112,6 +112,7 @@
+     public static final String KEY_HAS_EMBEDDED_PICTURE = "has_embedded_picture";
+     public static final String KEY_LAST_PLAYED_TIME = "last_played_time";
+     public static final String KEY_INCLUDE_FILTER = "include_filter";
++    public static final String KEY_PLAYBACK_HISTORY_SIZE = "playback_history_size";
+     public static final String KEY_EXCLUDE_FILTER = "exclude_filter";
+     public static final String KEY_MINIMAL_DURATION_FILTER = "minimal_duration_filter";
+     public static final String KEY_FEED_PLAYBACK_SPEED = "feed_playback_speed";
+@@ -160,7 +161,8 @@
+             + KEY_FEED_TAGS + " TEXT,"
+             + KEY_FEED_SKIP_INTRO + " INTEGER DEFAULT 0,"
+             + KEY_FEED_SKIP_ENDING + " INTEGER DEFAULT 0,"
+-            + KEY_EPISODE_NOTIFICATION + " INTEGER DEFAULT 0)";
++            + KEY_EPISODE_NOTIFICATION + " INTEGER DEFAULT 0,"
++            + KEY_PLAYBACK_HISTORY_SIZE + " INTEGER DEFAULT 50)";
+ 
+     private static final String CREATE_TABLE_FEED_ITEMS = "CREATE TABLE "
+             + TABLE_NAME_FEED_ITEMS + " (" + TABLE_PRIMARY_KEY
+@@ -266,7 +268,8 @@
+             TABLE_NAME_FEEDS + "." + KEY_FEED_TAGS,
+             TABLE_NAME_FEEDS + "." + KEY_FEED_SKIP_INTRO,
+             TABLE_NAME_FEEDS + "." + KEY_FEED_SKIP_ENDING,
+-            TABLE_NAME_FEEDS + "." + KEY_EPISODE_NOTIFICATION
++            TABLE_NAME_FEEDS + "." + KEY_EPISODE_NOTIFICATION,
++            TABLE_NAME_FEEDS + "." + KEY_PLAYBACK_HISTORY_SIZE
+     };
+ 
+     /**
+@@ -462,6 +465,7 @@
+         values.put(KEY_FEED_SKIP_INTRO, prefs.getFeedSkipIntro());
+         values.put(KEY_FEED_SKIP_ENDING, prefs.getFeedSkipEnding());
+         values.put(KEY_EPISODE_NOTIFICATION, prefs.getShowEpisodeNotification());
++        values.put(KEY_PLAYBACK_HISTORY_SIZE, prefs.getPlaybackHistorySize());
+         db.update(TABLE_NAME_FEEDS, values, KEY_ID + "=?", new String[]{String.valueOf(prefs.getFeedID())});
+     }
+ 
+@@ -1077,6 +1081,16 @@
+                 null, String.format(Locale.US, "%s DESC LIMIT %d", KEY_PLAYBACK_COMPLETION_DATE, limit));
+     }
+ 
++    /**
++     * Returns a cursor which contains all feed media objects with a playback
++     * completion date in ascending order.
++     */
++    public final Cursor getPlaybackHistoryCursor() {
++        return db.query(TABLE_NAME_FEED_MEDIA, null,
++                KEY_PLAYBACK_COMPLETION_DATE + " > 0", null, null,
++                null, String.format(Locale.US, "%s DESC", KEY_PLAYBACK_COMPLETION_DATE));
++    }
++
+     public final Cursor getSingleFeedMediaCursor(long id) {
+         final String query = "SELECT " + KEYS_FEED_MEDIA + " FROM " + TABLE_NAME_FEED_MEDIA
+                 + " WHERE " + KEY_ID + "=" + id;

@@ -1,0 +1,719 @@
+diff --git a/app/src/androidTest/java/de/danoeh/antennapod/core/service/download/StubDownloader.java b/app/src/androidTest/java/de/danoeh/antennapod/core/service/download/StubDownloader.java
+index 302301c85cd..835af1f9505 100644
+--- a/app/src/androidTest/java/de/danoeh/antennapod/core/service/download/StubDownloader.java
++++ b/app/src/androidTest/java/de/danoeh/antennapod/core/service/download/StubDownloader.java
+@@ -2,7 +2,7 @@
+ 
+ import androidx.annotation.NonNull;
+ import androidx.core.util.Consumer;
+-import de.danoeh.antennapod.model.download.DownloadStatus;
++import de.danoeh.antennapod.model.download.DownloadResult;
+ import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequest;
+ 
+ public class StubDownloader extends Downloader {
+@@ -10,9 +10,10 @@ public class StubDownloader extends Downloader {
+     private final long downloadTime;
+ 
+     @NonNull
+-    private final Consumer<DownloadStatus> onDownloadComplete;
++    private final Consumer<DownloadResult> onDownloadComplete;
+ 
+-    public StubDownloader(@NonNull DownloadRequest request, long downloadTime, @NonNull Consumer<DownloadStatus> onDownloadComplete) {
++    public StubDownloader(@NonNull DownloadRequest request, long downloadTime,
++                          @NonNull Consumer<DownloadResult> onDownloadComplete) {
+         super(request);
+         this.downloadTime = downloadTime;
+         this.onDownloadComplete = onDownloadComplete;
+@@ -36,7 +37,7 @@ public DownloadRequest getDownloadRequest() {
+ 
+     @NonNull
+     @Override
+-    public DownloadStatus getResult() {
++    public DownloadResult getResult() {
+         return super.getResult();
+     }
+ 
+diff --git a/app/src/androidTest/java/de/test/antennapod/EspressoTestUtils.java b/app/src/androidTest/java/de/test/antennapod/EspressoTestUtils.java
+index d652896381c..a7575862b16 100644
+--- a/app/src/androidTest/java/de/test/antennapod/EspressoTestUtils.java
++++ b/app/src/androidTest/java/de/test/antennapod/EspressoTestUtils.java
+@@ -24,7 +24,6 @@
+ import de.danoeh.antennapod.R;
+ import de.danoeh.antennapod.activity.MainActivity;
+ import de.danoeh.antennapod.storage.preferences.UserPreferences;
+-import de.danoeh.antennapod.core.service.download.DownloadService;
+ import de.danoeh.antennapod.core.service.playback.PlaybackService;
+ import de.danoeh.antennapod.dialog.RatingDialog;
+ import de.danoeh.antennapod.fragment.NavDrawerFragment;
+@@ -224,21 +223,6 @@ public static void tryKillPlaybackService() {
+         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+     }
+ 
+-    public static void tryKillDownloadService() {
+-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+-        context.stopService(new Intent(context, DownloadService.class));
+-        try {
+-            // Android has no reliable way to stop a service instantly.
+-            // Calling stopSelf marks allows the system to destroy the service but the actual call
+-            // to onDestroy takes until the next GC of the system, which we can not influence.
+-            // Try to wait for the service at least a bit.
+-            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !DownloadService.isRunning);
+-        } catch (ConditionTimeoutException e) {
+-            e.printStackTrace();
+-        }
+-        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+-    }
+-
+     public static Matcher<View> actionBarOverflow() {
+         return allOf(isDisplayed(), withContentDescription("More options"));
+     }
+diff --git a/app/src/androidTest/java/de/test/antennapod/service/download/DownloadServiceTest.java b/app/src/androidTest/java/de/test/antennapod/service/download/DownloadServiceTest.java
+deleted file mode 100644
+index 97499b24a96..00000000000
+--- a/app/src/androidTest/java/de/test/antennapod/service/download/DownloadServiceTest.java
++++ /dev/null
+@@ -1,217 +0,0 @@
+-package de.test.antennapod.service.download;
+-
+-import android.content.Context;
+-import android.content.Intent;
+-import androidx.annotation.NonNull;
+-import androidx.annotation.Nullable;
+-import androidx.core.util.Consumer;
+-import androidx.test.platform.app.InstrumentationRegistry;
+-import androidx.test.ext.junit.runners.AndroidJUnit4;
+-
+-import de.danoeh.antennapod.core.service.download.DownloadRequestCreator;
+-import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
+-import de.test.antennapod.EspressoTestUtils;
+-import org.awaitility.Awaitility;
+-import org.awaitility.core.ConditionTimeoutException;
+-import org.junit.After;
+-import org.junit.Before;
+-import org.junit.Test;
+-import org.junit.runner.RunWith;
+-
+-import java.util.ArrayList;
+-import java.util.Date;
+-import java.util.List;
+-import java.util.concurrent.TimeUnit;
+-
+-import de.danoeh.antennapod.model.feed.Feed;
+-import de.danoeh.antennapod.model.feed.FeedItem;
+-import de.danoeh.antennapod.model.feed.FeedMedia;
+-import de.danoeh.antennapod.storage.preferences.UserPreferences;
+-import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequest;
+-import de.danoeh.antennapod.core.service.download.DownloadService;
+-import de.danoeh.antennapod.model.download.DownloadStatus;
+-import de.danoeh.antennapod.core.service.download.Downloader;
+-import de.danoeh.antennapod.core.service.download.DownloaderFactory;
+-import de.danoeh.antennapod.core.service.download.StubDownloader;
+-import de.danoeh.antennapod.core.storage.DBReader;
+-import de.danoeh.antennapod.core.storage.DBWriter;
+-
+-import static de.test.antennapod.util.event.DownloadEventListener.withDownloadEventListener;
+-import static de.test.antennapod.util.event.FeedItemEventListener.withFeedItemEventListener;
+-import static org.junit.Assert.assertEquals;
+-import static org.junit.Assert.assertFalse;
+-import static org.junit.Assert.assertTrue;
+-import static org.junit.Assert.fail;
+-
+-/**
+- * @see HttpDownloaderTest for the test of actual download (and saving the file).
+- */
+-@RunWith(AndroidJUnit4.class)
+-public class DownloadServiceTest {
+-    private FeedMedia testMedia11 = null;
+-
+-    private DownloaderFactory origFactory = null;
+-
+-    @Before
+-    public void setUp() throws Exception {
+-        EspressoTestUtils.clearDatabase();
+-        EspressoTestUtils.clearPreferences();
+-        origFactory = DownloadService.getDownloaderFactory();
+-        Feed testFeed = setUpTestFeeds();
+-        testMedia11 = testFeed.getItemAtIndex(0).getMedia();
+-    }
+-
+-    private Feed setUpTestFeeds() throws Exception {
+-        // To avoid complication in case of test failures, leaving behind orphaned
+-        // media files: add a timestamp so that each test run will have its own directory for media files.
+-        Feed feed = new Feed("url", null, "Test Feed title 1 " + System.currentTimeMillis());
+-        List<FeedItem> items = new ArrayList<>();
+-        feed.setItems(items);
+-        FeedItem item1 = new FeedItem(0, "Item 1-1", "Item 1-1", "url", new Date(), FeedItem.NEW, feed);
+-        items.add(item1);
+-        FeedMedia media1 = new FeedMedia(0, item1, 123, 1, 1, "audio/mp3", null, "http://example.com/episode.mp3", false, null, 0, 0);
+-        item1.setMedia(media1);
+-
+-        DBWriter.setFeedItem(item1).get();
+-        return feed;
+-    }
+-
+-
+-    @After
+-    public void tearDown() throws Exception {
+-        DownloadService.setDownloaderFactory(origFactory);
+-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+-        DownloadServiceInterface.get().cancelAll(context);
+-        context.stopService(new Intent(context, DownloadService.class));
+-        EspressoTestUtils.tryKillDownloadService();
+-    }
+-
+-    @Test
+-    public void testEventsGeneratedCaseMediaDownloadSuccess_noEnqueue() throws Exception {
+-        doTestEventsGeneratedCaseMediaDownloadSuccess(false, 1);
+-    }
+-
+-    @Test
+-    public void testEventsGeneratedCaseMediaDownloadSuccess_withEnqueue() throws Exception {
+-        // enqueue itself generates additional FeedItem event
+-        doTestEventsGeneratedCaseMediaDownloadSuccess(true, 2);
+-    }
+-
+-    private void doTestEventsGeneratedCaseMediaDownloadSuccess(boolean enqueueDownloaded,
+-                                                               int numEventsExpected)
+-            throws Exception {
+-        // create a stub download that returns successful
+-        //
+-        // OPEN: Ideally, I'd like the download time long enough so that multiple in-progress DownloadEvents
+-        // are generated (to simulate typical download), but it'll make download time quite long (1-2 seconds)
+-        // to do so
+-        DownloadService.setDownloaderFactory(new StubDownloaderFactory(50, DownloadStatus::setSuccessful));
+-
+-        UserPreferences.setEnqueueDownloadedEpisodes(enqueueDownloaded);
+-        withFeedItemEventListener(feedItemEventListener -> {
+-            try {
+-                assertEquals(0, feedItemEventListener.getEvents().size());
+-                assertFalse("The media in test should not yet been downloaded",
+-                        DBReader.getFeedMedia(testMedia11.getId()).isDownloaded());
+-
+-                DownloadServiceInterface.get()
+-                        .download(InstrumentationRegistry.getInstrumentation().getTargetContext(), false,
+-                        DownloadRequestCreator.create(testMedia11).build());
+-                Awaitility.await()
+-                        .atMost(5000, TimeUnit.MILLISECONDS)
+-                        .until(() -> feedItemEventListener.getEvents().size() >= numEventsExpected);
+-                assertTrue("After media download has completed, FeedMedia object in db should indicate so.",
+-                        DBReader.getFeedMedia(testMedia11.getId()).isDownloaded());
+-                assertEquals("The FeedItem should have been " + (enqueueDownloaded ? "" : "not ") +  "enqueued",
+-                        enqueueDownloaded,
+-                        DBReader.getQueueIDList().contains(testMedia11.getItem().getId()));
+-            } catch (ConditionTimeoutException cte) {
+-                fail("The expected FeedItemEvent (for media download complete) has not been posted. "
+-                        + cte.getMessage());
+-            }
+-        });
+-    }
+-
+-    @Test
+-    public void testCancelDownload_UndoEnqueue_Normal() throws Exception {
+-        doTestCancelDownload_UndoEnqueue(false);
+-    }
+-
+-    @Test
+-    public void testCancelDownload_UndoEnqueue_AlreadyInQueue() throws Exception {
+-        doTestCancelDownload_UndoEnqueue(true);
+-    }
+-
+-    private void doTestCancelDownload_UndoEnqueue(boolean itemAlreadyInQueue) throws Exception {
+-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+-        // let download take longer to ensure the test can cancel the download in time
+-        DownloadService.setDownloaderFactory(
+-                new StubDownloaderFactory(30000, DownloadStatus::setSuccessful));
+-        UserPreferences.setEnqueueDownloadedEpisodes(true);
+-        UserPreferences.setEnableAutodownload(false);
+-
+-        final long item1Id = testMedia11.getItem().getId();
+-        if (itemAlreadyInQueue) {
+-            // simulate item already in queue condition
+-            DBWriter.addQueueItem(context, false, item1Id).get();
+-            assertTrue(DBReader.getQueueIDList().contains(item1Id));
+-        } else {
+-            assertFalse(DBReader.getQueueIDList().contains(item1Id));
+-        }
+-
+-        withFeedItemEventListener(feedItemEventListener -> {
+-            DownloadServiceInterface.get()
+-                    .download(InstrumentationRegistry.getInstrumentation().getTargetContext(), false,
+-                    DownloadRequestCreator.create(testMedia11).build());
+-            withDownloadEventListener(downloadEventListener ->
+-                    Awaitility.await("download is actually running")
+-                        .atMost(5000, TimeUnit.MILLISECONDS)
+-                        .until(() -> downloadEventListener.getLatestEvent() != null
+-                                && downloadEventListener.getLatestEvent().update.mediaIds.length > 0
+-                                && downloadEventListener.getLatestEvent().update.mediaIds[0] == testMedia11.getId()));
+-
+-            if (itemAlreadyInQueue) {
+-                assertEquals("download service receives the request - no event is expected before cancel is issued",
+-                        0, feedItemEventListener.getEvents().size());
+-            } else {
+-                Awaitility.await("item enqueue event")
+-                        .atMost(2000, TimeUnit.MILLISECONDS)
+-                        .until(() -> feedItemEventListener.getEvents().size() >= 1);
+-            }
+-            DownloadServiceInterface.get().cancel(context, testMedia11.getDownload_url());
+-            final int totalNumEventsExpected = itemAlreadyInQueue ? 1 : 3;
+-            Awaitility.await("item dequeue event + download termination event")
+-                    .atMost(2000, TimeUnit.MILLISECONDS)
+-                    .until(() -> feedItemEventListener.getEvents().size() >= totalNumEventsExpected);
+-            assertFalse("The download should have been canceled",
+-                    DBReader.getFeedMedia(testMedia11.getId()).isDownloaded());
+-            if (itemAlreadyInQueue) {
+-                assertTrue("The FeedItem should still be in the queue after the download is cancelled."
+-                                + " It's there before download.",
+-                        DBReader.getQueueIDList().contains(item1Id));
+-            } else {
+-                assertFalse("The FeedItem should not be in the queue after the download is cancelled.",
+-                        DBReader.getQueueIDList().contains(item1Id));
+-            }
+-        });
+-    }
+-
+-    private static class StubDownloaderFactory implements DownloaderFactory {
+-        private final long downloadTime;
+-
+-        @NonNull
+-        private final Consumer<DownloadStatus> onDownloadComplete;
+-
+-        StubDownloaderFactory(long downloadTime, @NonNull Consumer<DownloadStatus> onDownloadComplete) {
+-            this.downloadTime = downloadTime;
+-            this.onDownloadComplete = onDownloadComplete;
+-        }
+-
+-        @Nullable
+-        @Override
+-        public Downloader create(@NonNull DownloadRequest request) {
+-            return new StubDownloader(request, downloadTime, onDownloadComplete);
+-        }
+-    }
+-
+-}
+diff --git a/app/src/androidTest/java/de/test/antennapod/service/download/HttpDownloaderTest.java b/app/src/androidTest/java/de/test/antennapod/service/download/HttpDownloaderTest.java
+index f276434f6b9..76cba47066f 100644
+--- a/app/src/androidTest/java/de/test/antennapod/service/download/HttpDownloaderTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/service/download/HttpDownloaderTest.java
+@@ -10,7 +10,7 @@
+ import de.danoeh.antennapod.model.feed.FeedFile;
+ import de.danoeh.antennapod.storage.preferences.UserPreferences;
+ import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequest;
+-import de.danoeh.antennapod.model.download.DownloadStatus;
++import de.danoeh.antennapod.model.download.DownloadResult;
+ import de.danoeh.antennapod.core.service.download.Downloader;
+ import de.danoeh.antennapod.core.service.download.HttpDownloader;
+ import de.danoeh.antennapod.model.download.DownloadError;
+@@ -80,10 +80,9 @@ private Downloader download(String url, String title, boolean expectedResult, bo
+         DownloadRequest request = new DownloadRequest(feedFile.getFile_url(), url, title, 0, feedFile.getTypeAsInt(), username, password, deleteOnFail, null, false);
+         Downloader downloader = new HttpDownloader(request);
+         downloader.call();
+-        DownloadStatus status = downloader.getResult();
++        DownloadResult status = downloader.getResult();
+         assertNotNull(status);
+         assertEquals(expectedResult, status.isSuccessful());
+-        assertTrue(status.isDone());
+         // the file should not exist if the download has failed and deleteExisting was true
+         assertTrue(!deleteExisting || new File(feedFile.getFile_url()).exists() == expectedResult);
+         return downloader;
+@@ -127,10 +126,8 @@ public void run() {
+         } catch (InterruptedException e) {
+             e.printStackTrace();
+         }
+-        DownloadStatus result = downloader.getResult();
+-        assertTrue(result.isDone());
++        DownloadResult result = downloader.getResult();
+         assertFalse(result.isSuccessful());
+-        assertTrue(result.isCancelled());
+         assertFalse(new File(feedFile.getFile_url()).exists());
+     }
+ 
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+index 5940d511be7..1f387b24b1f 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+@@ -27,8 +27,6 @@
+ 
+ import static androidx.test.espresso.Espresso.onView;
+ import static androidx.test.espresso.action.ViewActions.click;
+-import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
+-import static androidx.test.espresso.action.ViewActions.replaceText;
+ import static androidx.test.espresso.action.ViewActions.scrollTo;
+ import static androidx.test.espresso.action.ViewActions.swipeDown;
+ import static androidx.test.espresso.action.ViewActions.swipeUp;
+@@ -37,13 +35,11 @@
+ import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
+ import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
+ import static androidx.test.espresso.matcher.ViewMatchers.isRoot;
+-import static androidx.test.espresso.matcher.ViewMatchers.withClassName;
+ import static androidx.test.espresso.matcher.ViewMatchers.withId;
+ import static androidx.test.espresso.matcher.ViewMatchers.withText;
+ import static de.test.antennapod.EspressoTestUtils.clickPreference;
+ import static de.test.antennapod.EspressoTestUtils.waitForView;
+ import static java.util.concurrent.TimeUnit.MILLISECONDS;
+-import static org.hamcrest.Matchers.endsWith;
+ import static org.hamcrest.Matchers.not;
+ import static org.junit.Assert.assertTrue;
+ 
+@@ -223,40 +219,6 @@ public void testPauseForInterruptions() {
+                 .until(() -> pauseForFocusLoss == UserPreferences.shouldPauseForFocusLoss());
+     }
+ 
+-    @Test
+-    public void testSetSequentialDownload() {
+-        clickPreference(R.string.downloads_pref);
+-        clickPreference(R.string.pref_parallel_downloads_title);
+-        onView(isRoot()).perform(waitForView(withClassName(endsWith("EditText")), 1000));
+-        onView(withClassName(endsWith("EditText"))).perform(replaceText("1"));
+-        onView(withText(android.R.string.ok)).perform(click());
+-        Awaitility.await().atMost(1000, MILLISECONDS)
+-                .until(() -> UserPreferences.getParallelDownloads() == 1);
+-    }
+-
+-    @Test
+-    public void testSetParallelDownloads() {
+-        clickPreference(R.string.downloads_pref);
+-        clickPreference(R.string.pref_parallel_downloads_title);
+-        onView(isRoot()).perform(waitForView(withClassName(endsWith("EditText")), 1000));
+-        onView(withClassName(endsWith("EditText"))).perform(replaceText("10"));
+-        onView(withClassName(endsWith("EditText"))).perform(closeSoftKeyboard());
+-        onView(withText(android.R.string.ok)).perform(click());
+-        Awaitility.await().atMost(1000, MILLISECONDS)
+-                .until(() -> UserPreferences.getParallelDownloads() == 10);
+-    }
+-
+-    @Test
+-    public void testSetParallelDownloadsInvalidInput() {
+-        clickPreference(R.string.downloads_pref);
+-        clickPreference(R.string.pref_parallel_downloads_title);
+-        onView(isRoot()).perform(waitForView(withClassName(endsWith("EditText")), 1000));
+-        onView(withClassName(endsWith("EditText"))).perform(replaceText("0"));
+-        onView(withClassName(endsWith("EditText"))).check(matches(withText("")));
+-        onView(withClassName(endsWith("EditText"))).perform(replaceText("100"));
+-        onView(withClassName(endsWith("EditText"))).check(matches(withText("")));
+-    }
+-
+     @Test
+     public void testSetEpisodeCache() {
+         String[] entries = res.getStringArray(R.array.episode_cache_size_entries);
+diff --git a/app/src/androidTest/java/de/test/antennapod/util/event/DownloadEventListener.java b/app/src/androidTest/java/de/test/antennapod/util/event/DownloadEventListener.java
+deleted file mode 100644
+index d322c1cbfb1..00000000000
+--- a/app/src/androidTest/java/de/test/antennapod/util/event/DownloadEventListener.java
++++ /dev/null
+@@ -1,45 +0,0 @@
+-package de.test.antennapod.util.event;
+-
+-import androidx.annotation.NonNull;
+-import androidx.annotation.Nullable;
+-import de.danoeh.antennapod.core.event.DownloadEvent;
+-import io.reactivex.functions.Consumer;
+-import org.greenrobot.eventbus.EventBus;
+-import org.greenrobot.eventbus.Subscribe;
+-
+-import java.util.ArrayList;
+-import java.util.List;
+-
+-/**
+- * Test helper to listen to {@link DownloadEvent} and handle them accordingly.
+- */
+-public class DownloadEventListener {
+-    private final List<DownloadEvent> events = new ArrayList<>();
+-
+-    /**
+-     * Provides an listener subscribing to {@link DownloadEvent} that the callers can use.
+-     * Note: it uses RxJava's version of {@link Consumer} because it allows exceptions to be thrown.
+-     */
+-    public static void withDownloadEventListener(@NonNull Consumer<DownloadEventListener> consumer) throws Exception {
+-        DownloadEventListener feedItemEventListener = new DownloadEventListener();
+-        try {
+-            EventBus.getDefault().register(feedItemEventListener);
+-            consumer.accept(feedItemEventListener);
+-        } finally {
+-            EventBus.getDefault().unregister(feedItemEventListener);
+-        }
+-    }
+-
+-    @Subscribe
+-    public void onEvent(DownloadEvent event) {
+-        events.add(event);
+-    }
+-
+-    @Nullable
+-    public DownloadEvent getLatestEvent() {
+-        if (events.size() == 0) {
+-            return null;
+-        }
+-        return events.get(events.size() - 1);
+-    }
+-}
+diff --git a/core/src/main/java/de/danoeh/antennapod/core/service/download/LocalFeedStubDownloader.java b/core/src/main/java/de/danoeh/antennapod/core/service/download/LocalFeedStubDownloader.java
+deleted file mode 100644
+index 7502559582e..00000000000
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/download/LocalFeedStubDownloader.java
++++ /dev/null
+@@ -1,18 +0,0 @@
+-package de.danoeh.antennapod.core.service.download;
+-
+-import androidx.annotation.NonNull;
+-import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequest;
+-
+-/**
+- * This does not actually download, but it keeps track of a local feed's refresh state.
+- */
+-public class LocalFeedStubDownloader extends Downloader {
+-
+-    public LocalFeedStubDownloader(@NonNull DownloadRequest request) {
+-        super(request);
+-    }
+-
+-    @Override
+-    protected void download() {
+-    }
+-}
+\ No newline at end of file
+diff --git a/core/src/test/java/de/danoeh/antennapod/core/storage/DbTasksTest.java b/core/src/test/java/de/danoeh/antennapod/core/storage/DbTasksTest.java
+index d66bd23609f..6a7e51bac29 100644
+--- a/core/src/test/java/de/danoeh/antennapod/core/storage/DbTasksTest.java
++++ b/core/src/test/java/de/danoeh/antennapod/core/storage/DbTasksTest.java
+@@ -13,7 +13,6 @@
+ import org.robolectric.RobolectricTestRunner;
+ 
+ import java.util.ArrayList;
+-import java.util.Arrays;
+ import java.util.Collections;
+ import java.util.Date;
+ import java.util.List;
+@@ -26,7 +25,6 @@
+ import de.danoeh.antennapod.core.preferences.PlaybackPreferences;
+ import de.danoeh.antennapod.storage.preferences.UserPreferences;
+ 
+-import static de.danoeh.antennapod.core.util.FeedItemUtil.getIdList;
+ import static java.util.Collections.singletonList;
+ import static org.junit.Assert.assertEquals;
+ import static org.junit.Assert.assertFalse;
+@@ -255,63 +253,6 @@ private void updatedFeedTest(final Feed newFeed, long feedID, List<Long> itemIDs
+         }
+     }
+ 
+-    @Test
+-    public void testAddQueueItemsInDownload_EnqueueEnabled() throws Exception {
+-        // Setup test data / environment
+-        UserPreferences.setEnqueueDownloadedEpisodes(true);
+-        UserPreferences.setEnqueueLocation(UserPreferences.EnqueueLocation.BACK);
+-
+-        List<FeedItem> fis1 = createSavedFeed("Feed 1", 2).getItems();
+-        List<FeedItem> fis2 = createSavedFeed("Feed 2", 3).getItems();
+-
+-        DBWriter.addQueueItem(context, fis1.get(0), fis2.get(0)).get();
+-        // the first item fis1.get(0) is already in the queue
+-        FeedItem[] itemsToDownload = new FeedItem[]{ fis1.get(0), fis1.get(1), fis2.get(2), fis2.get(1) };
+-
+-        // Expectations:
+-        List<FeedItem> expectedEnqueued = Arrays.asList(fis1.get(1), fis2.get(2), fis2.get(1));
+-        List<FeedItem> expectedQueue = new ArrayList<>();
+-        expectedQueue.addAll(DBReader.getQueue());
+-        expectedQueue.addAll(expectedEnqueued);
+-
+-        // Run actual test and assert results
+-        List<? extends FeedItem> actualEnqueued =
+-                DBTasks.enqueueFeedItemsToDownload(context, Arrays.asList(itemsToDownload));
+-
+-        assertEqualsByIds("Only items not in the queue are enqueued", expectedEnqueued, actualEnqueued);
+-        assertEqualsByIds("Queue has new items appended", expectedQueue, DBReader.getQueue());
+-    }
+-
+-    @Test
+-    public void testAddQueueItemsInDownload_EnqueueDisabled() throws Exception {
+-        // Setup test data / environment
+-        UserPreferences.setEnqueueDownloadedEpisodes(false);
+-
+-        List<FeedItem> fis1 = createSavedFeed("Feed 1", 2).getItems();
+-        List<FeedItem> fis2 = createSavedFeed("Feed 2", 3).getItems();
+-
+-        DBWriter.addQueueItem(context, fis1.get(0), fis2.get(0)).get();
+-        FeedItem[] itemsToDownload = new FeedItem[]{ fis1.get(0), fis1.get(1), fis2.get(2), fis2.get(1) };
+-
+-        // Expectations:
+-        List<FeedItem> expectedEnqueued = Collections.emptyList();
+-        List<FeedItem> expectedQueue = DBReader.getQueue();
+-
+-        // Run actual test and assert results
+-        List<? extends FeedItem> actualEnqueued =
+-                DBTasks.enqueueFeedItemsToDownload(context, Arrays.asList(itemsToDownload));
+-
+-        assertEqualsByIds("No item is enqueued", expectedEnqueued, actualEnqueued);
+-        assertEqualsByIds("Queue is unchanged", expectedQueue, DBReader.getQueue());
+-    }
+-
+-    private void assertEqualsByIds(String msg, List<? extends FeedItem> expected, List<? extends FeedItem> actual) {
+-        // assert only the IDs, so that any differences are easily to spot.
+-        List<Long> expectedIds = getIdList(expected);
+-        List<Long> actualIds = getIdList(actual);
+-        assertEquals(msg, expectedIds, actualIds);
+-    }
+-
+     private Feed createSavedFeed(String title, int numFeedItems) {
+         final Feed feed = new Feed("url", null, title);
+ 
+diff --git a/core/src/test/java/de/danoeh/antennapod/core/storage/ItemEnqueuePositionCalculatorTest.java b/core/src/test/java/de/danoeh/antennapod/core/storage/ItemEnqueuePositionCalculatorTest.java
+index 376e0e65cbd..2594fabf60e 100644
+--- a/core/src/test/java/de/danoeh/antennapod/core/storage/ItemEnqueuePositionCalculatorTest.java
++++ b/core/src/test/java/de/danoeh/antennapod/core/storage/ItemEnqueuePositionCalculatorTest.java
+@@ -1,7 +1,8 @@
+ package de.danoeh.antennapod.core.storage;
+ 
+-import de.danoeh.antennapod.core.service.download.DownloadService;
+ import de.danoeh.antennapod.model.playback.RemoteMedia;
++import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
++import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterfaceStub;
+ import org.junit.Test;
+ import org.junit.runner.RunWith;
+ import org.junit.runners.Parameterized;
+@@ -21,8 +22,6 @@
+ import de.danoeh.antennapod.core.feed.FeedMother;
+ import de.danoeh.antennapod.storage.preferences.UserPreferences.EnqueueLocation;
+ import de.danoeh.antennapod.model.playback.Playable;
+-import org.mockito.MockedStatic;
+-import org.mockito.Mockito;
+ 
+ import static de.danoeh.antennapod.storage.preferences.UserPreferences.EnqueueLocation.AFTER_CURRENTLY_PLAYING;
+ import static de.danoeh.antennapod.storage.preferences.UserPreferences.EnqueueLocation.BACK;
+@@ -74,6 +73,7 @@ public static Iterable<Object[]> data() {
+          */
+         @Test
+         public void test() {
++            DownloadServiceInterface.setImpl(new DownloadServiceInterfaceStub());
+             ItemEnqueuePositionCalculator calculator = new ItemEnqueuePositionCalculator(options);
+ 
+             // shallow copy to which the test will add items
+@@ -128,95 +128,6 @@ Playable getCurrentlyPlaying() {
+ 
+     }
+ 
+-    @RunWith(Parameterized.class)
+-    public static class PreserveDownloadOrderTest {
+-        /**
+-         * The test covers the use case that when user initiates multiple downloads in succession,
+-         * resulting in multiple addQueueItem() calls in succession.
+-         * the items in the queue will be in the same order as the order user taps to download
+-         */
+-        @Parameters(name = "{index}: case<{0}>")
+-        public static Iterable<Object[]> data() {
+-            // Attempts to make test more readable by showing the expected list of ids
+-            // (rather than the expected positions)
+-            return Arrays.asList(new Object[][] {
+-                    {"download order test, enqueue default",
+-                            concat(QUEUE_DEFAULT_IDS, 101L),
+-                            concat(QUEUE_DEFAULT_IDS, list(101L, 102L)),
+-                            concat(QUEUE_DEFAULT_IDS, list(101L, 102L, 103L)),
+-                            BACK, QUEUE_DEFAULT, ID_CURRENTLY_PLAYING_NULL},
+-                    {"download order test, enqueue at front (currently playing has no effect)",
+-                            concat(101L, QUEUE_DEFAULT_IDS),
+-                            concat(list(101L, 102L), QUEUE_DEFAULT_IDS),
+-                            concat(list(101L, 103L, 102L), QUEUE_DEFAULT_IDS),
+-                            // ^ 103 is put ahead of 102, after 102 failed.
+-                            // It is a limitation as the logic can't tell 102 download has failed
+-                            // (as opposed to simply being enqueued)
+-                            FRONT, QUEUE_DEFAULT, 11L}, // 11 is at the front, currently playing
+-                    {"download order test, enqueue after currently playing",
+-                            list(11L, 101L, 12L, 13L, 14L),
+-                            list(11L, 101L, 102L, 12L, 13L, 14L),
+-                            list(11L, 101L, 103L, 102L, 12L, 13L, 14L),
+-                            AFTER_CURRENTLY_PLAYING, QUEUE_DEFAULT, 11L}  // 11 is at the front, currently playing
+-            });
+-        }
+-
+-        @Parameter
+-        public String message;
+-
+-        @Parameter(1)
+-        public List<Long> idsExpectedAfter101;
+-
+-        @Parameter(2)
+-        public List<Long> idsExpectedAfter102;
+-
+-        @Parameter(3)
+-        public List<Long> idsExpectedAfter103;
+-
+-        @Parameter(4)
+-        public EnqueueLocation options;
+-
+-        @Parameter(5)
+-        public List<FeedItem> queueInitial;
+-
+-        @Parameter(6)
+-        public long idCurrentlyPlaying;
+-
+-        @Test
+-        public void testQueueOrderWhenDownloading2Items() {
+-            ItemEnqueuePositionCalculator calculator = new ItemEnqueuePositionCalculator(options);
+-            try (MockedStatic<DownloadService> downloadServiceMock = Mockito.mockStatic(DownloadService.class)) {
+-                List<FeedItem> queue = new ArrayList<>(queueInitial);
+-
+-                // Test body
+-                Playable currentlyPlaying = getCurrentlyPlaying(idCurrentlyPlaying);
+-                // User clicks download on feed item 101
+-                FeedItem feedItem101 = createFeedItem(101);
+-                downloadServiceMock.when(() ->
+-                        DownloadService.isDownloadingFile(feedItem101.getMedia().getDownload_url())).thenReturn(true);
+-                doAddToQueueAndAssertResult(message + " (1st download)",
+-                        calculator, feedItem101, queue, currentlyPlaying, idsExpectedAfter101);
+-                // Then user clicks download on feed item 102
+-                FeedItem feedItem102 = createFeedItem(102);
+-                downloadServiceMock.when(() ->
+-                        DownloadService.isDownloadingFile(feedItem102.getMedia().getDownload_url())).thenReturn(true);
+-                doAddToQueueAndAssertResult(message + " (2nd download, it should preserve order of download)",
+-                        calculator, feedItem102, queue, currentlyPlaying, idsExpectedAfter102);
+-                // simulate download failure case for 102
+-                downloadServiceMock.when(() ->
+-                        DownloadService.isDownloadingFile(feedItem102.getMedia().getDownload_url())).thenReturn(false);
+-                // Then user clicks download on feed item 103
+-                FeedItem feedItem103 = createFeedItem(103);
+-                downloadServiceMock.when(() ->
+-                        DownloadService.isDownloadingFile(feedItem103.getMedia().getDownload_url())).thenReturn(true);
+-                doAddToQueueAndAssertResult(message
+-                                + " (3rd download, with 2nd download failed; "
+-                                + "it should be behind 1st download (unless enqueueLocation is BACK)",
+-                        calculator, feedItem103, queue, currentlyPlaying, idsExpectedAfter103);
+-            }
+-        }
+-    }
+-
+     static void doAddToQueueAndAssertResult(String message,
+                                             ItemEnqueuePositionCalculator calculator,
+                                             FeedItem itemToAdd,
+diff --git a/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java b/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
+index 94774648587..716d68d1449 100644
+--- a/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
++++ b/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
+@@ -1,23 +1,23 @@
+ package de.danoeh.antennapod.net.download.serviceinterface;
+ 
+ import android.content.Context;
+-import android.content.Intent;
++import de.danoeh.antennapod.model.feed.FeedItem;
+ 
+ public class DownloadServiceInterfaceStub extends DownloadServiceInterface {
+ 
+-    public void download(Context context, boolean cleanupMedia, DownloadRequest... requests) {
++    @Override
++    public void downloadNow(Context context, FeedItem item, boolean ignoreConstraints) {
+     }
+ 
+-    public Intent makeDownloadIntent(Context context, boolean cleanupMedia, DownloadRequest... requests) {
+-        return null;
+-    }
+-
+-    public void refreshAllFeeds(Context context, boolean initiatedByUser) {
++    @Override
++    public void download(Context context, FeedItem item) {
+     }
+ 
++    @Override
+     public void cancel(Context context, String url) {
+     }
+ 
++    @Override
+     public void cancelAll(Context context) {
+     }
+ }

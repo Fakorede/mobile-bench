@@ -1,0 +1,136 @@
+--- a/app/src/main/java/de/danoeh/antennapod/activity/MainActivity.java
++++ b/app/src/main/java/de/danoeh/antennapod/activity/MainActivity.java
+@@ -120,16 +120,7 @@
+         final FragmentManager fm = getSupportFragmentManager();
+         if (fm.findFragmentByTag(MAIN_FRAGMENT_TAG) == null) {
+-            String lastFragment = NavDrawerFragment.getLastNavFragment(this);
+-            if (ArrayUtils.contains(NavDrawerFragment.NAV_DRAWER_TAGS, lastFragment)) {
+-                loadFragment(lastFragment, null);
+-            } else {
+-                try {
+-                    loadFeedFragmentById(Integer.parseInt(lastFragment), null);
+-                } catch (NumberFormatException e) {
+-                    // it's not a number, this happens if we removed
+-                    // a label from the NAV_DRAWER_TAGS
+-                    // give them a nice default...
+-                    loadFragment(QueueFragment.TAG, null);
+-                }
+-            }
++            String defaultScreen = UserPreferences.getDefaultScreen();
++            loadFragment(defaultScreen, null);
+         }
+ 
+         FragmentTransaction transaction = fm.beginTransaction();
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/NavDrawerFragment.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/NavDrawerFragment.java
+@@ -60,7 +60,7 @@
+     public static final String TAG = "NavDrawerFragment";
+ 
+     public static final String[] NAV_DRAWER_TAGS = {
+-            HomeFragment.TAG,
++            HomeFragment.TAG, // This is the default screen, so it should be first
+             QueueFragment.TAG,
+             InboxFragment.TAG,
+             AllEpisodesFragment.TAG,
+@@ -326,7 +326,7 @@
+ 
+     public static String getLastNavFragment(Context context) {
+         SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+-        String lastFragment = prefs.getString(PREF_LAST_FRAGMENT_TAG, HomeFragment.TAG);
++        String lastFragment = prefs.getString(PREF_LAST_FRAGMENT_TAG, UserPreferences.getDefaultScreen());
+         Log.d(TAG, "getLastNavFragment() -> " + lastFragment);
+         return lastFragment;
+     }
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/preferences/UserInterfacePreferencesFragment.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/preferences/UserInterfacePreferencesFragment.java
+@@ -68,6 +68,27 @@
+                     return true;
+                 });
+ 
++        findPreference(UserPreferences.PREF_DEFAULT_SCREEN)
++                .setOnPreferenceChangeListener((preference, newValue) -> {
++                    final Context context = getActivity();
++                    final String[] navTitles = context.getResources().getStringArray(R.array.back_button_go_to_pages);
++                    final String[] navTags = context.getResources().getStringArray(R.array.back_button_go_to_pages_tags);
++                    final String[] choice = { UserPreferences.getDefaultScreen() };
++
++                    AlertDialog.Builder builder = new AlertDialog.Builder(context);
++                    builder.setTitle(R.string.pref_default_screen_title);
++                    builder.setSingleChoiceItems(navTitles, ArrayUtils.indexOf(navTags,
++                            UserPreferences.getDefaultScreen()), (dialogInterface, i) -> {
++                        if (i >= 0) {
++                            choice[0] = navTags[i];
++                        }
++                    });
++                    builder.setPositiveButton(R.string.confirm_label, (dialogInterface, i) -> UserPreferences.setDefaultScreen(choice[0]));
++                    builder.setNegativeButton(R.string.cancel_label, null);
++                    builder.create().show();
++                    return true;
++                });
++
+         findPreference(UserPreferences.PREF_FILTER_FEED)
+                 .setOnPreferenceClickListener((preference -> {
+                     SubscriptionsFilterDialog.showDialog(requireContext());
+--- a/app/src/main/res/xml/preferences_user_interface.xml
++++ b/app/src/main/res/xml/preferences_user_interface.xml
+@@ -40,6 +40,13 @@
+                 android:title="@string/pref_show_remain_time_title"
+                 android:summary="@string/pref_show_remain_time_summary"
+                 android:defaultValue="false"
++                android:enabled="true"/>
++        <ListPreference
++                android:entryValues="@array/back_button_go_to_pages_tags"
++                android:entries="@array/back_button_go_to_pages"
++                android:key="prefDefaultScreen"
++                android:title="@string/pref_default_screen_title"
++                android:summary="@string/pref_default_screen_sum"
+                 android:enabled="true"/>
+     </PreferenceCategory>
+     <PreferenceCategory android:title="@string/subscriptions_label">
+--- a/core/src/main/java/de/danoeh/antennapod/core/preferences/UserPreferences.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/preferences/UserPreferences.java
+@@ -68,6 +68,8 @@
+     public static final String PREF_BACK_BUTTON_BEHAVIOR = "prefBackButtonBehavior";
+     private static final String PREF_BACK_BUTTON_GO_TO_PAGE = "prefBackButtonGoToPage";
+     public static final String PREF_FILTER_FEED = "prefSubscriptionsFilter";
++    public static final String PREF_DEFAULT_SCREEN = "prefDefaultScreen";
++    private static final String PREF_DEFAULT_SCREEN_VALUE = "prefDefaultScreenValue";
+     public static final String PREF_SUBSCRIPTION_TITLE = "prefSubscriptionTitle";
+ 
+     public static final String PREF_QUEUE_KEEP_SORTED = "prefQueueKeepSorted";
+@@ -923,6 +925,16 @@
+                 .apply();
+     }
+ 
++    public static String getDefaultScreen() {
++        return prefs.getString(PREF_DEFAULT_SCREEN_VALUE, "HomeFragment");
++    }
++
++    public static void setDefaultScreen(String tag) {
++        prefs.edit()
++                .putString(PREF_DEFAULT_SCREEN_VALUE, tag)
++                .apply();
++    }
++
+     public static boolean timeRespectsSpeed() {
+         return prefs.getBoolean(PREF_TIME_RESPECTS_SPEED, false);
+     }
+--- a/core/src/main/res/values/arrays.xml
++++ b/core/src/main/res/values/arrays.xml
+@@ -289,4 +289,5 @@
+         <item>EpisodesFragment</item>
+         <item>SubscriptionFragment</item>
+     </string-array>
++
+ </resources>
+--- a/ui/i18n/src/main/res/values/strings.xml
++++ b/ui/i18n/src/main/res/values/strings.xml
+@@ -449,6 +449,8 @@
+     <string name="pref_contribute">Contribute</string>
+     <string name="pref_show_subscription_title">Show Subscription Title</string>
+     <string name="pref_show_subscription_title_summary">Display the subscription title below the cover image.</string>
++    <string name="pref_default_screen_title">Default Screen</string>
++    <string name="pref_default_screen_sum">Select the screen to open when the app is launched.</string>
+ 
+     <!-- About screen -->
+     <string name="about_pref">About</string>

@@ -1,0 +1,45 @@
+--- a/app/src/main/java/de/danoeh/antennapod/ui/cleaner/ShownotesCleaner.java
++++ b/app/src/main/java/de/danoeh/antennapod/ui/cleaner/ShownotesCleaner.java
+@@ -38,6 +38,7 @@
+     private static final Pattern TIMECODE_LINK_REGEX = Pattern.compile("antennapod://timecode/(\\d+)");
+     private static final String TIMECODE_LINK = "<a class=\"timecode\" href=\"antennapod://timecode/%d\">%s</a>";
+     private static final Pattern TIMECODE_REGEX = Pattern.compile("\\b((\\d+):)?(\\d+):(\\d{2})\\b");
++    private static final Pattern URL_REGEX = Pattern.compile("\\b(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]");
+     private static final Pattern LINE_BREAK_REGEX = Pattern.compile("<br */?>");
+     private static final String CSS_COLOR = "(?<=(\\s|;|^))color\\s*:([^;])*;";
+     private static final String CSS_COMMENT = "/\\*.*?\\*/";
+@@ -103,6 +104,7 @@
+         cleanCss(document);
+         document.head().appendElement("style").attr("type", "text/css").text(webviewStyle);
+         addTimecodes(document);
++        addPlaintextLinks(document);
+         document.body().attr("dir", "auto");
+         return document.toString();
+     }
+@@ -195,6 +197,25 @@
+         }
+     }
+ 
++    private void addPlaintextLinks(Document document) {
++        Elements elementsWithUrls = document.body().getElementsMatchingOwnText(URL_REGEX);
++        Log.d(TAG, "Recognized " + elementsWithUrls.size() + " plaintext URLs");
++
++        if (elementsWithUrls.size() == 0) {
++            return;
++        }
++
++        for (Element element : elementsWithUrls) {
++            Matcher matcherForElement = URL_REGEX.matcher(element.html());
++            StringBuffer buffer = new StringBuffer();
++            while (matcherForElement.find()) {
++                String url = matcherForElement.group(0);
++                matcherForElement.appendReplacement(buffer, "<a href=\"" + url + "\">" + url + "</a>");
++            }
++            matcherForElement.appendTail(buffer);
++            element.html(buffer.toString());
++        }
++    }
++
+     public static String cleanStyleTag(String oldCss) {
+         return oldCss.replaceAll(CSS_COMMENT, "").replaceAll(CSS_COLOR, "");
+     }

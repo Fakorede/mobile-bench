@@ -1,0 +1,58 @@
+--- a/app/src/main/java/de/danoeh/antennapod/activity/MainActivity.java
++++ b/app/src/main/java/de/danoeh/antennapod/activity/MainActivity.java
+@@ -356,6 +356,7 @@
+         <receiver
+             android:name=".receiver.ConnectivityActionReceiver"
+             android:exported="true">
++            <intent-filter android:priority="100"/>
+             <intent-filter>
+                 <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
+             </intent-filter>
+--- a/app/src/main/java/de/danoeh/antennapod/adapter/actionbutton/DownloadActionButton.java
++++ b/app/src/main/java/de/danoeh/antennapod/adapter/actionbutton/DownloadActionButton.java
+@@ -54,7 +54,7 @@
+         if (NetworkUtils.isEpisodeDownloadAllowed() || MobileDownloadHelper.userAllowedMobileDownloads()) {
+             DownloadServiceInterface.get()
+                     .download(context, false, DownloadRequestCreator.create(item.getMedia()).build());
+-        } else if (MobileDownloadHelper.userChoseAddToQueue() && !item.isTagged(FeedItem.TAG_QUEUE)) {
++        } else if (MobileDownloadHelper.userChoseAddToQueue() && !item.isTagged(FeedItem.TAG_QUEUE) && !item.getMedia().isDownloaded()) {
+             DBWriter.addQueueItem(context, item);
+             Toast.makeText(context, R.string.added_to_queue_label, Toast.LENGTH_SHORT).show();
+         } else {
+--- a/app/src/main/java/de/danoeh/antennapod/receiver/ConnectivityActionReceiver.java
++++ b/app/src/main/java/de/danoeh/antennapod/receiver/ConnectivityActionReceiver.java
+@@ -1,10 +1,13 @@
+ package de.danoeh.antennapod.receiver;
+ 
+ import android.content.BroadcastReceiver;
+ import android.content.Context;
+ import android.content.Intent;
++import android.net.ConnectivityManager;
++import android.net.NetworkInfo;
+ import android.util.Log;
+ 
++import de.danoeh.antennapod.core.storage.DBReader;
+ import de.danoeh.antennapod.core.storage.DBTasks;
+ import de.danoeh.antennapod.core.util.NetworkUtils;
+ 
+@@ -16,7 +19,17 @@
+     @Override
+     public void onReceive(Context context, Intent intent) {
+         Log.d(TAG, "Received intent: " + intent.getAction());
+-        if (NetworkUtils.is
++        if (intent.getAction().equals(ConnectivityManager.CONNECTIVITY_ACTION)) {
++            ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
++            NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
++            if (activeNetwork != null && activeNetwork.isConnected()) {
++                if (activeNetwork.getType() == ConnectivityManager.TYPE_WIFI) {
++                    Log.d(TAG, "WLAN connected, checking for pending downloads in queue");
++                    DBTasks.autodownloadUndownloadedItems(context, DBReader.get  // Add this line
++                            .getQueue().stream()
++                            .filter(item -> item.getMedia() != null && !item.getMedia().isDownloaded())
++                            .collect(Collectors.toList()));
++                }
++            }
++        }
+         NetworkUtils.init(context);
+         DBTasks.autodownloadUndownloadedItems(context);
+     }

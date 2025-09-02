@@ -1,0 +1,19 @@
+{
+  "summary": {
+    "total_tests": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "duration": 90.92369723320007,
+    "exit_code": 1,
+    "build_successful": false
+  },
+  "test_lists": {
+    "passed_tests": [],
+    "failed_tests": [],
+    "skipped_tests": [],
+    "error_tests": []
+  },
+  "detailed_results": []
+}

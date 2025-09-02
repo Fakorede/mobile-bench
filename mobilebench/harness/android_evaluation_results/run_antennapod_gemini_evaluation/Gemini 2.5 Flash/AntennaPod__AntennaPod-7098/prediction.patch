@@ -1,0 +1,133 @@
+--- a/app/src/main/java/de/danoeh/antennapod/ui/screen/onlinefeedview/FeedItemlistDescriptionAdapter.java
++++ b/app/src/main/java/de/danoeh/antennapod/ui/screen/onlinefeedview/FeedItemlistDescriptionAdapter.java
+@@ -15,6 +15,7 @@
+ import de.danoeh.antennapod.model.playback.RemoteMedia;
+ import de.danoeh.antennapod.model.feed.FeedItem;
+ import de.danoeh.antennapod.playback.service.PlaybackService;
++import de.danoeh.antennapod.playback.service.PlaybackServiceStarter;
+ import de.danoeh.antennapod.playback.service.PlaybackServiceStarter;
+ import de.danoeh.antennapod.ui.common.DateFormatter;
+ import de.danoeh.antennapod.model.playback.Playable;
+@@ -71,6 +72,10 @@
+                 holder.description.setMaxLines(30);
+                 holder.description.setTag(Boolean.TRUE);
+ 
+-                holder.preview.setVisibility(item.getMedia() != null ? View.VISIBLE : View.GONE);
++                if (item.getMedia() != null && item.getMedia().getDownloadUrl() != null) {
++                    holder.preview.setVisibility(View.VISIBLE);
++                } else {
++                    holder.preview.setVisibility(View.GONE);
++                }
+                 holder.preview.setText(R.string.preview_episode);
+             }
+         });
+--- a/app/src/main/java/de/danoeh/antennapod/ui/screen/onlinefeedview/OnlineFeedViewActivity.java
++++ b/app/src/main/java/de/danoeh/antennapod/ui/screen/onlinefeedview/OnlineFeedViewActivity.java
+@@ -45,6 +45,7 @@
+ import de.danoeh.antennapod.parser.feed.FeedHandlerResult;
+ import de.danoeh.antennapod.model.download.DownloadError;
+ import de.danoeh.antennapod.model.feed.Feed;
++import de.danoeh.antennapod.model.feed.FeedItem;
+ import de.danoeh.antennapod.model.feed.FeedPreferences;
+ import de.danoeh.antennapod.model.playback.RemoteMedia;
+ import de.danoeh.antennapod.parser.feed.UnsupportedFeedtypeException;
+@@ -53,6 +54,7 @@
+ import de.danoeh.antennapod.ui.preferences.screen.synchronization.AuthenticationDialog;
+ import io.reactivex.Maybe;
+ import io.reactivex.Observable;
++import io.reactivex.Single;
+ import io.reactivex.android.schedulers.AndroidSchedulers;
+ import io.reactivex.disposables.Disposable;
+ import io.reactivex.observers.DisposableMaybeObserver;
+@@ -112,6 +114,7 @@
+     private Disposable download;
+     private Disposable parser;
+     private Disposable updater;
++    private Disposable singleEpisodeDownloader;
+ 
+     private OnlinefeedviewHeaderBinding headerBinding;
+     private OnlinefeedviewActivityBinding viewBinding;
+@@ -217,6 +220,10 @@
+         }
+     }
+ 
++    private void downloadSingleEpisode(FeedItem item) {
++        DownloadServiceInterface.get().download(this, item);
++    }
++
+     @Subscribe
+     public void onFeedListChanged(FeedListUpdateEvent event) {
+         updater = Observable.fromCallable(DBReader::getFeedList)
+@@ -229,6 +236,11 @@
+     @Subscribe(sticky = true, threadMode = ThreadMode.MAIN)
+     public void onEventMainThread(EpisodeDownloadEvent event) {
+         handleUpdatedFeedStatus();
++        for (String downloadUrl : event.getUrls()) {
++            if (downloadUrl.equals(selectedDownloadUrl)) {
++                viewBinding.downloadSingleEpisodeButton.setEnabled(false);
++            }
++        }
+     }
+ 
+     private void parseFeed(String destination) {
+@@ -308,6 +320,22 @@
+             PlaybackPreferences.writeNoMediaPlaying();
+             IntentUtils.sendLocalBroadcast(this, PlaybackServiceInterface.ACTION_SHUTDOWN_PLAYBACK_SERVICE);
+         });
++
++        viewBinding.downloadSingleEpisodeButton.setOnClickListener(v -> {
++            if (feed.getItems().isEmpty()) {
++                return;
++            }
++            setLoadingLayout();
++            singleEpisodeDownloader = Single.fromCallable(() -> DBReader.getFeedItem(feed.getItems().get(0).getId()))
++                    .subscribeOn(Schedulers.io())
++                    .observeOn(AndroidSchedulers.mainThread())
++                    .subscribe(
++                            item -> {
++                                downloadSingleEpisode(item);
++                                finish();
++                            }, error -> Log.e(TAG, Log.getStackTraceString(error)));
++        });
++
+ 
+         if (UserPreferences.isEnableAutodownload()) {
+             SharedPreferences preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
+@@ -553,6 +581,10 @@
+             if (UserPreferences.isEnableAutodownload()) {
+                 viewBinding.autoDownloadCheckBox.setVisibility(View.VISIBLE);
+             }
++            if (!feed.getItems().isEmpty() && feed.getItems().get(0).getMedia() != null) {
++                viewBinding.downloadSingleEpisodeButton.setVisibility(View.VISIBLE);
++                viewBinding.downloadSingleEpisodeButton.setEnabled(true);
++            }
+         }
+     }
+ 
+--- a/app/src/main/res/layout/onlinefeedview_activity.xml
++++ b/app/src/main/res/layout/onlinefeedview_activity.xml
+@@ -156,6 +156,14 @@
+                         android:visibility="gone"
+                         tools:visibility="visible" />
+ 
++                    <Button
++                        android:id="@+id/downloadSingleEpisodeButton"
++                        android:layout_width="match_parent"
++                        android:layout_height="wrap_content"
++                        android:layout_marginTop="4dp"
++                        android:text="@string/download_single_episode_label"
++                        android:visibility="gone" />
++
+                 </LinearLayout>
+ 
+                 <ListView
+--- a/ui/i18n/src/main/res/values/strings.xml
++++ b/ui/i18n/src/main/res/values/strings.xml
+@@ -215,6 +215,7 @@
+     <string name="subscribe_label">Subscribe</string>
+     <string name="subscribing_label">Subscribing&#8230;</string>
+     <string name="preview_episode">Preview</string>
++    <string name="download_single_episode_label">Download episode</string>
+     <string name="stop_preview">Stop preview</string>
+ 
+     <!-- Content descriptions for image buttons -->

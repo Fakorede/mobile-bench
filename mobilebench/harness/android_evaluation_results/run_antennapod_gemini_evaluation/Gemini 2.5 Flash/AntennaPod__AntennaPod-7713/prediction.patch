@@ -1,0 +1,83 @@
+--- a/app/src/main/java/de/danoeh/antennapod/ui/screen/playback/SleepTimerDialog.java
++++ b/app/src/main/java/de/danoeh/antennapod/ui/screen/playback/SleepTimerDialog.java
+@@ -45,6 +45,7 @@
+     private LinearLayout timeSetup;
+     private LinearLayout timeDisplay;
+     private TextView time;
++    private CheckBox chPauseTimerWhenPaused;
+     private CheckBox chAutoEnable;
+ 
+     public SleepTimerDialog() {
+@@ -115,6 +116,7 @@
+ 
+         final CheckBox cbShakeToReset = content.findViewById(R.id.cbShakeToReset);
+         final CheckBox cbVibrate = content.findViewById(R.id.cbVibrate);
++        chPauseTimerWhenPaused = content.findViewById(R.id.chPauseTimerWhenPaused);
+         chAutoEnable = content.findViewById(R.id.chAutoEnable);
+         final ImageView changeTimesButton = content.findViewById(R.id.changeTimesButton);
+ 
+@@ -126,6 +128,8 @@
+                 -> SleepTimerPreferences.setShakeToReset(isChecked));
+         cbVibrate.setOnCheckedChangeListener((buttonView, isChecked)
+                 -> SleepTimerPreferences.setVibrate(isChecked));
++        chPauseTimerWhenPaused.setChecked(SleepTimerPreferences.pauseTimerWhenPaused());
++        chPauseTimerWhenPaused.setOnCheckedChangeListener((buttonView, isChecked) -> SleepTimerPreferences.setPauseTimerWhenPaused(isChecked));
+         chAutoEnable.setOnCheckedChangeListener((compoundButton, isChecked)
+                 -> {
+             SleepTimerPreferences.setAutoEnable(isChecked);
+@@ -210,3 +214,4 @@
+         imm.hideSoftInputFromWindow(content.getWindowToken(), 0);
+     }
+ }
++
+--- a/playback/service/src/main/java/de/danoeh/antennapod/playback/service/PlaybackService.java
++++ b/playback/service/src/main/java/de/danoeh/antennapod/playback/service/PlaybackService.java
+@@ -880,6 +880,9 @@
+                     }
+                     if (androidAutoConnected) {
+                         Log.i(TAG, "Android Auto is connected, sleep timer will not be auto-enabled");
++                        autoEnableByTime = false;
++                    }
++                    if (SleepTimerPreferences.pauseTimerWhenPaused() && newInfo.getOldPlayerStatus() == PlayerStatus.PAUSED) {
+                         autoEnableByTime = false;
+                     }
+ 
+@@ -1196,6 +1199,9 @@
+ 
+     public void pause(boolean abandonAudioFocus, boolean reinit) {
+         mediaPlayer.pause(abandonAudioFocus, reinit);
++        if (SleepTimerPreferences.pauseTimerWhenPaused()) {
++            taskManager.pauseSleepTimer();
++        }
+     }
+ 
+     public PlaybackServiceMediaPlayer.PSMPInfo getPSMPInfo() {
+--- a/playback/service/src/main/java/de/danoeh/antennapod/playback/service/internal/PlaybackServiceTaskManager.java
++++ b/playback/service/src/main/java/de/danoeh/antennapod/playback/service/internal/PlaybackServiceTaskManager.java
+@@ -189,6 +189,14 @@
+         }
+     }
+ 
++    /**
++     * Pauses the sleep timer. If the sleep timer is not active, nothing will happen.
++     */
++    public synchronized void pauseSleepTimer() {
++        if (isSleepTimerActive()) {
++            sleepTimer.pause();
++        }
++    }
+     /**
+      * Returns the current sleep timer time or 0 if the sleep timer is not active.
+      */
+@@ -334,6 +342,11 @@
+             EventBus.getDefault().post(SleepTimerUpdatedEvent.cancelled());
+         }
+ 
++        public void pause() {
++            sleepTimerFuture.cancel(true);
++            EventBus.getDefault().post(SleepTimerUpdatedEvent.cancelled());
++        }
++
+     }
+ 
+     public interface PSTMCallback {

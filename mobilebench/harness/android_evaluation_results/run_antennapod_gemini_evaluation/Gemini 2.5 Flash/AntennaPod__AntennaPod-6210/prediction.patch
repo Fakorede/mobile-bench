@@ -1,0 +1,141 @@
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/CompletedDownloadsFragment.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/CompletedDownloadsFragment.java
+@@ -25,6 +25,7 @@
+ import de.danoeh.antennapod.core.event.DownloadLogEvent;
+ import de.danoeh.antennapod.core.menuhandler.MenuItemUtils;
+ import de.danoeh.antennapod.core.storage.DBReader;
++import de.danoeh.antennapod.storage.preferences.UserPreferences;
+ import de.danoeh.antennapod.core.util.FeedItemUtil;
+ import de.danoeh.antennapod.core.util.download.AutoUpdateManager;
+ import de.danoeh.antennapod.event.FeedItemEvent;
+@@ -33,6 +34,7 @@
+ import de.danoeh.antennapod.event.playback.PlaybackPositionEvent;
+ import de.danoeh.antennapod.fragment.actions.EpisodeMultiSelectActionHandler;
+ import de.danoeh.antennapod.fragment.swipeactions.SwipeActions;
++import de.danoeh.antennapod.model.feed.SortOrder;
+ import de.danoeh.antennapod.menuhandler.FeedItemMenuHandler;
+ import de.danoeh.antennapod.model.feed.FeedItem;
+ import de.danoeh.antennapod.model.feed.FeedItemFilter;
+@@ -179,6 +181,39 @@
+         } else if (item.getItemId() == R.id.action_search) {
+             ((MainActivity) getActivity()).loadChildFragment(SearchFragment.newInstance());
+             return true;
++        } else if (item.getItemId() == R.id.downloads_sort_episode_title_asc) {
++            setSortOrder(SortOrder.EPISODE_TITLE_A_Z);
++            return true;
++        } else if (item.getItemId() == R.id.downloads_sort_episode_title_desc) {
++            setSortOrder(SortOrder.EPISODE_TITLE_Z_A);
++            return true;
++        } else if (item.getItemId() == R.id.downloads_sort_date_asc) {
++            setSortOrder(SortOrder.DATE_OLD_NEW);
++            return true;
++        } else if (item.getItemId() == R.id.downloads_sort_date_desc) {
++            setSortOrder(SortOrder.DATE_NEW_OLD);
++            return true;
++        } else if (item.getItemId() == R.id.downloads_sort_download_date_asc) {
++            setSortOrder(SortOrder.DOWNLOAD_DATE_OLD_NEW);
++            return true;
++        } else if (item.getItemId() == R.id.downloads_sort_download_date_desc) {
++            setSortOrder(SortOrder.DOWNLOAD_DATE_NEW_OLD);
++            return true;
++        } else if (item.getItemId() == R.id.downloads_sort_duration_asc) {
++            setSortOrder(SortOrder.DURATION_SHORT_LONG);
++            return true;
++        } else if (item.getItemId() == R.id.downloads_sort_duration_desc) {
++            setSortOrder(SortOrder.DURATION_LONG_SHORT);
++            return true;
++        } else if (item.getItemId() == R.id.downloads_sort_feed_title_asc) {
++            setSortOrder(SortOrder.FEED_TITLE_A_Z);
++            return true;
++        } else if (item.getItemId() == R.id.downloads_sort_feed_title_desc) {
++            setSortOrder(SortOrder.FEED_TITLE_Z_A);
++            return true;
++        } else if (item.getItemId() == R.id.downloads_sort_random) {
++            setSortOrder(SortOrder.RANDOM);
++            return true;
+         }
+         return false;
+     }
+@@ -276,6 +311,11 @@
+                 });
+     }
+ 
++    private void setSortOrder(SortOrder sortOrder) {
++        UserPreferences.setDownloadsSortOrder(sortOrder);
++        loadItems();
++    }
++
+     @Override
+     public void onStartSelectMode() {
+         swipeActions.detach();
+--- a/app/src/main/res/menu/downloads_completed.xml
++++ b/app/src/main/res/menu/downloads_completed.xml
+@@ -26,4 +26,67 @@
+         android:icon="@drawable/ic_refresh"
+         app:showAsAction="always" />
+ 
++    <item
++        android:id="@+id/downloads_sort"
++        android:title="@string/sort">
++
++        <menu>
++            <item
++                android:id="@+id/downloads_sort_date"
++                android:title="@string/date">
++
++                <menu>
++                    <item
++                        android:id="@+id/downloads_sort_date_asc"
++                        android:title="@string/sort_old_new"/>
++                    <item
++                        android:id="@+id/downloads_sort_date_desc"
++                        android:title="@string/sort_new_old"/>
++                </menu>
++            </item>
++
++            <item
++                android:id="@+id/downloads_sort_download_date"
++                android:title="@string/download_date">
++
++                <menu>
++                    <item
++                        android:id="@+id/downloads_sort_download_date_asc"
++                        android:title="@string/sort_old_new"/>
++                    <item
++                        android:id="@+id/downloads_sort_download_date_desc"
++                        android:title="@string/sort_new_old"/>
++                </menu>
++            </item>
++
++            <item
++                android:id="@+id/downloads_sort_duration"
++                android:title="@string/duration">
++
++                <menu>
++                    <item
++                        android:id="@+id/downloads_sort_duration_asc"
++                        android:title="@string/sort_short_long"/>
++                    <item
++                        android:id="@+id/downloads_sort_duration_desc"
++                        android:title="@string/sort_long_short"/>
++                </menu>
++            </item>
++
++            <item
++                android:id="@+id/downloads_sort_episode_title"
++                android:title="@string/episode_title">
++
++                <menu>
++                    <item
++                        android:id="@+id/downloads_sort_episode_title_asc"
++                        android:title="@string/sort_a_z"/>
++                    <item
++                        android:id="@+id/downloads_sort_episode_title_desc"
++                        android:title="@string/sort_z_a"/>
++                </menu>
++            </item>
++
++            <item android:id="@+id/downloads_sort_random" android:title="@string/random"/>
++        </menu>
++    </item>
+ </menu>

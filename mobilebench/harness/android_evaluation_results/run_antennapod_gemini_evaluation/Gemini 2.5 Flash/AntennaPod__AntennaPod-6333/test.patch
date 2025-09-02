@@ -1,0 +1,22 @@
+diff --git a/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java b/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
+index 251c59c61e3..94774648587 100644
+--- a/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
++++ b/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
+@@ -1,12 +1,17 @@
+ package de.danoeh.antennapod.net.download.serviceinterface;
+ 
+ import android.content.Context;
++import android.content.Intent;
+ 
+ public class DownloadServiceInterfaceStub extends DownloadServiceInterface {
+ 
+     public void download(Context context, boolean cleanupMedia, DownloadRequest... requests) {
+     }
+ 
++    public Intent makeDownloadIntent(Context context, boolean cleanupMedia, DownloadRequest... requests) {
++        return null;
++    }
++
+     public void refreshAllFeeds(Context context, boolean initiatedByUser) {
+     }
+ 

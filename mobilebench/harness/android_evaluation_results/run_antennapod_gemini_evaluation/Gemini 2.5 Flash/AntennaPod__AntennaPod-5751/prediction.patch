@@ -1,0 +1,42 @@
+--- a/net/sync/gpoddernet/src/main/java/de/danoeh/antennapod/net/sync/HostnameParser.java
++++ b/net/sync/gpoddernet/src/main/java/de/danoeh/antennapod/net/sync/HostnameParser.java
+@@ -10,7 +10,7 @@
+     public String host;
+ 
+     // split into schema, host and port - missing parts are null
+-    private static final Pattern URLSPLIT_REGEX = Pattern.compile("(?:(https?)://)?([^:]+)(?::(\\d+))?");
++    private static final Pattern URLSPLIT_REGEX = Pattern.compile("(?:(https?)://)?([^:/]+)(?::(\\d+))?(/.*)?");
+ 
+     public HostnameParser(String hosturl) {
+         Matcher m = URLSPLIT_REGEX.matcher(hosturl);
+@@ -21,6 +21,7 @@
+             } else {
+                 port = Integer.parseInt(m.group(3));    // regex -> can only be digits
+             }
++            // The fourth group (m.group(4)) would be the path, but it's not used in this class.
+         } else {
+             // URL does not match regex: use it anyway -> this will cause an exception on connect
+             scheme = "https";
+@@ -38,3 +39,4 @@
+         }
+     }
+ }
++
+--- a/net/sync/gpoddernet/src/main/java/de/danoeh/antennapod/net/sync/nextcloud/NextcloudLoginFlow.java
++++ b/net/sync/gpoddernet/src/main/java/de/danoeh/antennapod/net/sync/nextcloud/NextcloudLoginFlow.java
+@@ -48,8 +48,13 @@
+ 
+     public void start() {
+         startDisposable = Observable.fromCallable(() -> {
+-            URL url = new URI(hostname.scheme, null, hostname.host, hostname.port,
+-                    "/index.php/login/v2", null, null).toURL();
++            // Nextcloud can be hosted in a subdirectory, so we need to extract the path from the original URL
++            // and append the login endpoint to it.
++            String path = new URI(hostname.scheme, null, hostname.host, hostname.port, null, null, null).resolve(
++                    new URI(hostname.scheme, hostname.host, hostname.port, "/")).relativize(
++                            new URI(hostname.scheme, hostname.host, hostname.port, hostname.host, null)).getPath();
++            URL url = new URI(hostname.scheme, null, hostname.host, hostname.port, path + "/index.php/login/v2", null, null).toURL();
++
+             JSONObject result = doRequest(url, "");
+             String loginUrl = result.getString("login");
+             this.token = result.getJSONObject("poll").getString("token");

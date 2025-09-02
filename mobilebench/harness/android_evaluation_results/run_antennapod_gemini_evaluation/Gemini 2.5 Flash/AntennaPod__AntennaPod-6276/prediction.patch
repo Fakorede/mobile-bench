@@ -1,0 +1,45 @@
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/preferences/UserInterfacePreferencesFragment.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/preferences/UserInterfacePreferencesFragment.java
+@@ -67,12 +67,14 @@
+                     DrawerPreferencesDialog.show(getContext(), null);
+                     return true;
+                 });
+-
+-        findPreference(UserPreferences.PREF_COMPACT_NOTIFICATION_BUTTONS)
+-                .setOnPreferenceClickListener(preference -> {
+-                    showNotificationButtonsDialog();
+-                    return true;
+-                });
++        if (Build.VERSION.SDK_INT < 33) {
++            findPreference(UserPreferences.PREF_COMPACT_NOTIFICATION_BUTTONS)
++                    .setOnPreferenceClickListener(preference -> {
++                        showNotificationButtonsDialog();
++                        return true;
++                    });
++        }
++
+         findPreference(UserPreferences.PREF_FILTER_FEED)
+                 .setOnPreferenceClickListener((preference -> {
+                     new SubscriptionsFilterDialog().show(getChildFragmentManager(), "filter");
+@@ -90,6 +92,9 @@
+         if (Build.VERSION.SDK_INT >= 26) {
+             findPreference(UserPreferences.PREF_EXPANDED_NOTIFICATION).setVisible(false);
+         }
++        if (Build.VERSION.SDK_INT >= 33) {
++            findPreference(UserPreferences.PREF_COMPACT_NOTIFICATION_BUTTONS).setVisible(false);
++        }
+     }
+ 
+     private void showNotificationButtonsDialog() {
+--- a/app/src/main/res/xml/preferences_user_interface.xml
++++ b/app/src/main/res/xml/preferences_user_interface.xml
+@@ -75,7 +75,8 @@
+         <Preference
+                 android:key="prefCompactNotificationButtons"
+                 android:summary="@string/pref_compact_notification_buttons_sum"
+-                android:title="@string/pref_compact_notification_buttons_title"/>
++                android:title="@string/pref_compact_notification_buttons_title"
++                search:ignore="true"/>
+     </PreferenceCategory>
+     <PreferenceCategory android:title="@string/behavior">
+         <de.danoeh.antennapod.preferences.MaterialListPreference

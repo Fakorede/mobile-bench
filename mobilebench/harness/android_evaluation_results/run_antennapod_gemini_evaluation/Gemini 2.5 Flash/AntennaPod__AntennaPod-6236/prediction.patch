@@ -1,0 +1,10 @@
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/FeedSettingsFragment.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/FeedSettingsFragment.java
+@@ -259,6 +259,7 @@
+                         feedPreferences.setUsername(username);
+                         feedPreferences.setPassword(password);
+                         DBWriter.setFeedPreferences(feedPreferences);
++                        feed.updateLastUpdate(); // Trigger a refresh of the feed
+                     }
+                 }.show();
+                 return false;

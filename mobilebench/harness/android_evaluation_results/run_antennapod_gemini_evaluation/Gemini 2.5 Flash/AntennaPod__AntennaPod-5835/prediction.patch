@@ -1,0 +1,35 @@
+--- a/app/src/main/java/de/danoeh/antennapod/dialog/ShareDialog.java
++++ b/app/src/main/java/de/danoeh/antennapod/dialog/ShareDialog.java
+@@ -72,7 +72,7 @@
+             if (radioLinkToEpisode.isChecked()) {
+                 ShareUtils.shareFeedItemLinkWithDownloadLink(ctx, item, includePlaybackPosition);
+             } else if (radioMediaFile.isChecked()) {
+-                ShareUtils.shareFeedItemFile(ctx, item.getMedia());
++                ShareUtils.shareFeedItemFile(ctx, item.getMedia(), includePlaybackPosition);
+             } else {
+                 throw new IllegalStateException("Unknown share method");
+             }
+--- a/core/src/main/java/de/danoeh/antennapod/core/util/ShareUtils.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/util/ShareUtils.java
+@@ -75,15 +75,20 @@
+         shareLink(context, text);
+     }
+ 
+-    public static void shareFeedItemFile(Context context, FeedMedia media) {
++    public static void shareFeedItemFile(Context context, FeedMedia media, boolean withPosition) {
+         Uri fileUri = FileProvider.getUriForFile(context, context.getString(R.string.provider_authority),
+                 new File(media.getLocalMediaUrl()));
++        
++        if (withPosition) {
++            fileUri = fileUri.buildUpon().encodedFragment("t=" + media.getPosition() / 1000).build();
++        }
+ 
+         new ShareCompat.IntentBuilder(context)
+                 .setType(media.getMime_type())
+                 .addStream(fileUri)
+                 .setChooserTitle(R.string.share_file_label)
+                 .startChooser();
+-
+-        Log.e(TAG, "shareFeedItemFile called");
+     }
+ }

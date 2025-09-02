@@ -1,0 +1,161 @@
+--- a/model/src/main/java/de/danoeh/antennapod/model/feed/FeedItem.java
++++ b/model/src/main/java/de/danoeh/antennapod/model/feed/FeedItem.java
+@@ -45,6 +45,7 @@
+     private transient Feed feed;
+     private long feedId;
+     private String podcastIndexChapterUrl;
++    private String podcastIndexTranscriptUrl;
+ 
+     private int state;
+     public static final int NEW = -1;
+@@ -86,7 +87,8 @@
+     public FeedItem(long id, String title, String link, Date pubDate, String paymentLink, long feedId,
+                      boolean hasChapters, String imageUrl, int state,
+                      String itemIdentifier, long autoDownload, String podcastIndexChapterUrl) {
+-        this.id = id;
++        this(id, title, link, pubDate, paymentLink, feedId, hasChapters, imageUrl, state, itemIdentifier,
++                autoDownload, podcastIndexChapterUrl, null);
++    }
++
++    public FeedItem(long id, String title, String link, Date pubDate, String paymentLink, long feedId,
++                    boolean hasChapters, String imageUrl, int state,
++                    String itemIdentifier, long autoDownload, String podcastIndexChapterUrl, String podcastIndexTranscriptUrl) {
++        this.id = id;
+         this.title = title;
+         this.link = link;
+         this.pubDate = pubDate;
+@@ -97,6 +99,7 @@
+         this.state = state;
+         this.itemIdentifier = itemIdentifier;
+         this.autoDownload = autoDownload;
+         this.podcastIndexChapterUrl = podcastIndexChapterUrl;
++        this.podcastIndexTranscriptUrl = podcastIndexTranscriptUrl;
+     }
+ 
+     /**
+@@ -165,6 +168,9 @@
+         if (other.podcastIndexChapterUrl != null) {
+             podcastIndexChapterUrl = other.podcastIndexChapterUrl;
+         }
++        if (other.podcastIndexTranscriptUrl != null) {
++            podcastIndexTranscriptUrl = other.podcastIndexTranscriptUrl;
++        }
+     }
+ 
+     /**
+@@ -440,6 +446,14 @@
+         podcastIndexChapterUrl = url;
+     }
+ 
++    public String getPodcastIndexTranscriptUrl() {
++        return podcastIndexTranscriptUrl;
++    }
++
++    public void setPodcastIndexTranscriptUrl(String podcastIndexTranscriptUrl) {
++        this.podcastIndexTranscriptUrl = podcastIndexTranscriptUrl;
++    }
++
+     @NonNull
+     @Override
+     public String toString() {
+--- a/parser/feed/src/main/java/de/danoeh/antennapod/parser/feed/namespace/PodcastIndex.java
++++ b/parser/feed/src/main/java/de/danoeh/antennapod/parser/feed/namespace/PodcastIndex.java
+@@ -16,6 +16,7 @@
+     private static final String URL = "url";
+     private static final String FUNDING = "funding";
+     private static final String CHAPTERS = "chapters";
++    private static final String TRANSCRIPT = "transcript";
+ 
+     @Override
+     public SyndElement handleElementStart(String localName, HandlerState state,
+@@ -29,6 +30,10 @@
+             if (!TextUtils.isEmpty(href)) {
+                 state.getCurrentItem().setPodcastIndexChapterUrl(href);
+             }
++        } else if (TRANSCRIPT.equals(localName)) {
++            String href = attributes.getValue(URL);
++            state.getCurrentItem().setPodcastIndexTranscriptUrl(href);
++
+         }
+         return new SyndElement(localName, this);
+     }
+--- a/storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBUpgrader.java
++++ b/storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBUpgrader.java
+@@ -332,6 +332,10 @@
+         if (oldVersion < 2060000) {
+             db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_ITEMS
+                     + " ADD COLUMN " + PodDBAdapter.KEY_PODCASTINDEX_CHAPTER_URL + " TEXT");
++        }
++        if (oldVersion < 3010000) {
++            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEED_ITEMS
++                    + " ADD COLUMN " + PodDBAdapter.KEY_PODCASTINDEX_TRANSCRIPT_URL + " TEXT");
+         }
+         if (oldVersion < 3010000) {
+             db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_FEEDS
+--- a/storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
++++ b/storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
+@@ -124,6 +124,7 @@
+     public static final String KEY_EPISODE_NOTIFICATION = "episode_notification";
+     public static final String KEY_NEW_EPISODES_ACTION = "new_episodes_action";
+     public static final String KEY_PODCASTINDEX_CHAPTER_URL = "podcastindex_chapter_url";
++    public static final String KEY_PODCASTINDEX_TRANSCRIPT_URL = "podcastindex_transcript_url";
+ 
+     // Table names
+     public static final String TABLE_NAME_FEEDS = "Feeds";
+@@ -176,7 +177,8 @@
+             + KEY_ITEM_IDENTIFIER + " TEXT,"
+             + KEY_IMAGE_URL + " TEXT,"
+             + KEY_AUTO_DOWNLOAD_ATTEMPTS + " INTEGER,"
+-            + KEY_PODCASTINDEX_CHAPTER_URL + " TEXT)";
++            + KEY_PODCASTINDEX_CHAPTER_URL + " TEXT,"
++            + KEY_PODCASTINDEX_TRANSCRIPT_URL + " TEXT)";
+ 
+     private static final String CREATE_TABLE_FEED_MEDIA = "CREATE TABLE "
+             + TABLE_NAME_FEED_MEDIA + " (" + TABLE_PRIMARY_KEY + KEY_DURATION
+@@ -264,7 +266,8 @@
+             + TABLE_NAME_FEED_ITEMS + "." + KEY_ITEM_IDENTIFIER + ", "
+             + TABLE_NAME_FEED_ITEMS + "." + KEY_IMAGE_URL + ", "
+             + TABLE_NAME_FEED_ITEMS + "." + KEY_AUTO_DOWNLOAD_ATTEMPTS + ", "
+-            + TABLE_NAME_FEED_ITEMS + "." + KEY_PODCASTINDEX_CHAPTER_URL;
++            + TABLE_NAME_FEED_ITEMS + "." + KEY_PODCASTINDEX_CHAPTER_URL + ", "
++            + TABLE_NAME_FEED_ITEMS + "." + KEY_PODCASTINDEX_TRANSCRIPT_URL;
+ 
+     private static final String KEYS_FEED_MEDIA =
+             TABLE_NAME_FEED_MEDIA + "." + KEY_ID + " AS " + SELECT_KEY_MEDIA_ID + ", "
+@@ -658,6 +661,7 @@
+         values.put(KEY_AUTO_DOWNLOAD_ATTEMPTS, item.getAutoDownloadAttemptsAndTime());
+         values.put(KEY_IMAGE_URL, item.getImageUrl());
+         values.put(KEY_PODCASTINDEX_CHAPTER_URL, item.getPodcastIndexChapterUrl());
++        values.put(KEY_PODCASTINDEX_TRANSCRIPT_URL, item.getPodcastIndexTranscriptUrl());
+ 
+         if (item.getId() == 0) {
+             item.setId(db.insert(TABLE_NAME_FEED_ITEMS, null, values));
+--- a/storage/database/src/main/java/de/danoeh/antennapod/storage/database/mapper/FeedItemCursorMapper.java
++++ b/storage/database/src/main/java/de/danoeh/antennapod/storage/database/mapper/FeedItemCursorMapper.java
+@@ -25,12 +25,14 @@
+         int indexAutoDownload = cursor.getColumnIndexOrThrow(PodDBAdapter.KEY_AUTO_DOWNLOAD_ATTEMPTS);
+         int indexImageUrl = cursor.getColumnIndexOrThrow(PodDBAdapter.KEY_IMAGE_URL);
+         int indexPodcastIndexChapterUrl = cursor.getColumnIndexOrThrow(PodDBAdapter.KEY_PODCASTINDEX_CHAPTER_URL);
++        int indexPodcastIndexTranscriptUrl = cursor.getColumnIndexOrThrow(PodDBAdapter.KEY_PODCASTINDEX_TRANSCRIPT_URL);
+ 
+         long id = cursor.getInt(indexId);
+         String title = cursor.getString(indexTitle);
+         String link = cursor.getString(indexLink);
+         Date pubDate = new Date(cursor.getLong(indexPubDate));
+         String paymentLink = cursor.getString(indexPaymentLink);
++
+         long feedId = cursor.getLong(indexFeedId);
+         boolean hasChapters = cursor.getInt(indexHasChapters) > 0;
+         int state = cursor.getInt(indexRead);
+@@ -38,7 +40,8 @@
+         long autoDownload = cursor.getLong(indexAutoDownload);
+         String imageUrl = cursor.getString(indexImageUrl);
+         String podcastIndexChapterUrl = cursor.getString(indexPodcastIndexChapterUrl);
++        String podcastIndexTranscriptUrl = cursor.getString(indexPodcastIndexTranscriptUrl);
+ 
+-        return new FeedItem(id, title, link, pubDate, paymentLink, feedId,
+-                hasChapters, imageUrl, state, itemIdentifier, autoDownload, podcastIndexChapterUrl);
++        return new FeedItem(id, title, link, pubDate, paymentLink, feedId, hasChapters, imageUrl, state,
++                itemIdentifier, autoDownload, podcastIndexChapterUrl, podcastIndexTranscriptUrl);
+     }
+ }

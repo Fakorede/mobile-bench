@@ -1,0 +1,28 @@
+{
+  "instance_id": "AntennaPod__AntennaPod-6400",
+  "model_name": "Gemini 2.5 Flash",
+  "success": false,
+  "error_message": "Failed to apply prediction patch",
+  "repo_cloned": true,
+  "config_parsed": true,
+  "container_created": true,
+  "base_commit_checked_out": true,
+  "test_patch_applied": true,
+  "prediction_patch_applied": false,
+  "test_execution": {
+    "total_tests": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 1,
+    "duration": 0,
+    "exit_code": 1,
+    "build_successful": false,
+    "passed_tests": [],
+    "failed_tests": [],
+    "skipped_tests": [],
+    "error_tests": [],
+    "detailed_test_results": []
+  },
+  "total_duration": 67.35977244377136
+}

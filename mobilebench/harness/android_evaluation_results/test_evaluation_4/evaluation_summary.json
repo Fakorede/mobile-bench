@@ -1,0 +1,59 @@
+{
+  "run_id": "test_evaluation_4",
+  "total_instances": 1,
+  "successful": 1,
+  "failed": 0,
+  "success_rate": 100.0,
+  "test_statistics": {
+    "total_tests_run": 1,
+    "total_tests_passed": 1,
+    "total_tests_failed": 0,
+    "test_pass_rate": 100.0
+  },
+  "performance_metrics": {
+    "avg_duration_seconds": 176.49199438095093,
+    "total_duration_hours": 0.04902555399470859
+  },
+  "results": {
+    "AntennaPod__AntennaPod-7215": {
+      "instance_id": "AntennaPod__AntennaPod-7215",
+      "model_name": "Gemini 2.5 Flash",
+      "success": true,
+      "error_message": "",
+      "repo_cloned": true,
+      "config_parsed": true,
+      "container_created": true,
+      "base_commit_checked_out": true,
+      "test_patch_applied": true,
+      "prediction_patch_applied": true,
+      "test_execution": {
+        "total_tests": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0,
+        "duration": 43.21179676055908,
+        "exit_code": 0,
+        "build_successful": true,
+        "passed_tests": [
+          "de.danoeh.antennapod.parser.media.vorbis.VorbisCommentMetadataReaderTest.testRealFilesAuphonic"
+        ],
+        "failed_tests": [],
+        "skipped_tests": [],
+        "error_tests": [],
+        "detailed_test_results": [
+          {
+            "test_name": "testRealFilesAuphonic",
+            "class_name": "de.danoeh.antennapod.parser.media.vorbis.VorbisCommentMetadataReaderTest",
+            "full_name": "de.danoeh.antennapod.parser.media.vorbis.VorbisCommentMetadataReaderTest.testRealFilesAuphonic",
+            "status": "PASSED",
+            "duration": 0.0,
+            "failure_message": "",
+            "error_message": ""
+          }
+        ]
+      },
+      "total_duration": 176.49199438095093
+    }
+  }
+}

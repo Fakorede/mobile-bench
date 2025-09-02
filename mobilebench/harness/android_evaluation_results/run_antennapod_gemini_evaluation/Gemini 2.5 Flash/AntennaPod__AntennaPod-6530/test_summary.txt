@@ -1,0 +1,16 @@
+Test Execution Summary for AntennaPod__AntennaPod-6530
+==================================================
+Total Tests: 4
+Passed: 4
+Failed: 0
+Skipped: 0
+Errors: 0
+Duration: 40.30s
+Build Successful: True
+
+✅ Passed Tests (4):
+------------------------------
+  ✓ de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_NoAuth
+  ✓ de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.downloadRequestTestEquals
+  ✓ de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_WithAuth
+  ✓ de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestTest.parcelInArrayListTest_MixAuth

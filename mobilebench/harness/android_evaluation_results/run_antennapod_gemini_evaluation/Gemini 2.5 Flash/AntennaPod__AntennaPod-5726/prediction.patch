@@ -1,0 +1,11 @@
+--- a/app/src/main/java/de/danoeh/antennapod/adapter/actionbutton/PlayLocalActionButton.java
++++ b/app/src/main/java/de/danoeh/antennapod/adapter/actionbutton/PlayLocalActionButton.java
+@@ -39,7 +39,7 @@
+         new PlaybackServiceStarter(context, media)
+                 .callEvenIfRunning(true)
+                 .startWhenPrepared(true)
+-                .shouldStream(true)
++                .shouldStream(false)
+                 .start();
+ 
+         if (media.getMediaType() == MediaType.VIDEO) {

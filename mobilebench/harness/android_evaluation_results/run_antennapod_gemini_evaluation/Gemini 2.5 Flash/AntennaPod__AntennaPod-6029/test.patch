@@ -1,0 +1,14 @@
+diff --git a/.github/workflows/runEmulatorTests.sh b/.github/workflows/runEmulatorTests.sh
+index 106b69444b1..c297932a73c 100644
+--- a/.github/workflows/runEmulatorTests.sh
++++ b/.github/workflows/runEmulatorTests.sh
+@@ -4,8 +4,7 @@ set -o pipefail
+ 
+ runTests() {
+     ./gradlew connectedPlayDebugAndroidTest connectedDebugAndroidTest \
+-        -Pandroid.testInstrumentationRunnerArguments.notAnnotation=de.test.antennapod.IgnoreOnCi \
+-        | grep -v "V/InstrumentationResultParser: INSTRUMENTATION_STATUS"
++        -Pandroid.testInstrumentationRunnerArguments.notAnnotation=de.test.antennapod.IgnoreOnCi
+ }
+ 
+ # Retry tests to make them less flaky

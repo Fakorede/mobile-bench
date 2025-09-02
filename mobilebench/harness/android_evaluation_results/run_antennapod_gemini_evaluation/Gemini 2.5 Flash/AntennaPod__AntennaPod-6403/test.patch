@@ -1,0 +1,12 @@
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+index 1b81003928..be947bc1e1 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+@@ -123,6 +123,7 @@ public void testEnqueueLocation() {
+         doTestEnqueueLocation(R.string.enqueue_location_after_current, EnqueueLocation.AFTER_CURRENTLY_PLAYING);
+         doTestEnqueueLocation(R.string.enqueue_location_front, EnqueueLocation.FRONT);
+         doTestEnqueueLocation(R.string.enqueue_location_back, EnqueueLocation.BACK);
++        doTestEnqueueLocation(R.string.enqueue_location_random, EnqueueLocation.RANDOM);
+     }
+ 
+     private void doTestEnqueueLocation(@StringRes int optionResId, EnqueueLocation expected) {

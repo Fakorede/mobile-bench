@@ -1,0 +1,26 @@
+--- a/app/src/main/java/de/danoeh/antennapod/dialog/EpisodeFilterDialog.java
++++ b/app/src/main/java/de/danoeh/antennapod/dialog/EpisodeFilterDialog.java
+@@ -6,6 +6,7 @@
+ import android.view.View;
+ import android.widget.CheckBox;
+ import android.widget.EditText;
++import android.widget.TextView;
+ import android.widget.RadioButton;
+ 
+ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+@@ -29,6 +30,7 @@
+         final RadioButton radioInclude = rootView.findViewById(R.id.radio_filter_include);
+         final RadioButton radioExclude = rootView.findViewById(R.id.radio_filter_exclude);
+         final CheckBox checkboxDuration = rootView.findViewById(R.id.checkbox_filter_duration);
++        final TextView filterHint = rootView.findViewById(R.id.episode_filters_hint_text);
+ 
+         if (initialFilter.includeOnly()) {
+             radioInclude.setChecked(true);
+@@ -45,6 +47,7 @@
+             // Store minimal duration in seconds, show in minutes
+             etxtEpisodeFilterDurationText.setText(String.valueOf(initialFilter.getMinimalDurationFilter() / 60));
+         }
++        filterHint.setText(R.string.episode_filters_hint);
+ 
+         setNegativeButton(R.string.cancel_label, null);
+         setPositiveButton(R.string.confirm_label, (dialog, which) -> {

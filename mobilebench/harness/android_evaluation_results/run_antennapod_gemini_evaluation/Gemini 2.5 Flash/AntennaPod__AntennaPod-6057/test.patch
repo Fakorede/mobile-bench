@@ -1,0 +1,59 @@
+diff --git a/core/src/test/java/de/danoeh/antennapod/core/feed/FeedFilterTest.java b/core/src/test/java/de/danoeh/antennapod/core/feed/FeedFilterTest.java
+index 3840f638724..c7c47f4fde5 100644
+--- a/core/src/test/java/de/danoeh/antennapod/core/feed/FeedFilterTest.java
++++ b/core/src/test/java/de/danoeh/antennapod/core/feed/FeedFilterTest.java
+@@ -21,8 +21,8 @@ public void testNullFilter() {
+ 
+         assertFalse(filter.excludeOnly());
+         assertFalse(filter.includeOnly());
+-        assertEquals("", filter.getExcludeFilter());
+-        assertEquals("", filter.getIncludeFilter());
++        assertEquals("", filter.getExcludeFilterRaw());
++        assertEquals("", filter.getIncludeFilterRaw());
+         assertTrue(filter.shouldAutoDownload(item));
+     }
+ 
+@@ -38,8 +38,8 @@ public void testBasicIncludeFilter() {
+ 
+         assertFalse(filter.excludeOnly());
+         assertTrue(filter.includeOnly());
+-        assertEquals("", filter.getExcludeFilter());
+-        assertEquals(includeFilter, filter.getIncludeFilter());
++        assertEquals("", filter.getExcludeFilterRaw());
++        assertEquals(includeFilter, filter.getIncludeFilterRaw());
+         assertTrue(filter.shouldAutoDownload(item));
+         assertFalse(filter.shouldAutoDownload(item2));
+     }
+@@ -56,8 +56,8 @@ public void testBasicExcludeFilter() {
+ 
+         assertTrue(filter.excludeOnly());
+         assertFalse(filter.includeOnly());
+-        assertEquals(excludeFilter, filter.getExcludeFilter());
+-        assertEquals("", filter.getIncludeFilter());
++        assertEquals(excludeFilter, filter.getExcludeFilterRaw());
++        assertEquals("", filter.getIncludeFilterRaw());
+         assertFalse(filter.shouldAutoDownload(item));
+         assertTrue(filter.shouldAutoDownload(item2));
+     }
+@@ -77,8 +77,8 @@ public void testComplexIncludeFilter() {
+ 
+         assertFalse(filter.excludeOnly());
+         assertTrue(filter.includeOnly());
+-        assertEquals("", filter.getExcludeFilter());
+-        assertEquals(includeFilter, filter.getIncludeFilter());
++        assertEquals("", filter.getExcludeFilterRaw());
++        assertEquals(includeFilter, filter.getIncludeFilterRaw());
+         assertTrue(filter.shouldAutoDownload(item));
+         assertFalse(filter.shouldAutoDownload(item2));
+         assertTrue(filter.shouldAutoDownload(item3));
+@@ -99,8 +99,8 @@ public void testComplexExcludeFilter() {
+ 
+         assertTrue(filter.excludeOnly());
+         assertFalse(filter.includeOnly());
+-        assertEquals(excludeFilter, filter.getExcludeFilter());
+-        assertEquals("", filter.getIncludeFilter());
++        assertEquals(excludeFilter, filter.getExcludeFilterRaw());
++        assertEquals("", filter.getIncludeFilterRaw());
+         assertFalse(filter.shouldAutoDownload(item));
+         assertTrue(filter.shouldAutoDownload(item2));
+         assertFalse(filter.shouldAutoDownload(item3));

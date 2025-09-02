@@ -1,0 +1,14 @@
+diff --git a/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java b/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
+index 70f551a9c8f..506d3b2c328 100644
+--- a/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
++++ b/net/download/service-interface/src/main/java/de/danoeh/antennapod/net/download/serviceinterface/DownloadServiceInterfaceStub.java
+@@ -21,4 +21,9 @@ public void cancel(Context context, FeedMedia media) {
+     @Override
+     public void cancelAll(Context context) {
+     }
++
++    @Override
++    public int getNumberOfActiveDownloads(Context context) {
++        return 0;
++    }
+ }

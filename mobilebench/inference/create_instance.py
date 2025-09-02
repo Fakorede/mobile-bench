@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # create_instance.py
 
@@ -11,24 +10,18 @@ Output:
 import json
 import logging
 import os
-import re
 import traceback
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unidiff
 from tqdm.auto import tqdm
-import hashlib
-import pickle
-from collections import defaultdict
-from typing import Dict, List, Set, Tuple, Optional
 
-# from tokenize_dataset import TOKENIZER_FUNCS
+from tokenize_dataset import TOKENIZER_FUNCS
 
 from utils import (
     AutoContextManager,
     ingest_directory_contents,
-    ContextCache, SmartFileSelector, ContextChunker
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -98,6 +91,7 @@ public class RemoveFromHistorySwipeAction implements SwipeAction {
 
 
 # Utility Functions
+# Adds line numbers 
 def add_lines_list(content):
     content_with_lines = list()
     for ix, line in enumerate(content.split("\n"), start=1):
@@ -109,7 +103,7 @@ def add_lines(content):
     return "\n".join(add_lines_list(content))
 
 
-# Formats code files with [start of file.py] markers and optional line numbers
+# Formats code files with [start of file] markers and optional line numbers
 def make_code_text(files_dict, add_line_numbers=True):
     all_text = ""
     for filename, contents in sorted(files_dict.items()):
@@ -219,9 +213,10 @@ def prompt_style_3(instance):
         + "A single patch file can contain changes to multiple files."
     )
     final_instruction = (
-        "I need you to solve the provided issue by generating a single patch file that I can apply "
-        + "directly to this repository using git apply. Please respond with a single patch "
-        + "file in the format shown above."
+        "I need you to solve the provided issue by generating a single patch file in proper unified diff format that be "
+        + "applied directly to this repository using git apply. Please respond with a single patch "
+        + "file in the format shown above. Note: You should only modify the files in the provided code base, "
+        + "you can change as many files as you like to resolve the issue. Do not create new files."
     )
     problem_statement = instance["problem_statement"]
     final_text = [
@@ -287,9 +282,6 @@ def ingest_files(filenames):
         except UnicodeDecodeError:
             # Handle binary files
             files_dict[filename] = f"<BINARY FILE: {filename}>"
-        except FileNotFoundError:
-            logger.warning(f"File not found: {filename}")
-            continue
     return files_dict
 
 
@@ -350,11 +342,6 @@ def add_text_inputs(
     tokenizer_name=None,
     verbose=False,
     progress_file=None,
-    enable_smart_selection=True,
-    enable_caching=True,
-    max_files=20,
-    chunk_large_contexts=True,
-    cache_dir=None,
 ) -> None:
     """Process instances and save results to progress file.
 
@@ -366,18 +353,8 @@ def add_text_inputs(
     - file_source: where to collect file_contents (e.g. oracle or bm25)
     - verbose: set ContextManager verbose to True
     - progress_file: required, path to save processed instances
-    - enable_smart_selection: use smart file selection for oracle mode
-    - enable_caching: cache processed contexts
-    - max_files: maximum number of files to include
-    - chunk_large_contexts: split large contexts into chunks
-    - cache_dir: directory for caching
     """
     assert progress_file is not None, "progress_file is required"
-
-    # Initialize components
-    cache = ContextCache(cache_dir) if enable_caching else None
-    file_selector = SmartFileSelector() if enable_smart_selection else None
-    chunker = ContextChunker() if chunk_large_contexts else None
 
     # Create progress file directory if it doesn't exist
     progress_path = Path(progress_file)
@@ -402,7 +379,7 @@ def add_text_inputs(
             assert tokenizer_name is not None, (
                 "Must specify tokenizer_name if using max_context_len"
             )
-            # tokenizer, tokenizer_func = TOKENIZER_FUNCS[tokenizer_name]
+            tokenizer, tokenizer_func = TOKENIZER_FUNCS[tokenizer_name]
 
         # Add retrieval results if needed
         if file_source in {"bm25"}:
@@ -433,27 +410,20 @@ def add_text_inputs(
                         readmes = cm.get_readme_files()
                         processed_instance["readmes"] = ingest_files(readmes)
 
-                        # Get all available files
-                        if file_source == "oracle":
-                            oracle_files = get_oracle_filenames(processed_instance)
-                            
-                            if enable_smart_selection:
-                                # Get all files for smart selection
-                                all_files = ingest_directory_contents(cm.repo_path)
-                                issue_text = processed_instance.get("problem_statement", "")
+                        # Handle file contents based on configuration
+                        if max_context_len is not None:
+                            processed_instance["file_contents"] = dict()
+                            base_text_inputs = PROMPT_FUNCTIONS[prompt_style](
+                                processed_instance
+                            )
+                            base_text_input_length = len(
+                                tokenizer_func(base_text_inputs, tokenizer)
+                            )
 
-                                print(f"Processing instance with pull #{instance['pull_number']}")
-                                print(f"Processing instance with issues #{instance['issue_numbers']}")
-                                
-                                # Smart file selection
-                                selected_files = file_selector.select_files(
-                                    all_files, oracle_files, issue_text, max_files
-                                )
-                                processed_instance["file_contents"] = selected_files
-                            else:
-                                # Traditional oracle mode - only changed files
-                                processed_instance["file_contents"] = ingest_files(oracle_files)
-                                
+                        if file_source == "oracle":
+                            processed_instance["file_contents"] = ingest_files(
+                                get_oracle_filenames(processed_instance)
+                            )
                         elif file_source == "bm25":
                             processed_instance["file_contents"] = ingest_files(
                                 [x["docid"] for x in processed_instance["hits"]]
@@ -467,52 +437,38 @@ def add_text_inputs(
                         else:
                             raise ValueError(f"Invalid file source {file_source}")
 
-                        # Check cache
-                        cached_prompt = None
-                        if cache:
-                            cached_prompt = cache.get(
-                                instance_id, file_source, prompt_style, 
-                                processed_instance["file_contents"]
-                            )
-                        
-                        if cached_prompt:
-                            processed_instance["prompt"] = cached_prompt
-                            logger.debug(f"Used cached prompt for {instance_id}")
-                        else:
-                            # Handle large contexts with chunking
-                            if chunker and file_source == "oracle":
-                                oracle_files_set = get_oracle_filenames(processed_instance)
-                                context_size = chunker.estimate_token_count(
-                                    make_code_text(processed_instance["file_contents"])
+                        # Handle context length limits
+                        if max_context_len is not None:
+                            cur_input_len = base_text_input_length
+                            include_files = []
+                            for filename in [
+                                x["docid"] for x in processed_instance["hits"]
+                            ]:
+                                content = make_code_text(
+                                    {
+                                        filename: processed_instance["file_contents"][
+                                            filename
+                                        ]
+                                    }
                                 )
-                                
-                                if context_size > chunker.max_chunk_size:
-                                    logger.info(f"Large context detected for {instance_id} "
-                                              f"({context_size} tokens), using chunking")
-                                    
-                                    # Use only most relevant files when context is too large
-                                    if enable_smart_selection and len(processed_instance["file_contents"]) > 10:
-                                        # Reduce to most essential files
-                                        essential_files = file_selector.select_files(
-                                            processed_instance["file_contents"], 
-                                            oracle_files_set, 
-                                            processed_instance.get("problem_statement", ""), 
-                                            max_files=10
-                                        )
-                                        processed_instance["file_contents"] = essential_files
+                                if tokenizer_name == "llama":
+                                    tokens = tokenizer_func("\n" + content, tokenizer)
+                                    idx = tokens.index(13)
+                                    tokens = tokens[idx + 1 :]
+                                else:
+                                    tokens = tokenizer_func(content, tokenizer)
+                                if cur_input_len + len(tokens) < max_context_len:
+                                    include_files.append(filename)
+                                    cur_input_len += len(tokens)
+                            processed_instance["file_contents"] = {
+                                filename: processed_instance["file_contents"][filename]
+                                for filename in include_files
+                            }
 
-                            # Generate prompt
-                            processed_instance["prompt"] = PROMPT_FUNCTIONS[prompt_style](
-                                processed_instance
-                            )
-                            
-                            # Cache the prompt
-                            if cache:
-                                cache.set(
-                                    instance_id, file_source, prompt_style,
-                                    processed_instance["file_contents"], 
-                                    processed_instance["prompt"]
-                                )
+                        # Generate final text inputs
+                        processed_instance["prompt"] = PROMPT_FUNCTIONS[
+                            prompt_style
+                        ](processed_instance)
 
                         # Save to progress file
                         progress_file_handle.write(

@@ -1,0 +1,225 @@
+--- a/app/src/main/java/de/danoeh/antennapod/activity/PreferenceActivity.java
++++ b/app/src/main/java/de/danoeh/antennapod/activity/PreferenceActivity.java
+@@ -24,6 +24,7 @@
+ import de.danoeh.antennapod.fragment.preferences.AutoDownloadPreferencesFragment;
+ import de.danoeh.antennapod.fragment.preferences.ImportExportPreferencesFragment;
+ import de.danoeh.antennapod.fragment.preferences.MainPreferencesFragment;
++import de.danoeh.antennapod.fragment.preferences.BackupRestorePreferencesFragment;
+ import de.danoeh.antennapod.fragment.preferences.NetworkPreferencesFragment;
+ import de.danoeh.antennapod.fragment.preferences.NotificationPreferencesFragment;
+ import de.danoeh.antennapod.fragment.preferences.PlaybackPreferencesFragment;
+@@ -76,6 +77,8 @@
+             prefFragment = new StoragePreferencesFragment();
+         } else if (screen == R.xml.preferences_import_export) {
+             prefFragment = new ImportExportPreferencesFragment();
++        } else if (screen == R.xml.preferences_backup_restore) {
++            prefFragment = new BackupRestorePreferencesFragment();
+         } else if (screen == R.xml.preferences_autodownload) {
+             prefFragment = new AutoDownloadPreferencesFragment();
+         } else if (screen == R.xml.preferences_synchronization) {
+@@ -102,6 +105,8 @@
+             return R.string.storage_pref;
+         } else if (preferences == R.xml.preferences_import_export) {
+             return R.string.import_export_pref;
++        } else if (preferences == R.xml.preferences_backup_restore) {
++            return R.string.backup_restore_pref;
+         } else if (preferences == R.xml.preferences_user_interface) {
+             return R.string.user_interface_label;
+         } else if (preferences == R.xml.preferences_synchronization) {
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/preferences/MainPreferencesFragment.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/preferences/MainPreferencesFragment.java
+@@ -35,6 +35,7 @@
+     private static final String PREF_SCREEN_NETWORK = "prefScreenNetwork";
+     private static final String PREF_SCREEN_SYNCHRONIZATION = "prefScreenSynchronization";
+     private static final String PREF_SCREEN_STORAGE = "prefScreenStorage";
++    private static final String PREF_SCREEN_BACKUP_RESTORE = "prefScreenBackupRestore";
+     private static final String PREF_DOCUMENTATION = "prefDocumentation";
+     private static final String PREF_VIEW_FORUM = "prefViewForum";
+     private static final String PREF_SEND_BUG_REPORT = "prefSendBugReport";
+@@ -102,6 +103,10 @@
+             ((PreferenceActivity) getActivity()).openScreen(R.xml.preferences_storage);
+             return true;
+         });
++        findPreference(PREF_SCREEN_BACKUP_RESTORE).setOnPreferenceClickListener(preference -> {
++            ((PreferenceActivity) getActivity()).openScreen(R.xml.preferences_backup_restore);
++            return true;
++        });
+         findPreference(PREF_NOTIFICATION).setOnPreferenceClickListener(preference -> {
+             ((PreferenceActivity) getActivity()).openScreen(R.xml.preferences_notifications);
+             return true;
+@@ -159,6 +164,8 @@
+                 .addBreadcrumb(PreferenceActivity.getTitleOfPage(R.xml.preferences_storage));
+         config.index(R.xml.preferences_import_export)
+                 .addBreadcrumb(PreferenceActivity.getTitleOfPage(R.xml.preferences_storage))
++                .addBreadcrumb(PreferenceActivity.getTitleOfPage(R.xml.preferences_import_export));
++        config.index(R.xml.preferences_backup_restore)
+                 .addBreadcrumb(PreferenceActivity.getTitleOfPage(R.xml.preferences_import_export));
+         config.index(R.xml.preferences_autodownload)
+                 .addBreadcrumb(PreferenceActivity.getTitleOfPage(R.xml.preferences_network))
+--- a/app/src/main/java/de/danoeh/antennapod/fragment/preferences/StoragePreferencesFragment.java
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/preferences/StoragePreferencesFragment.java
+@@ -14,7 +14,6 @@
+ 
+ public class StoragePreferencesFragment extends PreferenceFragmentCompat {
+     private static final String PREF_CHOOSE_DATA_DIR = "prefChooseDataDir";
+-    private static final String PREF_IMPORT_EXPORT = "prefImportExport";
+ 
+     @Override
+     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+@@ -40,12 +39,6 @@
+                     });
+                     return true;
+                 }
+-        );
+-        findPreference(PREF_IMPORT_EXPORT).setOnPreferenceClickListener(
+-                preference -> {
+-                    ((PreferenceActivity) getActivity()).openScreen(R.xml.preferences_import_export);
+-                    return true;
+-                }
+         );
+     }
+ 
+--- a/app/src/main/res/xml/preferences.xml
++++ b/app/src/main/res/xml/preferences.xml
+@@ -41,6 +41,12 @@
+             android:summary="@string/storage_sum"
+             android:icon="@drawable/ic_storage" />
+ 
++    <Preference
++            android:key="prefScreenBackupRestore"
++            android:title="@string/backup_restore_pref"
++            android:summary="@string/backup_restore_sum"
++            android:icon="@drawable/ic_backup_restore" />
++
+     <Preference
+             android:key="notifications"
+             android:title="@string/notification_pref_fragment"
+--- a/app/src/main/res/xml/preferences_storage.xml
++++ b/app/src/main/res/xml/preferences_storage.xml
+@@ -23,9 +23,4 @@
+             android:enabled="true"
+             android:key="prefDeleteRemovesFromQueue"
+             android:summary="@string/pref_delete_removes_from_queue_sum"
+-            android:title="@string/pref_delete_removes_from_queue_title"/>
+-    <Preference
+-            android:title="@string/import_export_pref"
+-            android:summary="@string/import_export_summary"
+-            android:key="prefImportExport"
+-            search:ignore="true"/>
++            android:title="@string/pref_delete_removes_from_queue_title" />
+ </PreferenceScreen>
+--- /dev/null
++++ b/app/src/main/java/de/danoeh/antennapod/fragment/preferences/BackupRestorePreferencesFragment.java
+@@ -0,0 +1,48 @@
++package de.danoeh.antennapod.fragment.preferences;
++
++import android.os.Bundle;
++import androidx.preference.PreferenceFragmentCompat;
++import de.danoeh.antennapod.R;
++import de.danoeh.antennapod.activity.PreferenceActivity;
++
++public class BackupRestorePreferencesFragment extends PreferenceFragmentCompat {
++    private static final String PREF_IMPORT_EXPORT = "prefImportExport";
++    private static final String PREF_DATABASE_EXPORT = "prefDatabaseExport";
++    private static final String PREF_DATABASE_IMPORT = "prefDatabaseImport";
++    private static final String PREF_OPML_EXPORT = "prefOpmlExport";
++    private static final String PREF_OPML_IMPORT = "prefOpmlImport";
++    private static final String PREF_HTML_EXPORT = "prefHtmlExport";
++    private static final String PREF_FAVORITES_EXPORT = "prefFavoritesExport";
++
++    @Override
++    public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
++        addPreferencesFromResource(R.xml.preferences_backup_restore);
++        setupBackupRestoreScreen();
++    }
++
++    @Override
++    public void onStart() {
++        super.onStart();
++        ((PreferenceActivity) getActivity()).getSupportActionBar().setTitle(R.string.backup_restore_pref);
++    }
++
++    private void setupBackupRestoreScreen() {
++        findPreference(PREF_DATABASE_EXPORT).setOnPreferenceClickListener(preference -> {
++            ((PreferenceActivity) getActivity()).openScreen(R.xml.preferences_import_export);
++            return true;
++        });
++        findPreference(PREF_DATABASE_IMPORT).setOnPreferenceClickListener(preference -> {
++            ((PreferenceActivity) getActivity()).openScreen(R.xml.preferences_import_export);
++            return true;
++        });
++        findPreference(PREF_OPML_EXPORT).setOnPreferenceClickListener(preference -> {
++            ((PreferenceActivity) getActivity()).openScreen(R.xml.preferences_import_export);
++            return true;
++        });
++        findPreference(PREF_OPML_IMPORT).setOnPreferenceClickListener(preference -> {
++            ((PreferenceActivity) getActivity()).openScreen(R.xml.preferences_import_export);
++            return true;
++        });
++        // The other preferences (HTML export, Favorites export) are handled directly in the XML.
++    }
++}
+--- /dev/null
++++ b/app/src/main/res/xml/preferences_backup_restore.xml
+@@ -0,0 +1,41 @@
++<?xml version="1.0" encoding="utf-8"?>
++<PreferenceScreen
++    xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:search="http://schemas.android.com/apk/com.bytehamster.lib.preferencesearch">
++
++    <PreferenceCategory android:title="@string/database">
++        <Preference
++            android:key="prefDatabaseExport"
++            android:title="@string/database_export_label"
++            android:summary="@string/database_export_summary"
++            search:keywords="@string/backup_restore_search_keywords" />
++        <Preference
++            android:key="prefDatabaseImport"
++            android:title="@string/database_import_label"
++            android:summary="@string/database_import_summary"
++            search:keywords="@string/backup_restore_search_keywords" />
++    </PreferenceCategory>
++
++    <PreferenceCategory android:title="@string/opml">
++        <Preference
++            android:key="prefOpmlExport"
++            android:title="@string/opml_export_label"
++            android:summary="@string/opml_export_summary"
++            search:keywords="@string/backup_restore_search_keywords" />
++        <Preference
++            android:key="prefOpmlImport"
++            android:title="@string/opml_import_label"
++            android:summary="@string/opml_import_summary"
++            search:keywords="@string/backup_restore_search_keywords" />
++    </PreferenceCategory>
++
++    <PreferenceCategory android:title="@string/other">
++        <Preference
++            android:key="prefHtmlExport"
++            android:title="@string/html_export_label"
++            android:summary="@string/html_export_summary" />
++        <Preference
++            android:key="prefFavoritesExport"
++            android:title="@string/favorites_export_label"
++            android:summary="@string/favorites_export_summary" />
++    </PreferenceCategory>
++</PreferenceScreen>
+--- a/ui/i18n/src/main/res/values/strings.xml
++++ b/ui/i18n/src/main/res/values/strings.xml
+@@ -373,6 +373,8 @@
+     <string name="storage_pref">Storage</string>
+     <string name="storage_sum">Episode auto delete, Import, Export</string>
+     <string name="project_pref">Project</string>
++    <string name="backup_restore_pref">Export &amp; back-up</string>
++    <string name="backup_restore_sum">Export &amp; back-up subscriptions, listened episodes and queue</string>
+     <string name="synchronization_pref">Synchronization</string>
+     <string name="synchronization_sum">Synchronize with other devices</string>
+     <string name="automation">Automation</string>
+@@ -560,6 +562,7 @@
+     <string name="import_export_summary">Move subscriptions and queue to another device</string>
+     <string name="database">Database</string>
+     <string name="opml">OPML</string>
++    <string name="other">Other</string>
+     <string name="html">HTML</string>
+     <string name="html_export_summary">Show your subscriptions to a friend</string>
+     <string name="opml_export_summary">Transfer your subscriptions to another podcast app</string>

@@ -1,0 +1,38 @@
+--- a/model/src/main/java/de/danoeh/antennapod/model/feed/FeedItem.java
++++ b/model/src/main/java/de/danoeh/antennapod/model/feed/FeedItem.java
+@@ -465,6 +465,11 @@
+                     podcastIndexTranscriptType = canonicalSrr;
+                 }
+                 break;
++            case "text/vtt":
++            case "application/vtt":
++                podcastIndexTranscriptUrl = url;
++                podcastIndexTranscriptType = type;
++                break;
+             default:
+                 break;
+         }
+--- a/net/download/service/src/main/java/de/danoeh/antennapod/net/download/service/episode/MediaDownloadedHandler.java
++++ b/net/download/service/src/main/java/de/danoeh/antennapod/net/download/service/episode/MediaDownloadedHandler.java
+@@ -71,7 +71,7 @@
+             }
+             FeedItem item = media.getItem();
+             if (item != null && item.getTranscriptUrl() != null) {
+-                String transcript = TranscriptUtils.loadTranscriptFromUrl(item.getTranscriptUrl(), true);
++                String transcript = TranscriptUtils.loadTranscriptFromUrl(item.getTranscriptUrl(), item.getTranscriptType(), true);
+                 if (!StringUtils.isEmpty(transcript)) {
+                     item.setPodcastIndexTranscriptText(transcript);
+                     TranscriptUtils.storeTranscript(media, transcript);
+--- a/parser/transcript/src/main/java/de/danoeh/antennapod/parser/transcript/TranscriptParser.java
++++ b/parser/transcript/src/main/java/de/danoeh/antennapod/parser/transcript/TranscriptParser.java
+@@ -21,6 +21,10 @@
+         if ("application/srt".equals(type) || "application/srr".equals(type) || "application/x-subrip".equals(type)) {
+             return SrtTranscriptParser.parse(str);
+         }
++
++        if ("text/vtt".equals(type) || "application/vtt".equals(type)) {
++            return WebVttTranscriptParser.parse(str);
++        }
+         return null;
+     }
+ }

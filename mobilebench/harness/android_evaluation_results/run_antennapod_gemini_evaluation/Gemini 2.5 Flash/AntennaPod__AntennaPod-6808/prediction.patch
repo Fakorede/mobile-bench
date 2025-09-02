@@ -1,0 +1,32 @@
+--- a/core/src/main/java/de/danoeh/antennapod/core/service/playback/ExoPlayerWrapper.java
++++ b/core/src/main/java/de/danoeh/antennapod/core/service/playback/ExoPlayerWrapper.java
+@@ -354,16 +354,20 @@
+     }
+ 
+     private void initLoudnessEnhancer(int audioStreamId) {
+-        LoudnessEnhancer newEnhancer = new LoudnessEnhancer(audioStreamId);
+-        LoudnessEnhancer oldEnhancer = this.loudnessEnhancer;
+-        if (oldEnhancer != null) {
+-            newEnhancer.setEnabled(oldEnhancer.getEnabled());
+-            if (oldEnhancer.getEnabled()) {
+-                newEnhancer.setTargetGain((int) oldEnhancer.getTargetGain());
++        try {
++            LoudnessEnhancer newEnhancer = new LoudnessEnhancer(audioStreamId);
++            LoudnessEnhancer oldEnhancer = this.loudnessEnhancer;
++            if (oldEnhancer != null) {
++                newEnhancer.setEnabled(oldEnhancer.getEnabled());
++                if (oldEnhancer.getEnabled()) {
++                    newEnhancer.setTargetGain((int) oldEnhancer.getTargetGain());
++                }
++                oldEnhancer.release();
+             }
+-            oldEnhancer.release();
++            this.loudnessEnhancer = newEnhancer;
++        } catch (RuntimeException e) {
++            Log.e(TAG, "Failed to initialize LoudnessEnhancer", e);
++            this.loudnessEnhancer = null; // Ensure it's null if initialization fails
+         }
+-
+-        this.loudnessEnhancer = newEnhancer;
+     }
+ }

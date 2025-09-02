@@ -1,0 +1,12 @@
+--- a/app/src/main/java/de/danoeh/antennapod/adapter/SubscriptionsRecyclerAdapter.java
++++ b/app/src/main/java/de/danoeh/antennapod/adapter/SubscriptionsRecyclerAdapter.java
+@@ -257,8 +257,7 @@
+ 
+             if (drawerItem.type == NavDrawerData.DrawerItem.Type.FEED) {
+                 Feed feed = ((NavDrawerData.FeedDrawerItem) drawerItem).feed;
+-                boolean textAndImageCombind = feed.isLocalFeed()
+-                        && LocalFeedUpdater.getDefaultIconUrl(itemView.getContext()).equals(feed.getImageUrl());
++                boolean textAndImageCombind = feed.isLocalFeed() && feed.getImageUrl() == null;
+                 new CoverLoader(mainActivityRef.get())
+                         .withUri(feed.getImageUrl())
+                         .withPlaceholderView(feedTitle, textAndImageCombind)

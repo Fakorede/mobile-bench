@@ -1,0 +1,35 @@
+diff --git a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+index 1f387b24b1..24c20242a8 100644
+--- a/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
++++ b/app/src/androidTest/java/de/test/antennapod/ui/PreferencesTest.java
+@@ -41,6 +41,7 @@
+ import static de.test.antennapod.EspressoTestUtils.waitForView;
+ import static java.util.concurrent.TimeUnit.MILLISECONDS;
+ import static org.hamcrest.Matchers.not;
++import static org.junit.Assert.assertFalse;
+ import static org.junit.Assert.assertTrue;
+ 
+ @LargeTest
+@@ -199,6 +200,22 @@ public void testAutoDelete() {
+                 .until(() -> autoDelete == UserPreferences.isAutoDelete());
+     }
+ 
++    @Test
++    public void testAutoDeleteLocal() {
++        clickPreference(R.string.downloads_pref);
++        final boolean initialAutoDelete = UserPreferences.isAutoDeleteLocal();
++        assertFalse(initialAutoDelete);
++
++        onView(withText(R.string.pref_auto_local_delete_title)).perform(click());
++        onView(withText(R.string.yes)).perform(click());
++        Awaitility.await().atMost(1000, MILLISECONDS)
++                .until(() -> UserPreferences.isAutoDeleteLocal());
++
++        onView(withText(R.string.pref_auto_local_delete_title)).perform(click());
++        Awaitility.await().atMost(1000, MILLISECONDS)
++                .until(() -> !UserPreferences.isAutoDeleteLocal());
++    }
++
+     @Test
+     public void testPlaybackSpeeds() {
+         clickPreference(R.string.playback_pref);

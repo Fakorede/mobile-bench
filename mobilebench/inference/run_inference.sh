@@ -56,9 +56,9 @@ PROJECT_ROOT="$(cd "$PROJECT_ROOT" && pwd)"  # Get absolute path
 log_debug "Project root: $PROJECT_ROOT"
 
 # Default configuration (can be overridden by environment variables)
-DEFAULT_INPUT_FILE="$PROJECT_ROOT/data/prompts/AntennaPod_prompts_style-3_oracle.jsonl"
+DEFAULT_INPUT_FILE="$PROJECT_ROOT/data/prompts/Antennapod_prompts_style-3_oracle_gemini.jsonl"
 DEFAULT_OUTPUT_DIR="$PROJECT_ROOT/data/inference"
-DEFAULT_MODELS="gemini-flash claude-sonnet-3.7 gpt-4o"
+DEFAULT_MODELS="gemini-flash"
 DEFAULT_MAX_INSTANCES=""
 DEFAULT_MAX_COST=""
 DEFAULT_TEMPERATURE="0.1"
