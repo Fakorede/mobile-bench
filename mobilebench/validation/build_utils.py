@@ -333,15 +333,28 @@ echo "Exit code: $?"
                 unit_variant = None
                 
                 # Prefer variants with 'unittest' and 'debug' 
+                # Make selection deterministic by prioritizing more specific variants
+                matching_variants = []
                 for variant in available_variants:
                     if 'unittest' in variant.lower() and 'debug' in variant.lower():
-                        unit_variant = variant
-                        break
+                        matching_variants.append(variant)
+                
+                if matching_variants:
+                    # Sort to make selection deterministic - prefer longer/more specific variants
+                    # This ensures consistent selection between runs
+                    matching_variants.sort(key=lambda x: (-len(x), x.lower()))
+                    unit_variant = matching_variants[0]
+                    logger.info(f"Found {len(matching_variants)} matching variants for {module}: {matching_variants}, selected: {unit_variant}")
                 
                 # Fallback to first unit test variant or default
                 if not unit_variant:
                     unit_variants = [v for v in available_variants if 'unittest' in v.lower()]
-                    unit_variant = unit_variants[0] if unit_variants else "testDebugUnitTest"
+                    if unit_variants:
+                        # Sort for deterministic selection
+                        unit_variants.sort(key=lambda x: (-len(x), x.lower()))
+                        unit_variant = unit_variants[0]
+                    else:
+                        unit_variant = "testDebugUnitTest"
                 
                 logger.info(f"Selected variant for module {module}: {unit_variant}")
                 

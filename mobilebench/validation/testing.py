@@ -76,69 +76,85 @@ class AndroidTestingParallel:
         test_result = self.run_module_specific_tests(instance_id, config, module_tests)
         return test_result, skipped_instrumented_tests
     
-    def _detect_build_variants_for_testing(self, instance_id: str) -> Dict[str, any]:
+    def _detect_build_variants_for_testing(self, instance_id: str, target_modules: List[str] = None) -> Dict[str, any]:
         """
-        Detect build variants for testing - simplified version of build_utils logic.
-        This should ideally be extracted to a shared utility.
+        Detect build variants for testing - using the same sophisticated logic as build_utils.py.
         """
         variants_info = {
-            "flavors": ["debug"],
-            "build_types": ["debug"],
-            "modules": [":app"],
-            "test_variants": ["testDebugUnitTest"]
+            "flavors": ["debug"],  # Default
+            "build_types": ["debug"],  # Default
+            "modules": [":app"],  # Default
+            "test_variants": ["testDebugUnitTest"],
+            "module_variants": {}  # Store variants per module
         }
-        
+
+        # Determine which modules to query
+        modules_to_query = target_modules or [":app"]
+
         try:
-            # Try to get project info from Gradle
-            gradle_info_command = """
+            all_test_tasks = []
+            module_variants = {}
+
+            # Query each target module (same logic as build_utils.py)
+            for module in modules_to_query:
+                logger.info(f"[{instance_id}]: Detecting build variants for module: {module}")
+
+                gradle_info_command = f"""
 cd /workspace &&
 if [ -f './gradlew' ]; then
+    timeout 60 ./gradlew {module}:tasks --group=verification --quiet 2>/dev/null || \
     timeout 60 ./gradlew tasks --group=verification --quiet 2>/dev/null || \
-    echo "Could not get task info"
+    echo "Could not get task info for {module}"
 fi
 """
+                
+                exit_code, output = self.containers.exec_command(
+                    instance_id, gradle_info_command, workdir="/workspace", timeout=90
+                )
+                
+                if exit_code == 0 and output:
+                    # Parse tasks for this module
+                    module_tasks = []
+                    for line in output.split('\n'):
+                        if 'test' in line.lower() and ('unittest' in line.lower() or 'debug' in line.lower()):
+                            task_name = line.strip().split()[0] if line.strip() else ""
+                            if task_name and ':' not in task_name:
+                                module_tasks.append(task_name)
+                    
+                    # Store module-specific variants
+                    module_variants[module] = module_tasks
+                    all_test_tasks.extend(module_tasks)
+                    logger.info(f"[{instance_id}]: Module {module} tasks: {module_tasks}")
+
+            # Store module-specific variants in the result
+            variants_info["module_variants"] = module_variants
+                
+            if all_test_tasks:
+                variants_info["test_variants"] = list(set(all_test_tasks))  # Remove duplicates
+                logger.info(f"[{instance_id}] Detected test variants: {all_test_tasks}")
             
-            exit_code, output = self.containers.exec_command(
-                instance_id, gradle_info_command, workdir="/workspace", timeout=90
-            )
+            # Extract build flavors and types from task names (same logic as build_utils.py)
+            flavors = set()
+            build_types = set()
+            for task in all_test_tasks:
+                # Parse patterns like "testDebugUnitTest", "testReleaseUnitTest", "testFreeDebugUnitTest"
+                task_lower = task.lower()
+                if 'test' in task_lower and 'unittest' in task_lower:
+                    # Remove 'test' prefix and 'unittest' suffix
+                    middle = task_lower.replace('test', '').replace('unittest', '')
+                    if 'debug' in middle:
+                        build_types.add('debug')
+                        middle = middle.replace('debug', '')
+                    if 'release' in middle:
+                        build_types.add('release')
+                        middle = middle.replace('release', '')
+                    if middle:  # Remaining part might be flavor
+                        flavors.add(middle.capitalize())
             
-            if exit_code == 0 and output:
-                # Parse available test tasks to infer variants
-                test_tasks = []
-                for line in output.split('\n'):
-                    if 'test' in line.lower() and ('unittest' in line.lower() or 'debug' in line.lower()):
-                        task_name = line.strip().split()[0] if line.strip() else ""
-                        if task_name and ':' not in task_name:  # Simple task name
-                            test_tasks.append(task_name)
-                
-                if test_tasks:
-                    variants_info["test_variants"] = test_tasks[:5]  # Limit to avoid too many
-                    logger.info(f"[{instance_id}] Detected test variants: {test_tasks}")
-                
-                # Extract build flavors and types from task names
-                flavors = set()
-                build_types = set()
-                for task in test_tasks:
-                    # Parse patterns like "testDebugUnitTest", "testReleaseUnitTest", "testFreeDebugUnitTest"
-                    task_lower = task.lower()
-                    if 'test' in task_lower and 'unittest' in task_lower:
-                        # Remove 'test' prefix and 'unittest' suffix
-                        middle = task_lower.replace('test', '').replace('unittest', '')
-                        
-                        # Remove build types
-                        if 'debug' in middle:
-                            build_types.add('debug')
-                            middle = middle.replace('debug', '')
-                        if 'release' in middle:
-                            build_types.add('release')
-                            middle = middle.replace('release', '')
-                        if middle:  # Remaining part might be flavor
-                            flavors.add(middle.capitalize())
-                
-                if flavors:
-                    variants_info["flavors"] = list(flavors)
-                if build_types:
-                    variants_info["build_types"] = list(build_types)
+            if flavors:
+                variants_info["flavors"] = list(flavors)
+            if build_types:
+                variants_info["build_types"] = list(build_types)
                     
         except Exception as e:
             logger.warning(f"[{instance_id}] Could not detect build variants: {e}")
@@ -150,36 +166,62 @@ fi
         """
         Run tests targeting specific modules with their test classes.
         
-        FIXED VERSION: No longer hardcoded to WordPress, integrates with build variant detection.
+        ENHANCED VERSION: Uses the same sophisticated variant detection and selection logic as build_utils.py.
         """
         
         start_time = time.time()
         java_version = config.get('java_version', '17')
         
-        # Detect build variants dynamically (like build_utils.py does)
-        logger.info(f"Detecting build variants for {instance_id}")
-        build_variants = self._detect_build_variants_for_testing(instance_id)
-        available_variants = build_variants.get("test_variants", ["testDebugUnitTest"])
+        # Extract target modules for variant detection
+        target_modules = list(module_tests.keys())
         
+        # Detect build variants dynamically using the same logic as build_utils.py
+        logger.info(f"Detecting build variants for {instance_id}")
+        build_variants = self._detect_build_variants_for_testing(instance_id, target_modules)
+        
+        # Get module-specific variants (same as build_utils.py)
+        module_variants = build_variants.get("module_variants", {})
+        logger.info(f"Module-specific variants detected: {module_variants}")
+        
+        available_variants = build_variants.get("test_variants", ["testDebugUnitTest"])
         logger.info(f"Available test variants: {available_variants}")
         logger.info(f"Detected flavors: {build_variants.get('flavors', [])}")
         logger.info(f"Detected build types: {build_variants.get('build_types', [])}")
         
-        # Build module-specific test commands
+        # Build module-specific test commands using the same logic as build_utils.py
         module_commands = []
         for module, test_classes in module_tests.items():
             if test_classes:
-                # Find appropriate unit test variant (same logic as build_utils.py)
-                unit_variant = None
-                for variant in available_variants:
-                    if 'unittest' in variant.lower() and 'debug' in variant.lower():
-                        unit_variant = variant
-                        break
+                # Get available test variants for this specific module (same as build_utils.py)
+                available_variants_for_module = module_variants.get(module, build_variants.get("test_variants", ["testDebugUnitTest"]))
+                logger.info(f"Available variants for module {module}: {available_variants_for_module}")
                 
-                # Fallback to first unit test variant or default
+                # Find appropriate unit test variant for this module (same logic as build_utils.py)
+                unit_variant = None
+                
+                # Prefer variants with 'unittest' and 'debug' (same as build_utils.py)
+                # But make selection deterministic by prioritizing more specific variants
+                matching_variants = []
+                for variant in available_variants_for_module:
+                    if 'unittest' in variant.lower() and 'debug' in variant.lower():
+                        matching_variants.append(variant)
+                
+                if matching_variants:
+                    # Sort to make selection deterministic - prefer longer/more specific variants
+                    # This ensures consistent selection between runs
+                    matching_variants.sort(key=lambda x: (-len(x), x.lower()))
+                    unit_variant = matching_variants[0]
+                    logger.info(f"Found {len(matching_variants)} matching variants for {module}: {matching_variants}, selected: {unit_variant}")
+                
+                # Fallback to first unit test variant or default (same as build_utils.py)
                 if not unit_variant:
-                    unit_variants = [v for v in available_variants if 'unittest' in v.lower()]
-                    unit_variant = unit_variants[0] if unit_variants else "testDebugUnitTest"
+                    unit_variants = [v for v in available_variants_for_module if 'unittest' in v.lower()]
+                    if unit_variants:
+                        # Sort for deterministic selection
+                        unit_variants.sort(key=lambda x: (-len(x), x.lower()))
+                        unit_variant = unit_variants[0]
+                    else:
+                        unit_variant = "testDebugUnitTest"
                 
                 logger.info(f"Selected variant for module {module}: {unit_variant}")
                 
@@ -191,7 +233,7 @@ fi
                     # For :app module, don't add module prefix (consistent with build_utils.py)
                     module_commands.append(f'{unit_variant} {test_filters}')
                 else:
-                    # For other modules, add module prefix
+                    # For other modules, add module prefix (consistent with build_utils.py)
                     module_commands.append(f'{module}:{unit_variant} {test_filters}')
                 
                 logger.info(f"Generated command for module {module}: {unit_variant} with {len(test_classes)} test classes")
@@ -371,10 +413,31 @@ done
         """Run all test classes in a single Gradle invocation for maximum parallelism."""
         
         java_version = config.get('java_version', '17')
-        test_variant = config.get('test_variant', 'debug')
         
         # Build single command with all test classes
         test_filters = ' '.join([f'--tests "{test_class}"' for test_class in test_classes])
+        
+        # Use simplified variant detection for fallback
+        try:
+            build_variants = self._detect_build_variants_for_testing(instance_id)
+            available_variants = build_variants.get("test_variants", ["testDebugUnitTest"])
+            
+            # Find appropriate unit test variant with deterministic selection
+            unit_variant = "testDebugUnitTest"  # fallback default
+            matching_variants = []
+            for variant in available_variants:
+                if 'unittest' in variant.lower() and 'debug' in variant.lower():
+                    matching_variants.append(variant)
+            
+            if matching_variants:
+                # Sort for deterministic selection - prefer longer/more specific variants
+                matching_variants.sort(key=lambda x: (-len(x), x.lower()))
+                unit_variant = matching_variants[0]
+            
+            logger.info(f"Using variant for combined tests: {unit_variant}")
+        except Exception as e:
+            logger.warning(f"Variant detection failed, using default: {e}")
+            unit_variant = "testDebugUnitTest"
         
         # Increased timeout for combined execution
         total_timeout = 3600  # 60 minutes for combined tests
@@ -435,7 +498,7 @@ if [ -f './gradlew' ]; then
     
     echo "=== Running all tests in parallel ===" &&
     echo "Test filters: {test_filters}" &&
-    timeout {total_timeout} ./gradlew test{test_variant.capitalize()}UnitTest {test_filters} --no-daemon --stacktrace --info --continue --parallel || echo "Combined test execution completed with issues"
+    timeout {total_timeout} ./gradlew {unit_variant} {test_filters} --no-daemon --stacktrace --info --continue --parallel || echo "Combined test execution completed with issues"
 else
     echo "No gradlew found"
 fi &&
@@ -475,7 +538,6 @@ done
         """Run tests grouped by module for better parallelism."""
         
         java_version = config.get('java_version', '17')
-        test_variant = config.get('test_variant', 'debug')
         
         # Group tasks by module
         modules = set()
@@ -496,7 +558,29 @@ done
         if not modules:
             modules = {":app", ":feature:*"}  # Default modules
         
-        module_tasks = [f"{module}:test{test_variant.capitalize()}UnitTest" for module in modules]
+        # Use simplified variant detection for fallback
+        try:
+            build_variants = self._detect_build_variants_for_testing(instance_id)
+            available_variants = build_variants.get("test_variants", ["testDebugUnitTest"])
+            
+            # Find appropriate unit test variant with deterministic selection
+            unit_variant = "testDebugUnitTest"  # fallback default
+            matching_variants = []
+            for variant in available_variants:
+                if 'unittest' in variant.lower() and 'debug' in variant.lower():
+                    matching_variants.append(variant)
+            
+            if matching_variants:
+                # Sort for deterministic selection - prefer longer/more specific variants
+                matching_variants.sort(key=lambda x: (-len(x), x.lower()))
+                unit_variant = matching_variants[0]
+            
+            logger.info(f"Using variant for module-based tests: {unit_variant}")
+        except Exception as e:
+            logger.warning(f"Variant detection failed, using default: {e}")
+            unit_variant = "testDebugUnitTest"
+        
+        module_tasks = [f"{module}:{unit_variant}" for module in modules]
         
         test_command = f"""
 cd /workspace &&
