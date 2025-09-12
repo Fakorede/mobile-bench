@@ -206,7 +206,7 @@ def prompt_style_2_edits_only(instance):
 def prompt_style_3(instance):
     premise = "You will be provided with a partial code base and an issue statement explaining a problem to resolve."
     readmes_text = make_code_text(instance["readmes"])
-    code_text = make_code_text(instance["file_contents"])
+    code_text = make_code_text(instance["file_contents"]) # <-- here
     example_explanation = (
         "Here is an example of a patch file. It consists of changes to the code base. "
         + "It specifies the file names, the line numbers of each change, and the removed and added lines. "
@@ -272,7 +272,7 @@ def full_file_gen(instance):
 
 # File Processing Functions
 # Reads multiple files from disk into a dictionary
-def ingest_files(filenames):
+def ingest_files(filenames): # <-- here
     files_dict = dict()
     for filename in filenames:
         try:
@@ -411,7 +411,7 @@ def add_text_inputs(
                         processed_instance["readmes"] = ingest_files(readmes)
 
                         # Handle file contents based on configuration
-                        if max_context_len is not None:
+                        if max_context_len is not None: # <-- here
                             processed_instance["file_contents"] = dict()
                             base_text_inputs = PROMPT_FUNCTIONS[prompt_style](
                                 processed_instance
@@ -420,7 +420,7 @@ def add_text_inputs(
                                 tokenizer_func(base_text_inputs, tokenizer)
                             )
 
-                        if file_source == "oracle":
+                        if file_source == "oracle": # <-- here
                             processed_instance["file_contents"] = ingest_files(
                                 get_oracle_filenames(processed_instance)
                             )
@@ -466,7 +466,7 @@ def add_text_inputs(
                             }
 
                         # Generate final text inputs
-                        processed_instance["prompt"] = PROMPT_FUNCTIONS[
+                        processed_instance["prompt"] = PROMPT_FUNCTIONS[ # <-- here
                             prompt_style
                         ](processed_instance)
 

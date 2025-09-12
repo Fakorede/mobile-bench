@@ -490,6 +490,39 @@ echo "Container prepared for test execution"
             logger.error(f"Error preparing container for {instance_id}: {e}")
             return False
     
+    def copy_to_container(self, instance_id: str, host_path: str, container_path: str) -> bool:
+        """Copy directory from host to container."""
+        if instance_id not in self.containers:
+            raise ValueError(f"Container not found for instance: {instance_id}")
+        
+        container_name = self.containers[instance_id]['name']
+        
+        try:
+            logger.info(f"Copying {host_path} to {container_name}:{container_path}")
+            
+            # Use docker cp to copy the directory
+            docker_cmd = self._get_docker_cmd_prefix() + [
+                "cp", f"{host_path}/.", f"{container_name}:{container_path}"
+            ]
+            
+            result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=300)
+            
+            if result.returncode == 0:
+                logger.info(f"Successfully copied to container")
+                
+                # Set proper permissions inside container
+                perm_command = f"chmod -R 755 {container_path}"
+                self.exec_command(instance_id, perm_command, workdir="/", timeout=60)
+                
+                return True
+            else:
+                logger.error(f"Failed to copy to container: {result.stderr}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error copying to container {instance_id}: {e}")
+            return False
+    
     def cleanup_container(self, instance_id: str, keep_persistent: bool = True):
         """Cleanup container."""
         if instance_id not in self.containers:

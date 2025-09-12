@@ -27,6 +27,7 @@ from repository import AndroidRepository
 from testing import AndroidTestingParallel, TestExecutionResult
 from build_utils import run_build_step, BuildResult
 from stub_generator_utils import generate_and_apply_stubs, StubGenerationResult
+from patch_based_stub_integration import generate_and_apply_patches
 
 # Configure logging
 logging.basicConfig(
@@ -347,7 +348,7 @@ class AndroidBenchValidator:
             # STEP 6a: Build project and save logs
             logger.info(f"Step 6a: Building project for {instance_id}")
             try:
-                build_result = run_build_step(self.containers, instance_id, test_patch=instance['test_patch'])
+                build_result = run_build_step(self.containers, instance_id, test_patch=instance['test_patch'], phase="BUILD-PRE-STUBS")
                 result.build_result = build_result
                 
                 logger.info(f"Build completed: success={build_result.success}, "
@@ -358,9 +359,22 @@ class AndroidBenchValidator:
                 # Continue with validation even if build fails
                 build_result = None
 
-            # STEP 6b: Generate stubs if build failed
-            if build_result and not build_result.success:
-                logger.info(f"Step 6b: Generating stubs for {instance_id} due to build failure")
+            # STEP 6b: Generate stubs if build failed OR if compilation errors detected
+            should_generate_stubs = False
+            stub_reason = ""
+            
+            if not build_result:
+                should_generate_stubs = True
+                stub_reason = "build step failed with exception"
+            elif not build_result.success:
+                should_generate_stubs = True
+                stub_reason = "build marked as unsuccessful"
+            elif self._has_compilation_errors(build_result.output):
+                should_generate_stubs = True
+                stub_reason = "compilation errors detected in build output"
+            
+            if should_generate_stubs:
+                logger.info(f"Step 6b: Generating stubs for {instance_id} due to: {stub_reason}")
                 
                 try:
                     # Get API key
@@ -369,16 +383,37 @@ class AndroidBenchValidator:
                         logger.warning(f"No OpenRouter API key found, skipping stub generation for {instance_id}")
                         result.stub_generation_result = None
                     else:
-                        # Generate and apply stubs
-                        stub_result = await generate_and_apply_stubs(
-                            containers_manager=self.containers,
-                            instance_id=instance_id,
-                            build_log=build_result.output,
-                            test_patch=instance['test_patch'],
-                            solution_patch=instance.get('patch', ''),
-                            api_key=openrouter_key,
-                            model="anthropic/claude-3.7-sonnet"
-                        )
+                        # Generate and apply stubs - use build output if available, otherwise empty string
+                        build_log = build_result.output if build_result else ""
+                        
+                        # Choose stub generation approach based on configuration
+                        stub_method = os.getenv('STUB_GENERATION_METHOD', 'patch_based')
+                        
+                        if stub_method == 'patch_based':
+                            logger.info(f"Using patch-based stub generation for {instance_id}")
+                            # Extract gradle command from build result to use same command for stub validation
+                            gradle_cmd = build_result.gradle_command if build_result and build_result.gradle_command else None
+                            stub_result = await generate_and_apply_patches(
+                                containers_manager=self.containers,
+                                instance_id=instance_id,
+                                build_log=build_log,
+                                test_patch=instance['test_patch'],
+                                solution_patch=instance.get('patch', ''),
+                                api_key=openrouter_key,
+                                model="anthropic/claude-3.7-sonnet",
+                                gradle_command=gradle_cmd
+                            )
+                        else:
+                            logger.info(f"Using traditional file merging stub generation for {instance_id}")
+                            stub_result = await generate_and_apply_stubs(
+                                containers_manager=self.containers,
+                                instance_id=instance_id,
+                                build_log=build_log,
+                                test_patch=instance['test_patch'],
+                                solution_patch=instance.get('patch', ''),
+                                api_key=openrouter_key,
+                                model="anthropic/claude-3.7-sonnet"
+                            )
                         
                         result.stub_generation_result = stub_result
                         
@@ -389,11 +424,13 @@ class AndroidBenchValidator:
                             
                             # Try building again after applying stubs
                             logger.info(f"Retrying build after applying stubs for {instance_id}")
-                            retry_build_result = run_build_step(self.containers, instance_id, test_patch=instance['test_patch'])
+                            retry_build_result = run_build_step(self.containers, instance_id, test_patch=instance['test_patch'], phase="BUILD-POST-STUBS")
                             result.retry_build_result = retry_build_result
                             
-                            if retry_build_result.success:
-                                logger.info(f"Build successful after stub generation for {instance_id}")
+                            if retry_build_result.success and not self._has_compilation_errors(retry_build_result.output):
+                                logger.info(f"Build successful and compilation errors resolved after stub generation for {instance_id}")
+                            elif retry_build_result.success and self._has_compilation_errors(retry_build_result.output):
+                                logger.warning(f"Build marked successful but compilation errors persist after stub generation for {instance_id}")
                             else:
                                 logger.warning(f"Build still failing after stub generation for {instance_id}")
                         else:
@@ -402,6 +439,8 @@ class AndroidBenchValidator:
                 except Exception as e:
                     logger.error(f"Error in stub generation step for {instance_id}: {e}")
                     result.stub_generation_result = None
+            else:
+                logger.info(f"Step 6b: Skipping stub generation for {instance_id} - no build issues detected")
 
             logger.info(f"Step 6 completed for {instance_id}!")
             
@@ -410,7 +449,7 @@ class AndroidBenchValidator:
             self.containers.prepare_for_test_execution(instance_id, "pre")
             
             pre_test_results, pre_skipped_tests = self.testing.run_tests_from_patch(
-                instance_id, instance['test_patch'], build_config
+                instance_id, instance['test_patch'], build_config, "TEST-PRE-SOLUTION"
             )
             result.pre_test_execution = pre_test_results
             result.skipped_instrumented_tests.extend(pre_skipped_tests)
@@ -424,38 +463,57 @@ class AndroidBenchValidator:
             # self._save_test_logs(instance_id, "pre", pre_test_results.raw_output)
             # self._save_test_results(instance_id, "pre", pre_test_results)
 
-            # Step 8: Reset and apply test + solution patch
-            logger.info(f"Applying solution patch for {instance_id}")
-            if not self.repository.reset_to_clean_state(instance_id):
-                logger.warning(f"Failed to reset to clean state for {instance_id}, continuing anyway")
+            # Step 8: Prepare fresh clone for post-solution tests 
+            logger.info(f"Preparing fresh clone for post-solution tests for {instance_id}")
             
-            # Re-apply test patch
-            test_patch_success, _ = self.repository.apply_patch(
-                instance_id, instance['test_patch'], "test_patch_reapply"
-            )
-            if not test_patch_success:
-                result.error_message = "Failed to re-apply test patch after reset"
+            # Clone fresh repository to separate directory on host
+            clean_repo_path = self._clone_repository_for_post_solution(instance)
+            if not clean_repo_path:
+                result.error_message = "Failed to clone fresh repository for post-solution tests"
                 return result
             
-            # Apply solution patch
-            solution_patch_success, solution_patch_output = self.repository.apply_patch(
-                instance_id, instance['patch'], "solution_patch"
-            )
-            if not solution_patch_success:
-                result.error_message = f"Failed to apply solution patch: {solution_patch_output}"
-                return result
-            result.solution_patch_applied = True
+            try:
+                # Copy fresh repository to container at /workspace_clean
+                if not self.containers.copy_to_container(instance_id, clean_repo_path, "/workspace_clean"):
+                    result.error_message = "Failed to copy fresh repository to container"
+                    return result
+                
+                # Apply test patch to fresh clone inside container
+                test_patch_success, _ = self.repository.apply_patch_to_path(
+                    instance_id, instance['test_patch'], "test_patch_clean", "/workspace_clean"
+                )
+                if not test_patch_success:
+                    result.error_message = "Failed to apply test patch to fresh clone"
+                    return result
+                
+                # Apply solution patch to fresh clone inside container
+                solution_patch_success, solution_patch_output = self.repository.apply_patch_to_path(
+                    instance_id, instance['patch'], "solution_patch", "/workspace_clean"
+                )
+                if not solution_patch_success:
+                    result.error_message = f"Failed to apply solution patch to fresh clone: {solution_patch_output}"
+                    return result
+                result.solution_patch_applied = True
+                
+            finally:
+                # Clean up host copy of fresh repository
+                self._cleanup_repository(clean_repo_path)
             
-            # Step 9: Run post-solution tests
+            # Step 9: Run post-solution tests from clean repository
             logger.info(f"Running post-solution tests for {instance_id}")
             self.containers.prepare_for_test_execution(instance_id, "post")
             
-            # unpack the tuple returned by run_tests_from_patch
-            post_test_results, post_skipped_tests = self.testing.run_tests_from_patch(
-                instance_id, instance['test_patch'], build_config
-            )
-            result.post_test_execution = post_test_results
-            result.skipped_instrumented_tests.extend(post_skipped_tests)
+            # Run tests from clean workspace without directory switching
+            try:
+                post_test_results, post_skipped_tests = self.testing.run_tests_from_patch(
+                    instance_id, instance['test_patch'], build_config, "TEST-POST-SOLUTION", workdir="/workspace_clean"
+                )
+                result.post_test_execution = post_test_results
+                result.skipped_instrumented_tests.extend(post_skipped_tests)
+            except Exception as e:
+                logger.error(f"Failed to run post-solution tests from clean workspace: {e}")
+                result.error_message = f"Failed to run post-solution tests: {str(e)}"
+                return result
             
             # Remove duplicates from skipped tests
             result.skipped_instrumented_tests = list(set(result.skipped_instrumented_tests))
@@ -601,6 +659,47 @@ class AndroidBenchValidator:
         
         return result
     
+    def _has_compilation_errors(self, build_output: str) -> bool:
+        """
+        Check if build output contains compilation errors, even if marked as successful.
+        
+        Args:
+            build_output: The build output string to analyze
+            
+        Returns:
+            True if compilation errors are detected
+        """
+        if not build_output:
+            return False
+            
+        output_lower = build_output.lower()
+        
+        # Common compilation error indicators
+        compilation_error_indicators = [
+            "cannot find symbol",
+            "package does not exist", 
+            "class not found",
+            "method not found",
+            "variable not found",
+            "compilation failed",
+            "could not compile",
+            "error: cannot access",
+            "error: package",
+            "error: class",
+            "error: method",
+            "error: variable",
+            "unresolved reference",
+            "unresolved import",
+            "undefined symbol",
+            "no suitable method found",
+            "incompatible types",
+            "method does not override",
+            "abstract method",
+            "missing return statement"
+        ]
+        
+        return any(error_indicator in output_lower for error_indicator in compilation_error_indicators)
+    
     def _load_dataset(self, dataset_file: str) -> list:
         """Load dataset from JSON or JSONL file."""
         instances = []
@@ -668,6 +767,66 @@ class AndroidBenchValidator:
             return None
         except Exception as e:
             logger.error(f"Error cloning repository {repo}: {e}")
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return None
+    
+    def _clone_repository_for_post_solution(self, instance: Dict[str, Any]) -> Optional[str]:
+        """Clone a fresh repository specifically for post-solution tests."""
+        repo = instance['repo']
+        instance_id = instance['instance_id']
+        base_commit = instance['base_commit']
+        
+        temp_dir = tempfile.mkdtemp(prefix=f"android_bench_clean_{instance_id}_")
+        
+        try:
+            clone_url = f"https://github.com/{repo}.git"
+            
+            logger.info(f"Cloning fresh {repo} to {temp_dir} for post-solution tests")
+            
+            # Clone repository
+            clone_cmd = ["git", "clone", "--recursive", "--depth", "1000", clone_url, temp_dir]
+            result = subprocess.run(clone_cmd, capture_output=True, text=True, timeout=600)
+            
+            if result.returncode != 0:
+                logger.error(f"Failed to clone fresh repository: {result.stderr}")
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                return None
+            
+            # Checkout base commit
+            checkout_cmd = ["git", "checkout", base_commit]
+            result = subprocess.run(checkout_cmd, cwd=temp_dir, capture_output=True, text=True, timeout=120)
+            
+            if result.returncode != 0:
+                # Try fetching more commits if shallow clone doesn't have the commit
+                fetch_cmd = ["git", "fetch", "--unshallow"]
+                fetch_result = subprocess.run(fetch_cmd, cwd=temp_dir, capture_output=True, text=True, timeout=300)
+                
+                if fetch_result.returncode == 0:
+                    # Try checkout again
+                    result = subprocess.run(checkout_cmd, cwd=temp_dir, capture_output=True, text=True, timeout=120)
+                
+                if result.returncode != 0:
+                    logger.error(f"Failed to checkout base commit {base_commit}: {result.stderr}")
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                    return None
+            
+            # Set proper permissions
+            os.chmod(temp_dir, 0o755)
+            for root, dirs, files in os.walk(temp_dir):
+                for d in dirs:
+                    os.chmod(os.path.join(root, d), 0o755)
+                for f in files:
+                    os.chmod(os.path.join(root, f), 0o644)
+            
+            logger.info(f"Successfully cloned fresh {repo} and checked out {base_commit}")
+            return temp_dir
+            
+        except subprocess.TimeoutExpired:
+            logger.error(f"Fresh repository cloning timed out for {repo}")
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return None
+        except Exception as e:
+            logger.error(f"Error cloning fresh repository {repo}: {e}")
             shutil.rmtree(temp_dir, ignore_errors=True)
             return None
     
@@ -789,6 +948,72 @@ class AndroidBenchValidator:
         # Return unique test names, preferring qualified names
         return list(set(qualified_tests)) if qualified_tests else list(set(test_names))
 
+    def _switch_workspace_to_clean(self, instance_id: str) -> bool:
+        """Switch workspace to clean directory by renaming directories."""
+        try:
+            switch_command = """
+echo "=== Switching workspace to clean directory ===" &&
+cd / &&
+# Backup original workspace
+if [ -d /workspace_original ]; then
+    echo "Removing old backup..."
+    rm -rf /workspace_original
+fi &&
+mv /workspace /workspace_original &&
+# Move clean workspace to main workspace location
+mv /workspace_clean /workspace &&
+echo "=== Workspace switched to clean directory ==="
+"""
+            
+            exit_code, output = self.containers.exec_command(
+                instance_id,
+                switch_command,
+                workdir="/",
+                timeout=60
+            )
+            
+            if exit_code == 0:
+                logger.info(f"Successfully switched workspace to clean directory for {instance_id}")
+                return True
+            else:
+                logger.error(f"Failed to switch workspace to clean directory: {output}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error switching workspace for {instance_id}: {e}")
+            return False
+
+    def _switch_workspace_back(self, instance_id: str) -> bool:
+        """Switch workspace back to original directory."""
+        try:
+            switch_command = """
+echo "=== Switching workspace back to original ===" &&
+cd / &&
+# Remove the workspace directory (it was the clean one)
+rm -rf /workspace &&
+# Restore original workspace
+mv /workspace_original /workspace &&
+echo "=== Workspace restored to original ==="
+"""
+            
+            exit_code, output = self.containers.exec_command(
+                instance_id,
+                switch_command,
+                workdir="/",
+                timeout=60
+            )
+            
+            if exit_code == 0:
+                logger.info(f"Successfully switched workspace back to original for {instance_id}")
+                return True
+            else:
+                logger.error(f"Failed to switch workspace back: {output}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error switching workspace back for {instance_id}: {e}")
+            return False
+
 
 def _save_test_analysis(instance_id: str, result: ValidationResult, output_dir: Path):
     """Save test transition analysis."""
@@ -819,13 +1044,15 @@ def _save_test_analysis(instance_id: str, result: ValidationResult, output_dir: 
                 'passed_count': len(result.pre_passed_tests),
                 'failed_count': len(result.pre_failed_tests),
                 'passed_tests': result.pre_passed_tests,
-                'failed_tests': result.pre_failed_tests
+                'failed_tests': result.pre_failed_tests,
+                'gradle_command': result.pre_test_execution.gradle_command if result.pre_test_execution else ""
             },
             'post_execution': {
                 'passed_count': len(result.post_passed_tests),
                 'failed_count': len(result.post_failed_tests),
                 'passed_tests': result.post_passed_tests,
-                'failed_tests': result.post_failed_tests
+                'failed_tests': result.post_failed_tests,
+                'gradle_command': result.post_test_execution.gradle_command if result.post_test_execution else ""
             }
         },
         'skipped_instrumented_tests': {

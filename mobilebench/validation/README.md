@@ -29,8 +29,13 @@ python validator.py dataset.jsonl --force-restart
 # Validate specific instances with resume capability
 python validator.py dataset.jsonl --instance-ids "6044" "6045"
 
-$ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/thunderbird-android-task-instances.jsonl --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Thunderbird--batch3 \
---exclude-instance-ids 9010 9011 9026 9028 9030 9104 9115 9128 9130 9137 9150 9158 9161 9163 9179 9182 9186 9207 9208 9209 9213 9241 9254 9268 9272 9279 9299 9322 9329 9332 9341 9346 9351 9360 9362 9367 9374 9381 9386 9388 9398 9399 9405 9414 9423 9428 9448 9469 9481 9508 6105 6158 6172 6190 6256 6263 6280 6301 6335 6360 6424 6435 6447 6453 6482 6486 6507 6522 6546 6555 6561 6588 6600 6618 6624 6630 6693 6762 6811 6840 6846 6873 6946 6962 6987 7008 7113 7179 7180 7292 7299 7340 7365 7377 7398 7403 7489 7569 7699 7722 7891 7931 7978 8014 8020 8099 8107 8130 8134 8136 8147 8151 8155 8166 8176 8243 8259 8267 8272 8305 8306 8329 8339 8382 8541 8547 8602 8735 8804 8813 8846 8889 8890 8891 8903 8904 8906 8958 8999 9004 9414 9423 9428 9448 9469 9481 9508
+$ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/thunderbird-android-task-instances.jsonl --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Thunderbird-batch2 --exclude-instance-ids 9508 9481 9469 9448 9428 9423 9414 9405 9399 9398 9388 9386 9381 9374 9367 9362 9360 9351 9346 9341 9332 9329 9322 9299 9279 9272 9268 9254 9241 9213
+
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/thunderbird-android-task-instances.jsonl --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Thunderbird-9423 --instance-ids 9423
+
+
+python mobilebench/validation/validator.py data/tasks/thunderbird-android-task-instances.jsonl --instance-ids thunderbird__thunderbird-android-9423
 
 
 python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-Android-task-instances.jsonl --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/WordPress

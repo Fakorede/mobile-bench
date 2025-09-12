@@ -7,7 +7,7 @@ import re
 import json
 import logging
 import time
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,7 @@ class TestExecutionResult:
     raw_output: str
     test_results: List[TestResult]
     build_successful: bool = False
+    gradle_command: str = ""
 
 
 class AndroidTestingParallel:
@@ -47,33 +48,41 @@ class AndroidTestingParallel:
         self.config_parser = config_parser
         
     def run_tests_from_patch(self, instance_id: str, test_patch: str, 
-                           config: Dict[str, str]) -> Tuple[TestExecutionResult, List[str]]:
+                           config: Dict[str, str], phase: str = "UNKNOWN", workdir: str = "/workspace") -> Tuple[TestExecutionResult, List[str]]:
         """Run tests based on test patch content with module-specific optimization."""
+        
+        # Log the test phase at the beginning
+        logger.info(f"=== STARTING {phase} TEST PHASE for {instance_id} ===")
         
         # Extract module information directly from patch file paths
         module_tests, skipped_instrumented_tests = self.config_parser.extract_test_tasks_from_patch_by_module(test_patch)
         
-        # Count total unit tests
+        # CRITICAL: Validate that modules still exist after solution patch application
+        # This prevents "project not found" errors when solution patches change project structure
+        logger.info(f"[{instance_id}] Validating module availability for {phase} phase...")
+        module_tests = self._validate_and_fix_module_tests(instance_id, module_tests, workdir)
+        
+        # Count total unit tests after validation
         total_unit_tests = sum(len(tests) for tests in module_tests.values())
         
         if not module_tests:
-            logger.warning(f"No unit test classes found in patch for {instance_id}")
+            logger.warning(f"No valid unit test modules found for {instance_id} in {phase} phase")
             if skipped_instrumented_tests:
                 logger.info(f"Only instrumented tests found, all {len(skipped_instrumented_tests)} skipped for {instance_id}")
             
             return TestExecutionResult(
                 total_tests=0, passed=0, failed=0, skipped=0, errors=0,
-                duration=0.0, exit_code=0, raw_output="No unit test classes found in test patch",
-                test_results=[], build_successful=True
+                duration=0.0, exit_code=0, raw_output=f"No valid unit test modules found after project validation in {phase} phase",
+                test_results=[], build_successful=True, gradle_command=""
             ), skipped_instrumented_tests
         
-        logger.info(f"Running {total_unit_tests} unit tests across {len(module_tests)} modules for {instance_id}")
+        logger.info(f"Running {total_unit_tests} unit tests across {len(module_tests)} modules for {instance_id} in {phase} phase")
         logger.info(f"Test distribution by module: {dict((k, len(v)) for k, v in module_tests.items())}")
         if skipped_instrumented_tests:
             logger.info(f"Skipped {len(skipped_instrumented_tests)} instrumented tests for {instance_id}")
         
         # Use module-specific execution strategy
-        test_result = self.run_module_specific_tests(instance_id, config, module_tests)
+        test_result = self.run_module_specific_tests(instance_id, config, module_tests, phase, workdir)
         return test_result, skipped_instrumented_tests
     
     def _detect_build_variants_for_testing(self, instance_id: str, target_modules: List[str] = None) -> Dict[str, any]:
@@ -95,36 +104,38 @@ class AndroidTestingParallel:
             all_test_tasks = []
             module_variants = {}
 
-            # Query each target module (same logic as build_utils.py)
+            # Apply module-specific variant selection rules (same as build_utils.py)
             for module in modules_to_query:
                 logger.info(f"[{instance_id}]: Detecting build variants for module: {module}")
 
-                gradle_info_command = f"""
-cd /workspace &&
-if [ -f './gradlew' ]; then
-    timeout 60 ./gradlew {module}:tasks --group=verification --quiet 2>/dev/null || \
-    timeout 60 ./gradlew tasks --group=verification --quiet 2>/dev/null || \
-    echo "Could not get task info for {module}"
-fi
-"""
+                # Apply hardcoded rules based on module patterns  
+                module_tasks = []
                 
-                exit_code, output = self.containers.exec_command(
-                    instance_id, gradle_info_command, workdir="/workspace", timeout=90
-                )
+                if module in [":app-thunderbird", ":app-k9mail"]:
+                    # App modules use foss flavors
+                    module_tasks = [
+                        "testFossDebugUnitTest",
+                        "testFullDebugUnitTest",
+                        "testFossReleaseUnitTest", 
+                        "testFullReleaseUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for foss flavors - using foss/full variants")
+                elif module.startswith(":feature:") or module == ":legacy:core":
+                    # Feature modules and legacy:core use simple variants
+                    module_tasks = [
+                        "testDebugUnitTest",
+                        "testReleaseUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for simple variants - using debug/release variants")
+                else:
+                    # Default fallback for other modules
+                    module_tasks = ["testDebugUnitTest"]
+                    logger.info(f"[{instance_id}]: Module {module} using default variants")
                 
-                if exit_code == 0 and output:
-                    # Parse tasks for this module
-                    module_tasks = []
-                    for line in output.split('\n'):
-                        if 'test' in line.lower() and ('unittest' in line.lower() or 'debug' in line.lower()):
-                            task_name = line.strip().split()[0] if line.strip() else ""
-                            if task_name and ':' not in task_name:
-                                module_tasks.append(task_name)
-                    
-                    # Store module-specific variants
-                    module_variants[module] = module_tasks
-                    all_test_tasks.extend(module_tasks)
-                    logger.info(f"[{instance_id}]: Module {module} tasks: {module_tasks}")
+                # Store module-specific variants
+                module_variants[module] = module_tasks
+                all_test_tasks.extend(module_tasks)
+                logger.info(f"[{instance_id}]: Module {module} final tasks: {module_tasks}")
 
             # Store module-specific variants in the result
             variants_info["module_variants"] = module_variants
@@ -160,9 +171,72 @@ fi
             logger.warning(f"[{instance_id}] Could not detect build variants: {e}")
         
         return variants_info
+
+    def _detect_available_projects(self, instance_id: str, workdir: str = "/workspace") -> List[str]:
+        """
+        Detect currently available projects/modules in the workspace.
+        This is crucial after solution patches that might change project structure.
+        """
+        try:
+            # Run gradle projects command to get current project structure
+            projects_command = f"""
+cd {workdir} &&
+timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get projects"
+"""
+            
+            exit_code, output = self.containers.exec_command(
+                instance_id, projects_command, workdir=workdir, timeout=45
+            )
+            
+            available_projects = []
+            if exit_code == 0 and output:
+                lines = output.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    # Look for project entries like "Project ':core'" or "+--- Project ':core'"
+                    if 'project' in line.lower() and ':' in line:
+                        # Extract project name
+                        parts = line.split("'")
+                        if len(parts) >= 2:
+                            project_name = parts[1]  # Should be like ":core"
+                            if project_name.startswith(':') and project_name != ':':
+                                available_projects.append(project_name)
+                
+            logger.info(f"[{instance_id}] Available projects detected: {available_projects}")
+            return available_projects
+            
+        except Exception as e:
+            logger.warning(f"[{instance_id}] Failed to detect available projects: {e}")
+            return []
+
+    def _validate_and_fix_module_tests(self, instance_id: str, module_tests: Dict[str, List[str]], workdir: str = "/workspace") -> Dict[str, List[str]]:
+        """
+        Validate that modules still exist and remove/fix any that don't.
+        This is essential after solution patches that might change project structure.
+        """
+        available_projects = self._detect_available_projects(instance_id, workdir)
+        if not available_projects:
+            logger.warning(f"[{instance_id}] Could not detect available projects, proceeding with original modules")
+            return module_tests
+        
+        validated_module_tests = {}
+        removed_modules = []
+        
+        for module, test_classes in module_tests.items():
+            if module in available_projects:
+                validated_module_tests[module] = test_classes
+            else:
+                removed_modules.append(module)
+                logger.warning(f"[{instance_id}] Module {module} no longer available, removing from test execution")
+        
+        if removed_modules:
+            logger.info(f"[{instance_id}] Removed unavailable modules: {removed_modules}")
+            logger.info(f"[{instance_id}] Available modules for testing: {list(available_projects)}")
+        
+        return validated_module_tests
    
     def run_module_specific_tests(self, instance_id: str, config: Dict[str, str], 
-                                 module_tests: Dict[str, List[str]]) -> TestExecutionResult:
+                                 module_tests: Dict[str, List[str]], phase: str = "UNKNOWN", workdir: str = "/workspace") -> TestExecutionResult:
         """
         Run tests targeting specific modules with their test classes.
         
@@ -171,6 +245,9 @@ fi
         
         start_time = time.time()
         java_version = config.get('java_version', '17')
+        
+        # Log the test phase information
+        logger.info(f"=== {phase} TEST EXECUTION STARTING ===")
         
         # Extract target modules for variant detection
         target_modules = list(module_tests.keys())
@@ -196,32 +273,88 @@ fi
                 available_variants_for_module = module_variants.get(module, build_variants.get("test_variants", ["testDebugUnitTest"]))
                 logger.info(f"Available variants for module {module}: {available_variants_for_module}")
                 
-                # Find appropriate unit test variant for this module (same logic as build_utils.py)
+                # Find appropriate unit test variant for this module following exact requirements:
+                # 1. If module has testDebugUnitTest -> use testDebugUnitTest
+                # 2. If module has testFossDebugUnitTest -> use testFossDebugUnitTest
                 unit_variant = None
                 
-                # Prefer variants with 'unittest' and 'debug' (same as build_utils.py)
-                # But make selection deterministic by prioritizing more specific variants
-                matching_variants = []
-                for variant in available_variants_for_module:
-                    if 'unittest' in variant.lower() and 'debug' in variant.lower():
-                        matching_variants.append(variant)
+                # Apply module-specific variant selection rules 
+                if module in [":app-thunderbird", ":app-k9mail"]:
+                    # App modules should use testFossDebugUnitTest
+                    if 'testFossDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testFossDebugUnitTest'
+                        logger.info(f"Selected testFossDebugUnitTest for {module} (app module rule)")
+                elif module.startswith(":feature:") or module == ":legacy:core":
+                    # Feature modules and legacy:core should use testDebugUnitTest
+                    if 'testDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testDebugUnitTest'
+                        logger.info(f"Selected testDebugUnitTest for {module} (feature/legacy module rule)")
+                else:
+                    # Default modules use testDebugUnitTest
+                    if 'testDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testDebugUnitTest'
+                        logger.info(f"Selected testDebugUnitTest for {module} (default rule)")
                 
-                if matching_variants:
-                    # Sort to make selection deterministic - prefer longer/more specific variants
-                    # This ensures consistent selection between runs
-                    matching_variants.sort(key=lambda x: (-len(x), x.lower()))
-                    unit_variant = matching_variants[0]
-                    logger.info(f"Found {len(matching_variants)} matching variants for {module}: {matching_variants}, selected: {unit_variant}")
-                
-                # Fallback to first unit test variant or default (same as build_utils.py)
+                # Strategy 2: If neither exact variant found, look for other test variants (excluding detekt)
                 if not unit_variant:
-                    unit_variants = [v for v in available_variants_for_module if 'unittest' in v.lower()]
-                    if unit_variants:
-                        # Sort for deterministic selection
-                        unit_variants.sort(key=lambda x: (-len(x), x.lower()))
-                        unit_variant = unit_variants[0]
-                    else:
-                        unit_variant = "testDebugUnitTest"
+                    simple_test_variants = []
+                    for variant in available_variants_for_module:
+                        if (variant.lower().startswith('test') and 
+                            'unittest' in variant.lower() and 
+                            'debug' in variant.lower() and
+                            'detekt' not in variant.lower()):  # Exclude detekt tasks
+                            simple_test_variants.append(variant)
+                    
+                    if simple_test_variants:
+                        # Sort to prioritize: foss > free > debug > full
+                        def variant_sort_key(variant_name):
+                            v_lower = variant_name.lower()
+                            if 'foss' in v_lower:
+                                return (1, len(variant_name), variant_name)  # Highest priority
+                            elif 'free' in v_lower:
+                                return (2, len(variant_name), variant_name)  
+                            elif 'debug' in v_lower and 'full' not in v_lower:
+                                return (3, len(variant_name), variant_name)
+                            elif 'full' in v_lower:
+                                return (4, len(variant_name), variant_name)  # Lowest priority
+                            else:
+                                return (5, len(variant_name), variant_name)
+                        
+                        simple_test_variants.sort(key=variant_sort_key)
+                        unit_variant = simple_test_variants[0]
+                        logger.info(f"Found {len(simple_test_variants)} simple test variants for {module}: {simple_test_variants}, selected: {unit_variant}")
+                
+                # Strategy 3: Fallback to any unittest variant (including detekt) if no test variants found
+                if not unit_variant:
+                    matching_variants = []
+                    for variant in available_variants_for_module:
+                        if 'unittest' in variant.lower() and 'debug' in variant.lower():
+                            matching_variants.append(variant)
+                    
+                    if matching_variants:
+                        # Sort to make selection deterministic and prefer certain variants
+                        # Priority: foss > free > debug > full (lower number = higher priority)
+                        def variant_sort_key(variant_name):
+                            v_lower = variant_name.lower()
+                            if 'foss' in v_lower:
+                                return (1, len(variant_name), variant_name)  # Highest priority
+                            elif 'free' in v_lower:
+                                return (2, len(variant_name), variant_name)  
+                            elif 'debug' in v_lower and 'full' not in v_lower:
+                                return (3, len(variant_name), variant_name)
+                            elif 'full' in v_lower:
+                                return (4, len(variant_name), variant_name)  # Lowest priority
+                            else:
+                                return (5, len(variant_name), variant_name)
+                        
+                        matching_variants.sort(key=variant_sort_key)
+                        unit_variant = matching_variants[0]
+                        logger.info(f"Found {len(matching_variants)} fallback matching variants for {module}: {matching_variants}, selected: {unit_variant}")
+                
+                # Strategy 4: Absolute final fallback
+                if not unit_variant:
+                    unit_variant = "testDebugUnitTest"
+                    logger.warning(f"No suitable variants found for {module}, falling back to default: {unit_variant}")
                 
                 logger.info(f"Selected variant for module {module}: {unit_variant}")
                 
@@ -243,7 +376,7 @@ fi
             return TestExecutionResult(
                 total_tests=0, passed=0, failed=0, skipped=0, errors=0,
                 duration=0.0, exit_code=0, raw_output="No module commands generated",
-                test_results=[], build_successful=True
+                test_results=[], build_successful=True, gradle_command=""
             )
         
         gradle_test_command = ' '.join(module_commands)
@@ -252,8 +385,9 @@ fi
         logger.info(f"Final Gradle command: ./gradlew {gradle_test_command}")
         
         test_command = f"""
-cd /workspace &&
-echo "=== Running module-specific tests ===" &&
+cd {workdir} &&
+echo "=== Running module-specific tests - PHASE: {phase} ===" &&
+echo "Test Phase: {phase}" &&
 echo "Instance: {instance_id}" &&
 echo "Modules: {list(module_tests.keys())}" &&
 echo "Command: ./gradlew {gradle_test_command}" &&
@@ -285,7 +419,7 @@ org.gradle.daemon=false
 org.gradle.parallel=true
 org.gradle.workers.max=4
 org.gradle.configureondemand=true
-org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC
+org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.prefs/java.util.prefs=ALL-UNNAMED --add-opens java.base/java.nio.charset=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED
 android.enableJetifier=true
 android.useAndroidX=true
 EOF
@@ -327,19 +461,57 @@ done
         exit_code, output = self.containers.exec_command(
             instance_id,
             test_command,
-            workdir="/workspace",
+            workdir=workdir,
             timeout=total_timeout + 60  # Buffer time
         )
         
         total_duration = time.time() - start_time
         logger.info(f"Module-specific test execution completed in {total_duration:.2f}s with exit code {exit_code}")
         
+        # Check for critical project structure errors that completely prevent test execution
+        # Only treat as error if exit code indicates failure AND we have project not found errors
+        if exit_code != 0 and "project" in output.lower() and "not found" in output.lower():
+            logger.error(f"[{instance_id}] Project structure changed after solution patch application")
+            logger.error(f"[{instance_id}] Original modules: {list(module_tests.keys())}")
+            
+            # Try to detect current available projects and provide helpful info
+            available_projects = self._detect_available_projects(instance_id)
+            logger.error(f"[{instance_id}] Currently available projects: {available_projects}")
+            
+            # Return a special error result indicating project structure change
+            return TestExecutionResult(
+                total_tests=0, passed=0, failed=0, skipped=0, errors=1,
+                duration=total_duration, exit_code=exit_code, 
+                raw_output=f"SOLUTION PATCH CHANGED PROJECT STRUCTURE - Original modules {list(module_tests.keys())} no longer available. Current projects: {available_projects}. Full output: {output}",
+                test_results=[], build_successful=False, gradle_command=gradle_test_command
+            )
+        elif "project" in output.lower() and "not found" in output.lower():
+            # Log project structure changes as informational, but continue processing
+            logger.error(f"[{instance_id}] Project structure changed after solution patch application")
+            logger.error(f"[{instance_id}] Original modules: {list(module_tests.keys())}")
+            
+            # Try to detect current available projects and provide helpful info
+            available_projects = self._detect_available_projects(instance_id)
+            logger.error(f"[{instance_id}] Currently available projects: {available_projects}")
+        
         # Parse results
         test_results = self._parse_test_results(output)
-        return self._create_execution_result(test_results, exit_code, output, total_duration)
+        execution_result = self._create_execution_result(test_results, exit_code, output, total_duration, gradle_test_command)
+        
+        # Save test log with phase information
+        command_info = {
+            'execution_type': 'MODULE_SPECIFIC',
+            'gradle_command': gradle_test_command,
+            'modules': list(module_tests.keys()),
+            'test_classes': [class_name for classes in module_tests.values() for class_name in classes]
+        }
+        
+        self._save_test_log(instance_id, execution_result, phase, command_info)
+        
+        return execution_result
 
     def run_parallel_tests(self, instance_id: str, config: Dict[str, str], 
-                          test_tasks: List[str]) -> Tuple[TestExecutionResult, List[str]]:
+                          test_tasks: List[str], phase: str = "UNKNOWN") -> Tuple[TestExecutionResult, List[str]]:
         """
         Fallback method for backward compatibility.
         Try to extract modules from test tasks if patch-based extraction fails.
@@ -360,11 +532,11 @@ done
                 module_tests[module].append(test_class)
             
             logger.info(f"Using inferred modules for {instance_id}: {dict(module_tests)}")
-            test_result = self.run_module_specific_tests(instance_id, config, module_tests)
+            test_result = self.run_module_specific_tests(instance_id, config, module_tests, phase)
             return test_result, []  # No instrumented tests detected in fallback mode
         else:
             # Use module-based approach for single test or fallback
-            test_result = self._run_module_based_tests(instance_id, config, test_tasks, start_time)
+            test_result = self._run_module_based_tests(instance_id, config, test_tasks, start_time, phase)
             return test_result, []  # No instrumented tests detected in fallback mode
     
     def _infer_module_from_class(self, test_class: str) -> str:
@@ -409,7 +581,8 @@ done
         return test_classes
     
     def _run_combined_gradle_tests(self, instance_id: str, config: Dict[str, str], 
-                                  test_classes: List[str], start_time: float) -> TestExecutionResult:
+                                  test_classes: List[str], start_time: float, 
+                                  phase: str = "UNKNOWN") -> TestExecutionResult:
         """Run all test classes in a single Gradle invocation for maximum parallelism."""
         
         java_version = config.get('java_version', '17')
@@ -444,7 +617,7 @@ done
         
         test_command = f"""
 cd /workspace &&
-echo "=== Running combined parallel tests ===" &&
+echo "=== Running combined parallel tests - PHASE: {phase} ===" &&
 
 # Java setup (same as before)
 echo "=== Setting Java version to {java_version} ===" &&
@@ -482,7 +655,7 @@ org.gradle.daemon=false
 org.gradle.parallel=true
 org.gradle.workers.max=4
 org.gradle.configureondemand=false
-org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC
+org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.prefs/java.util.prefs=ALL-UNNAMED --add-opens java.base/java.nio.charset=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED
 android.enableJetifier=true
 android.useAndroidX=true
 EOF
@@ -531,10 +704,24 @@ done
         
         # Parse results
         test_results = self._parse_test_results(output)
-        return self._create_execution_result(test_results, exit_code, output, total_duration)
+        gradle_command = f"./gradlew {unit_variant} {test_filters}"
+        execution_result = self._create_execution_result(test_results, exit_code, output, total_duration, gradle_command)
+        
+        # Save test log with phase information
+        command_info = {
+            'execution_type': 'COMBINED_PARALLEL',
+            'gradle_command': gradle_command,
+            'modules': [],
+            'test_classes': test_classes
+        }
+        
+        self._save_test_log(instance_id, execution_result, phase, command_info)
+        
+        return execution_result
     
     def _run_module_based_tests(self, instance_id: str, config: Dict[str, str], 
-                               test_tasks: List[str], start_time: float) -> TestExecutionResult:
+                               test_tasks: List[str], start_time: float, 
+                               phase: str = "UNKNOWN") -> TestExecutionResult:
         """Run tests grouped by module for better parallelism."""
         
         java_version = config.get('java_version', '17')
@@ -584,7 +771,7 @@ done
         
         test_command = f"""
 cd /workspace &&
-echo "=== Running module-based parallel tests ===" &&
+echo "=== Running module-based parallel tests - PHASE: {phase} ===" &&
 
 # Java and environment setup (same as combined)
 echo "=== Setting Java version to {java_version} ===" &&
@@ -629,7 +816,20 @@ done
         
         total_duration = time.time() - start_time
         test_results = self._parse_test_results(output)
-        return self._create_execution_result(test_results, exit_code, output, total_duration)
+        gradle_command = ' '.join(module_tasks)
+        execution_result = self._create_execution_result(test_results, exit_code, output, total_duration, gradle_command)
+        
+        # Save test log with phase information
+        command_info = {
+            'execution_type': 'MODULE_BASED_FALLBACK',
+            'gradle_command': gradle_command,
+            'modules': list(modules),
+            'test_classes': []  # Not easily extractable from test_tasks in this fallback method
+        }
+        
+        self._save_test_log(instance_id, execution_result, phase, command_info)
+        
+        return execution_result
     
     def _parse_test_results(self, output: str) -> List[TestResult]:
         """Parse test results from output with deduplication."""
@@ -698,7 +898,7 @@ done
     
     def _create_execution_result(self, test_results: List[TestResult], 
                                exit_code: int, raw_output: str, 
-                               duration: float) -> TestExecutionResult:
+                               duration: float, gradle_command: str = "") -> TestExecutionResult:
         """Create execution result summary."""
         total_tests = len(test_results)
         passed = len([t for t in test_results if t.status == 'PASSED'])
@@ -713,7 +913,8 @@ done
             total_tests=total_tests, passed=passed, failed=failed,
             skipped=skipped, errors=errors, duration=duration,
             exit_code=exit_code, raw_output=raw_output,
-            test_results=test_results, build_successful=build_successful
+            test_results=test_results, build_successful=build_successful,
+            gradle_command=gradle_command
         )
     
     def compare_test_results(self, pre_results: TestExecutionResult, 
@@ -750,3 +951,78 @@ done
             'pass_to_fail': pass_to_fail,
             'fail_to_fail': fail_to_fail
         }
+    
+    def _save_test_log(self, instance_id: str, test_result: TestExecutionResult, 
+                      phase: str, command_info: Dict[str, Any] = None) -> str:
+        """
+        Save test execution log for an instance.
+        
+        Args:
+            instance_id: ID of the instance
+            test_result: The test result to save
+            phase: Test phase (TEST-PRE-SOLUTION, TEST-POST-SOLUTION)
+            command_info: Optional dictionary with command information
+            
+        Returns:
+            Path to the saved log file
+        """
+        import time
+        from pathlib import Path
+        
+        # Create test logs directory
+        results_dir = Path("validation_results")
+        instance_test_dir = results_dir / instance_id / "test_logs"
+        instance_test_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Create filename with phase identifier
+        phase_suffix = phase.replace("TEST-", "").replace("-", "_").lower()
+        log_file = instance_test_dir / f"test_log_{phase_suffix}_{int(time.time())}.txt"
+        
+        try:
+            with open(log_file, 'w', encoding='utf-8') as f:
+                f.write(f"Android Test Execution Log\n")
+                f.write(f"Instance ID: {instance_id}\n")
+                f.write(f"Test Phase: {phase}\n")
+                f.write(f"Test Success: {test_result.build_successful}\n")
+                f.write(f"Exit Code: {test_result.exit_code}\n")
+                f.write(f"Duration: {test_result.duration:.2f} seconds\n")
+                f.write(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"Total Tests: {test_result.total_tests}\n")
+                f.write(f"Passed: {test_result.passed}\n")
+                f.write(f"Failed: {test_result.failed}\n")
+                f.write(f"Skipped: {test_result.skipped}\n")
+                f.write(f"Errors: {test_result.errors}\n")
+                
+                # Add command info if provided
+                if command_info:
+                    f.write(f"Execution Type: {command_info.get('execution_type', 'MODULE_SPECIFIC')}\n")
+                    f.write(f"Gradle Command: {command_info.get('gradle_command', 'UNKNOWN')}\n")
+                    f.write(f"Test Modules: {command_info.get('modules', [])}\n")
+                    f.write(f"Test Classes: {command_info.get('test_classes', [])}\n")
+                    if 'error' in command_info:
+                        f.write(f"Error: {command_info['error']}\n")
+                
+                f.write("=" * 60 + "\n")
+                f.write("TEST OUTPUT:\n")
+                f.write("=" * 60 + "\n")
+                f.write(test_result.raw_output)
+                
+                if test_result.test_results:
+                    f.write("\n" + "=" * 60 + "\n")
+                    f.write("DETAILED TEST RESULTS:\n")
+                    f.write("=" * 60 + "\n")
+                    for test in test_result.test_results:
+                        f.write(f"{test.class_name}.{test.test_name}: {test.status}\n")
+                        if test.failure_message:
+                            f.write(f"  Failure: {test.failure_message}\n")
+                        if test.error_message:
+                            f.write(f"  Error: {test.error_message}\n")
+                        if test.duration > 0:
+                            f.write(f"  Duration: {test.duration:.3f}s\n")
+                        f.write("\n")
+            
+            logger.info(f"Test log saved to: {log_file}")
+            return str(log_file)
+        except Exception as e:
+            logger.error(f"Failed to save test log for {instance_id}: {e}")
+            return ""

@@ -7,3 +7,13 @@ __pycache__
 venv
 notes.txt
 **/.DS_Store
+**/.jsonl
+**/.jsonl.all
+data/inference/*
+data/prompts/*
+data/prs/*
+data/tasks/*
+data/validated-tasks/*
+mobilebench/validation/validation_results/*
+mobilebench/validation/scripts-antennapod/*
+**/*.md

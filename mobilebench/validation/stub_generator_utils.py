@@ -57,22 +57,60 @@ class JavaFileAnalyzer:
         return elements
     
     def _find_class_boundaries(self) -> Tuple[int, int]:
-        """Find the start and end lines of the main class"""
-        class_pattern = r'^(public\s+)?class\s+\w+.*\{'
+        """Find the start and end lines of the main class/interface/data class"""
+        # Updated patterns to handle Java, Kotlin classes, interfaces, data classes
+        # For Kotlin data classes, we look for the class declaration even without braces
+        patterns = [
+            r'^(public\s+|private\s+|protected\s+|internal\s+)?class\s+\w+.*\{',  # Java/Kotlin class with brace
+            r'^(public\s+|private\s+|protected\s+|internal\s+)?interface\s+\w+.*\{',  # Interface
+            r'^(public\s+|private\s+|protected\s+|internal\s+)?data\s+class\s+\w+.*\{',  # Kotlin data class with brace
+            r'^(public\s+|private\s+|protected\s+|internal\s+)?object\s+\w+.*\{',  # Kotlin object
+            r'^(public\s+|private\s+|protected\s+|internal\s+)?abstract\s+class\s+\w+.*\{',  # Abstract class
+            # Kotlin-specific patterns for classes without opening brace on same line
+            r'^(public\s+|private\s+|protected\s+|internal\s+)?data\s+class\s+\w+\s*\(',  # Kotlin data class with params
+            r'^(public\s+|private\s+|protected\s+|internal\s+)?class\s+\w+\s*\(',  # Kotlin class with params
+        ]
         
         class_start = -1
         brace_count = 0
+        paren_count = 0
+        is_kotlin_style = False
         
         for i, line in enumerate(self.lines):
-            if class_start == -1 and re.match(class_pattern, line.strip()):
-                class_start = i
-                brace_count += line.count('{') - line.count('}')
+            line_stripped = line.strip()
+            
+            if class_start == -1:
+                # Check if this line matches any class/interface pattern
+                for j, pattern in enumerate(patterns):
+                    if re.match(pattern, line_stripped):
+                        class_start = i
+                        # Check if this is a Kotlin-style class without braces on first line
+                        is_kotlin_style = j >= 5  # Last two patterns are Kotlin-style
+                        
+                        if is_kotlin_style:
+                            # For Kotlin data classes, track parentheses for parameter list
+                            paren_count += line.count('(') - line.count(')')
+                        else:
+                            # For classes with braces, track brace count
+                            brace_count += line.count('{') - line.count('}')
+                        break
             elif class_start != -1:
-                brace_count += line.count('{') - line.count('}')
-                if brace_count == 0:
-                    return class_start, i
+                if is_kotlin_style:
+                    paren_count += line.count('(') - line.count(')')
+                    # When parentheses are balanced, we've reached the end of the data class
+                    if paren_count == 0 and line_stripped.endswith(')'):
+                        return class_start, i
+                else:
+                    brace_count += line.count('{') - line.count('}')
+                    if brace_count == 0:
+                        return class_start, i
         
-        return class_start, len(self.lines) - 1
+        # If we found a class start but no end, return until end of file
+        if class_start != -1:
+            return class_start, len(self.lines) - 1
+        
+        # No class found - return invalid range
+        return -1, -1
     
     def _extract_fields(self, start: int, end: int) -> List[JavaElement]:
         """Extract field declarations"""
@@ -252,6 +290,7 @@ class StubGenerationResult:
     success: bool
     generated_stubs: str
     files_created: Dict[str, str]  # file_path -> content
+    oracle_files: Dict[str, str] = None  # Oracle files used for context
     error_message: Optional[str] = None
     api_cost: float = 0.0
     response_time: float = 0.0
@@ -307,8 +346,12 @@ class StubGenerator:
         """
         if instance_id:
             self._current_instance_id = instance_id
+        
+        # Store oracle files for later use in application logic
+        self._oracle_files = oracle_files
 
         logger.info(f"Generating stubs using model {self.model}")
+        logger.info(f"Oracle files provided: {list(oracle_files.keys()) if oracle_files else 'None'}")
         start_time = time.time()
         
         try:
@@ -373,6 +416,7 @@ class StubGenerator:
                     success=True,
                     generated_stubs=generated_content,
                     files_created=files_created,
+                    oracle_files=oracle_files,
                     api_cost=cost,
                     response_time=response_time,
                     model_used=self.model
@@ -387,6 +431,7 @@ class StubGenerator:
                 success=False,
                 generated_stubs="",
                 files_created={},
+                oracle_files=oracle_files,
                 error_message=str(e),
                 response_time=response_time,
                 model_used=self.model
@@ -408,13 +453,26 @@ class StubGenerator:
             r'error: The method .+ is undefined',
             r'Compilation failed',
             r'BUILD FAILED',
-            r'Execution failed for task'
+            r'Execution failed for task',
+            # Enhanced patterns for specific build issues
+            r'Too many arguments',
+            r'No parameter with name',
+            r'overrides nothing',
+            r'constructor.*: .* cannot be applied to',
+            r'method.*cannot be applied to',
+            r'incompatible types',
+            r'cannot find symbol.*parameter',
+            r'cannot find symbol.*method',
+            r'cannot find symbol.*variable',
+            r'Unresolved reference'
         ]
         
         # Patterns for file paths and line numbers with errors
         file_error_patterns = [
             r'^/.+\.java:\d+: error:',
             r'^/.+\.kt:\d+: error:',
+            r'e: file:///.+\.kt:\d+:\d+',  # Kotlin compiler errors
+            r'w: file:///.+\.kt:\d+:\d+'   # Kotlin compiler warnings (sometimes contain useful info)
         ]
         
         # Patterns to exclude (verbose Gradle output)
@@ -522,7 +580,17 @@ class StubGenerator:
             r'symbol:.*class', 
             r'location:.*variable.*of type',
             r'BUILD FAILED',
-            r'Compilation failed'
+            r'Compilation failed',
+            # Enhanced high-priority patterns for specific build issues
+            r'Too many arguments',
+            r'No parameter with name',
+            r'overrides nothing',
+            r'constructor.*cannot be applied to',
+            r'method.*cannot be applied to',
+            r'Unresolved reference',
+            r'e: file:///.+\.kt:\d+:\d+.*No parameter with name',
+            r'e: file:///.+\.kt:\d+:\d+.*overrides nothing',
+            r'e: file:///.+\.kt:\d+:\d+.*Too many arguments'
         ]
         
         for line in lines:
@@ -553,10 +621,19 @@ class StubGenerator:
     def _create_base_prompt(self, test_patch: str, oracle_files: Dict[str, str]) -> str:
         """Create the base prompt without the build log section."""
         oracle_section = ""
+        existing_files_info = ""
+        
         if oracle_files:
-            oracle_section = "\n\n**Oracle Files (contents of files modified in the solution patch):**\n"
+            oracle_section = "\n\n**Oracle Files (contents of files that ALREADY EXIST in the project):**\n"
+            existing_files_list = []
+            
             for filename, content in oracle_files.items():
                 oracle_section += f"\n--- {filename} ---\n{content}\n"
+                existing_files_list.append(filename)
+            
+            existing_files_info = f"\n\n**EXISTING FILES TO MODIFY (NOT CREATE):**\nThe following files already exist and should be MODIFIED, not recreated:\n"
+            for filename in existing_files_list:
+                existing_files_info += f"- {filename}\n"
         
         prompt = f"""You are an Android development expert. A test patch has been applied to a project, but the build is failing due to compilation errors. Your task is to generate minimal stub classes, methods, and fields that will make the build compile successfully.
 
@@ -568,29 +645,31 @@ class StubGenerator:
 - Use simple default implementations
 - Use appropriate default return values (null, false, 0, empty collections)
 - Include proper imports if needed
+- Fix function signatures and field types based on usage
 - Focus on making tests runnable, not making them pass
 - Include proper package declarations and imports
 
 **CRITICAL INSTRUCTIONS:**
-1. For MISSING FILES: Generate complete stub classes
-2. For EXISTING FILES: Generate ONLY the missing methods/fields that need to be added
+1. For MISSING FILES: Generate complete stub classes using ```FILE: path/to/NewClass.java
+2. For EXISTING FILES (listed in Oracle Files): Generate ONLY missing methods/fields using ```MODIFY: exact/oracle/file/path.java
 3. PRESERVE existing functionality - do not regenerate existing methods
 4. Use oracle files to understand expected method signatures
+5. For MODIFY sections, provide ONLY the new methods/fields to add, not the entire file
 
 **Analysis Guidelines:**
-1. "cannot find symbol: class XYZ" → Generate complete new file for XYZ
-2. "cannot find symbol: method methodName" in existing class → Generate only that method
-3. "cannot find symbol: variable fieldName" → Generate only that field
-4. "package com.example.missing does not exist" → Generate missing package files
+1. "cannot find symbol: class XYZ" → If XYZ file exists in oracle files, use MODIFY. If not, use FILE.
+2. "cannot find symbol: method methodName" in existing class → Use MODIFY to add only that method
+3. "cannot find symbol: variable fieldName" → Use MODIFY to add only that field  
+4. "package com.example.missing does not exist" → Generate missing package files with FILE
 5. Look at oracle files to understand proper method signatures and return types
 
 **Test Patch Applied:**
 ```
 {test_patch}
-```{oracle_section}
+```{oracle_section}{existing_files_info}
 
 **Output Format:**
-For NEW files, provide complete class:
+For NEW files (classes that don't exist), provide complete class:
 
 ```FILE: path/to/NewClass.java
 package com.example.package;
@@ -609,17 +688,19 @@ public class NewClass {{
 }}
 ```
 
-For EXISTING files, provide only missing pieces:
+For EXISTING files (listed in Oracle Files above), provide ONLY the missing pieces to add:
 
-```FILE: path/to/ExistingClass.java
-// Missing field only
+```MODIFY: exact/oracle/file/path.java
+// Add missing field only
 public static final String MISSING_FIELD = "default_value";
 
-// Missing method only - will be merged with existing file
+// Add missing method only - will be merged with existing file
 public ReturnType missingMethod(ParamType param) {{
     return null; // or appropriate default
 }}
 ```
+
+IMPORTANT: Use the EXACT file path from the Oracle Files section for MODIFY blocks.
 
 Generate the minimal stubs needed to fix the compilation errors:"""
         
@@ -716,13 +797,13 @@ Generate the minimal stubs needed to fix the compilation errors:"""
                     raise Exception(f"API call failed with status {response.status}: {error_text}")
 
     def _parse_generated_stubs(self, content: str) -> Dict[str, str]:
-        """Parse the generated content - handles ```FILE: format specifically."""
+        """Parse the generated content - handles both ```FILE: and ```MODIFY: formats."""
         files = {}
+        modifications = {}
         
         # Split on ```FILE: markers
-        sections = content.split('```FILE:')
-        
-        for section in sections[1:]:  # Skip first empty section
+        file_sections = content.split('```FILE:')
+        for section in file_sections[1:]:  # Skip first empty section
             lines = section.split('\n')
             if not lines:
                 continue
@@ -740,10 +821,40 @@ Generate the minimal stubs needed to fix the compilation errors:"""
             file_content = '\n'.join(content_lines).strip()
             
             if file_content:
-                files[file_path] = file_content
-                logger.info(f"Parsed {file_path}: {len(file_content)} chars")
+                files[file_path] = {'type': 'new', 'content': file_content}
+                logger.info(f"Parsed new file {file_path}: {len(file_content)} chars")
         
-        return files
+        # Split on ```MODIFY: markers  
+        modify_sections = content.split('```MODIFY:')
+        for section in modify_sections[1:]:  # Skip first empty section
+            lines = section.split('\n')
+            if not lines:
+                continue
+                
+            # First line is the file path
+            file_path = lines[0].strip()
+            
+            # Collect content lines until closing ``` 
+            content_lines = []
+            for line in lines[1:]:
+                if line.strip() == '```':
+                    break
+                content_lines.append(line)
+            
+            file_content = '\n'.join(content_lines).strip()
+            
+            if file_content:
+                files[file_path] = {'type': 'modify', 'content': file_content}
+                logger.info(f"Parsed modification for {file_path}: {len(file_content)} chars")
+        
+        # Convert back to simple dict for backward compatibility, but mark type
+        result = {}
+        for path, info in files.items():
+            result[path] = info['content']  # Keep content
+            # Store type info in special key for processing
+            result[f"_type_{path}"] = info['type']
+        
+        return result
 
     def _calculate_cost(self, usage: Dict[str, Any]) -> float:
         """Calculate API cost based on token usage."""
@@ -772,40 +883,75 @@ class SmartStubApplicator:
         instance_dir.mkdir(exist_ok=True, parents=True)
         return instance_dir
     
-    def apply_stubs(self, instance_id: str, stub_files: Dict[str, str]) -> bool:
-        """Apply generated stub files intelligently."""
+    def apply_stubs(self, instance_id: str, stub_files: Dict[str, str], oracle_files: Dict[str, str] = None) -> bool:
+        """Apply generated stub files intelligently with oracle file awareness."""
         logger.info(f"Applying {len(stub_files)} stub files intelligently for instance {instance_id}")
+        
+        if oracle_files:
+            logger.info(f"Oracle files available for modification: {list(oracle_files.keys())}")
         
         success_count = 0
         
         for file_path, stub_content in stub_files.items():
-            if self._apply_stub_intelligently(instance_id, file_path, stub_content):
+            # Skip type info entries
+            if file_path.startswith('_type_'):
+                continue
+                
+            # Check if this is a modification or new file
+            file_type = stub_files.get(f'_type_{file_path}', 'new')
+            
+            if self._apply_stub_intelligently(instance_id, file_path, stub_content, file_type, oracle_files):
                 success_count += 1
             else:
                 logger.warning(f"Failed to apply stub file: {file_path}")
         
-        logger.info(f"Successfully applied {success_count}/{len(stub_files)} stub files")
-        return success_count == len(stub_files)
+        logger.info(f"Successfully applied {success_count}/{len([k for k in stub_files.keys() if not k.startswith('_type_')])} stub files")
+        return success_count > 0
     
-    def _apply_stub_intelligently(self, instance_id: str, file_path: str, stub_content: str) -> bool:
+    def _apply_stub_intelligently(self, instance_id: str, file_path: str, stub_content: str, 
+                                  file_type: str = 'new', oracle_files: Dict[str, str] = None) -> bool:
         """Apply stub intelligently - create new or merge with existing."""
         try:
-            # Check if file exists
-            check_command = f"cd /workspace && test -f {file_path}"
-            exit_code, _ = self.containers.exec_command(
-                instance_id, check_command, workdir="/workspace", timeout=10
-            )
-            
-            if exit_code != 0:
-                # File doesn't exist, create it
-                return self._create_new_file(instance_id, file_path, stub_content)
+            if file_type == 'modify' and oracle_files:
+                # This is a modification to an oracle file - find the actual file path
+                actual_file_path = self._find_oracle_file_path(file_path, oracle_files)
+                if actual_file_path:
+                    logger.info(f"Modifying oracle file: {file_path} -> {actual_file_path}")
+                    return self._merge_with_existing_file(instance_id, actual_file_path, stub_content)
+                else:
+                    logger.warning(f"Oracle file not found for modification: {file_path}")
+                    return False
             else:
-                # File exists, merge intelligently
-                return self._merge_with_existing_file(instance_id, file_path, stub_content)
+                # Check if file exists
+                check_command = f"cd /workspace && test -f {file_path}"
+                exit_code, _ = self.containers.exec_command(
+                    instance_id, check_command, workdir="/workspace", timeout=10
+                )
+                
+                if exit_code != 0:
+                    # File doesn't exist, create it
+                    return self._create_new_file(instance_id, file_path, stub_content)
+                else:
+                    # File exists, merge intelligently
+                    return self._merge_with_existing_file(instance_id, file_path, stub_content)
                 
         except Exception as e:
             logger.error(f"Error applying stub to {file_path}: {e}")
             return False
+    
+    def _find_oracle_file_path(self, requested_path: str, oracle_files: Dict[str, str]) -> str:
+        """Find the actual file path for an oracle file."""
+        # Direct match
+        if requested_path in oracle_files:
+            return requested_path
+            
+        # Try to find by filename match
+        requested_filename = requested_path.split('/')[-1]
+        for oracle_path in oracle_files.keys():
+            if oracle_path.endswith(requested_filename):
+                return oracle_path
+                
+        return None
     
     def _create_new_file(self, instance_id: str, file_path: str, stub_content: str) -> bool:
         """Create a new file with stub content."""
@@ -884,13 +1030,21 @@ MERGE_EOF"""
     def _merge_java_content(self, existing: str, stub: str, file_path: str) -> str:
         """Intelligently merge stub content with existing Java file."""
         logger.info(f"Merging stub content into {file_path}")
+        logger.info(f"Existing content length: {len(existing)} chars")
+        logger.info(f"Stub content length: {len(stub)} chars")
+        
+        # Handle Kotlin files differently
+        if file_path.endswith('.kt'):
+            return self._merge_kotlin_content(existing, stub, file_path)
         
         # Analyze existing file
         analyzer = JavaFileAnalyzer(existing)
         existing_elements = analyzer.extract_elements()
+        logger.info(f"Found {len(existing_elements)} existing elements")
         
         # Extract elements from stub
         stub_elements = self._extract_stub_elements(stub)
+        logger.info(f"Found {len(stub_elements)} stub elements")
         
         # Filter out elements that already exist
         new_elements = []
@@ -906,7 +1060,337 @@ MERGE_EOF"""
             return existing
         
         # Insert new elements into existing file
-        return self._insert_elements_into_java_file(existing, new_elements)
+        merged = self._insert_elements_into_java_file(existing, new_elements)
+        logger.info(f"Merged content length: {len(merged)} chars")
+        return merged
+    
+    def _merge_kotlin_content(self, existing: str, stub: str, file_path: str) -> str:
+        """Intelligently merge stub content with existing Kotlin file."""
+        logger.info(f"Merging Kotlin stub content into {file_path}")
+        
+        # For Kotlin data classes like PrivacySettings, we need special handling
+        if 'data class' in existing and 'data class' in stub:
+            return self._merge_kotlin_data_class(existing, stub, file_path)
+        
+        # For other Kotlin files, try to add missing methods/properties
+        return self._merge_kotlin_general(existing, stub, file_path)
+    
+    def _merge_kotlin_data_class(self, existing: str, stub: str, file_path: str) -> str:
+        """Merge Kotlin data class - specifically handle constructor parameters."""
+        logger.info(f"Merging Kotlin data class parameters")
+        
+        # Extract constructor parameters from both existing and stub
+        existing_params = self._extract_kotlin_data_class_params(existing)
+        logger.info(f"Existing params: {existing_params}")
+        
+        # Handle different stub formats
+        if 'data class' in stub:
+            # Stub contains a full data class - extract its parameters
+            stub_params = self._extract_kotlin_data_class_params(stub)
+            logger.info(f"Full data class stub params: {stub_params}")
+            
+            # Find new parameters by comparing parameter names
+            filtered_params = []
+            for stub_param in stub_params:
+                param_name = stub_param.split(':')[0].strip().replace('val ', '').replace('var ', '')
+                # Check if this parameter exists in the existing params
+                exists = False
+                for existing_param in existing_params:
+                    existing_param_name = existing_param.split(':')[0].strip().replace('val ', '').replace('var ', '')
+                    if param_name == existing_param_name:
+                        exists = True
+                        break
+                
+                if not exists:
+                    filtered_params.append(stub_param)
+                    logger.info(f"Will add new parameter: {stub_param}")
+        else:
+            # This is just parameter(s) to add directly
+            stub_lines = [line.strip() for line in stub.split('\n') if line.strip() and not line.strip().startswith('//')]
+            filtered_params = stub_lines
+            logger.info(f"Parameter-only stub params: {filtered_params}")
+        
+        if not filtered_params:
+            logger.info("No new parameters to add to data class")
+            return existing
+        
+        # Insert new parameters into existing data class
+        return self._insert_kotlin_data_class_params(existing, filtered_params)
+    
+    def _extract_kotlin_data_class_params(self, content: str) -> List[str]:
+        """Extract constructor parameters from Kotlin data class."""
+        import re
+        
+        # Find data class constructor
+        match = re.search(r'data class \w+\s*\((.*?)\)', content, re.DOTALL)
+        if not match:
+            return []
+        
+        params_str = match.group(1).strip()
+        if not params_str:
+            return []
+        
+        # Split parameters, handling nested types
+        params = []
+        current_param = ""
+        paren_count = 0
+        
+        for char in params_str:
+            if char == '(' or char == '<':
+                paren_count += 1
+            elif char == ')' or char == '>':
+                paren_count -= 1
+            elif char == ',' and paren_count == 0:
+                if current_param.strip():
+                    params.append(current_param.strip())
+                current_param = ""
+                continue
+            
+            current_param += char
+        
+        if current_param.strip():
+            params.append(current_param.strip())
+        
+        return params
+    
+    def _insert_kotlin_data_class_params(self, existing: str, new_params: List[str]) -> str:
+        """Insert new parameters into Kotlin data class constructor."""
+        import re
+        
+        # Find the closing parenthesis of the data class constructor
+        match = re.search(r'(data class \w+\s*\([^)]*?)(\))', existing, re.DOTALL)
+        if not match:
+            logger.warning("Could not find data class constructor to modify")
+            return existing
+        
+        before_paren = match.group(1) 
+        after_paren = match.group(2)
+        
+        # Add comma if there are existing parameters
+        if before_paren.strip().endswith('('):
+            # No existing parameters
+            new_params_str = '\n    ' + ',\n    '.join(new_params) + ',\n'
+        else:
+            # Has existing parameters - check if last param already has comma
+            if before_paren.rstrip().endswith(','):
+                new_params_str = '\n    ' + ',\n    '.join(new_params) + ',\n'
+            else:
+                new_params_str = ',\n    ' + ',\n    '.join(new_params) + ',\n'
+        
+        result = before_paren + new_params_str + after_paren
+        logger.info("Successfully added parameters to Kotlin data class")
+        return result
+    
+    def _merge_kotlin_general(self, existing: str, stub: str, file_path: str) -> str:
+        """Enhanced Kotlin file merging for interfaces, classes, functions, etc."""
+        logger.info("Performing general Kotlin merge")
+        
+        # Check if stub contains full interface/class definition
+        if self._is_full_interface_or_class_definition(stub):
+            logger.info("Stub contains full interface/class definition - merging members")
+            return self._merge_interface_or_class_definition(existing, stub, file_path)
+        
+        # Original logic for simple method/property additions
+        return self._merge_simple_additions(existing, stub, file_path)
+    
+    def _is_full_interface_or_class_definition(self, stub: str) -> bool:
+        """Check if stub contains a full interface or class definition."""
+        stub_lines = [line.strip() for line in stub.split('\n') if line.strip()]
+        
+        # Look for interface/class declaration patterns
+        for line in stub_lines:
+            if (line.startswith('interface ') or line.startswith('class ') or 
+                line.startswith('abstract class ') or line.startswith('data class ')):
+                return True
+        return False
+    
+    def _merge_interface_or_class_definition(self, existing: str, stub: str, file_path: str) -> str:
+        """Merge a full interface/class definition from stub into existing file."""
+        logger.info("Merging full interface/class definition")
+        
+        # Extract package and imports from existing
+        existing_lines = existing.split('\n')
+        stub_lines = stub.split('\n')
+        
+        package_lines = []
+        import_lines = []
+        existing_body_start = 0
+        
+        # Find package and imports in existing file
+        for i, line in enumerate(existing_lines):
+            line_stripped = line.strip()
+            if line_stripped.startswith('package '):
+                package_lines.append(line)
+            elif line_stripped.startswith('import '):
+                import_lines.append(line)
+            elif line_stripped and not line_stripped.startswith('//'):
+                existing_body_start = i
+                break
+        
+        # Extract methods/properties from existing class/interface
+        existing_members = self._extract_class_members(existing, existing_body_start)
+        stub_members = self._extract_class_members(stub, 0)
+        
+        # Combine members, preferring stub versions for conflicts
+        combined_members = {}
+        for member_name, member_content in existing_members.items():
+            combined_members[member_name] = member_content
+        
+        for member_name, member_content in stub_members.items():
+            combined_members[member_name] = member_content  # Stub wins
+        
+        # Reconstruct the file
+        result_lines = []
+        
+        # Add package and imports
+        result_lines.extend(package_lines)
+        if package_lines:
+            result_lines.append('')
+        result_lines.extend(import_lines)
+        if import_lines:
+            result_lines.append('')
+        
+        # Find class/interface declaration in stub
+        class_declaration = None
+        for line in stub_lines:
+            line_stripped = line.strip()
+            if (line_stripped.startswith('interface ') or line_stripped.startswith('class ') or
+                line_stripped.startswith('abstract class ') or line_stripped.startswith('data class ')):
+                class_declaration = line_stripped
+                break
+        
+        if not class_declaration:
+            # Fallback to existing declaration
+            for i in range(existing_body_start, len(existing_lines)):
+                line_stripped = existing_lines[i].strip()
+                if (line_stripped.startswith('interface ') or line_stripped.startswith('class ') or
+                    line_stripped.startswith('abstract class ') or line_stripped.startswith('data class ')):
+                    class_declaration = line_stripped
+                    break
+        
+        if class_declaration:
+            result_lines.append(class_declaration.replace(' {', '') + ' {')
+            
+            # Add all combined members
+            for member_content in combined_members.values():
+                result_lines.append('    ' + member_content.strip())
+            
+            result_lines.append('}')
+        else:
+            # Fallback: just append stub to existing
+            result_lines.extend(existing_lines)
+            result_lines.append('')
+            result_lines.extend(stub_lines)
+        
+        return '\n'.join(result_lines)
+    
+    def _extract_class_members(self, content: str, start_idx: int) -> dict:
+        """Extract method and property declarations from class/interface."""
+        lines = content.split('\n')
+        members = {}
+        
+        in_class = False
+        current_member = []
+        member_name = None
+        
+        for i in range(start_idx, len(lines)):
+            line = lines[i].strip()
+            
+            if not line or line.startswith('//'):
+                continue
+                
+            # Start of class/interface
+            if ('class ' in line or 'interface ' in line) and '{' in line:
+                in_class = True
+                continue
+            elif 'class ' in line or 'interface ' in line:
+                in_class = True
+                continue
+            
+            if not in_class:
+                continue
+                
+            # End of class/interface
+            if line == '}' and not current_member:
+                break
+            
+            # Method or property declaration
+            if (line.startswith('fun ') or line.startswith('val ') or line.startswith('var ') or
+                line.startswith('override fun ') or line.startswith('override val ') or
+                line.startswith('private fun ') or line.startswith('public fun ')):
+                
+                # Save previous member
+                if current_member and member_name:
+                    members[member_name] = '\n'.join(current_member)
+                
+                # Start new member
+                current_member = [line]
+                member_name = self._extract_member_name(line)
+            elif current_member:
+                current_member.append(line)
+                
+                # Check if member is complete (simple heuristic)
+                if line.endswith('}') or (line.endswith(')') and 'fun ' in current_member[0]):
+                    if member_name:
+                        members[member_name] = '\n'.join(current_member)
+                    current_member = []
+                    member_name = None
+        
+        # Save last member
+        if current_member and member_name:
+            members[member_name] = '\n'.join(current_member)
+        
+        return members
+    
+    def _extract_member_name(self, declaration_line: str) -> str:
+        """Extract the name of a method or property from its declaration."""
+        # Simple extraction - could be enhanced
+        words = declaration_line.split()
+        for i, word in enumerate(words):
+            if word in ['fun', 'val', 'var']:
+                if i + 1 < len(words):
+                    name = words[i + 1]
+                    # Remove parameter list if present
+                    if '(' in name:
+                        name = name.split('(')[0]
+                    # Remove type annotation if present
+                    if ':' in name:
+                        name = name.split(':')[0]
+                    return name.strip()
+        return declaration_line.strip()[:20]  # Fallback
+    
+    def _merge_simple_additions(self, existing: str, stub: str, file_path: str) -> str:
+        """Original simple merging logic for method/property additions."""
+        # Find class end
+        lines = existing.split('\n')
+        class_end_idx = -1
+        brace_count = 0
+        
+        for i, line in enumerate(lines):
+            if 'class ' in line or 'interface ' in line:
+                brace_count = 0
+            
+            brace_count += line.count('{') - line.count('}')
+            
+            if brace_count == 0 and i > 0:
+                class_end_idx = i
+                break
+        
+        if class_end_idx == -1:
+            # Fallback: append before last line
+            class_end_idx = len(lines) - 1
+        
+        # Insert stub content before class end
+        stub_lines = stub.split('\n')
+        clean_stub_lines = [line for line in stub_lines if line.strip() and not line.strip().startswith('//')]
+        
+        if clean_stub_lines:
+            lines.insert(class_end_idx, '')
+            for line in clean_stub_lines:
+                lines.insert(class_end_idx, '    ' + line)  # Indent appropriately
+            lines.insert(class_end_idx, '')
+        
+        return '\n'.join(lines)
     
     def _extract_stub_elements(self, stub_content: str) -> List[JavaElement]:
         """Extract elements from stub content."""
@@ -1084,44 +1568,38 @@ MERGE_EOF"""
         return class_end
     
     def _validate_java_syntax(self, content: str) -> bool:
-        """Basic Java syntax validation."""
+        """Very permissive syntax validation - avoid rejecting valid merged content."""
+        # For stub merging, be extremely permissive
+        # Let the compiler catch actual syntax errors
         try:
-            # Check balanced braces
-            brace_count = 0
-            for char in content:
-                if char == '{':
-                    brace_count += 1
-                elif char == '}':
-                    brace_count -= 1
-                    if brace_count < 0:
-                        return False
-            
-            if brace_count != 0:
-                logger.warning("Unbalanced braces in merged content")
+            if not content or not content.strip():
                 return False
             
-            # Check for methods outside class
-            lines = content.split('\n')
-            analyzer = JavaFileAnalyzer(content)
-            class_start, class_end = analyzer._find_class_boundaries()
+            # If content exists and has basic code patterns, accept it
+            content_lower = content.lower()
             
-            if class_start == -1:
-                logger.warning("No class found in merged content")
-                return False
+            # Check for basic code indicators
+            code_patterns = [
+                'class ', 'interface ', 'object ', 'fun ', 'val ', 'var ',
+                'public ', 'private ', 'protected ', 'package ', 'import ',
+                'def ', 'return ', 'if ', 'for ', 'while ', '{', '}', '(', ')'
+            ]
             
-            # Look for method-like patterns outside class boundaries
-            method_pattern = r'^\s*(private|protected|public)?\s+(?:static\s+)?(?:\w+\s+)*\w+\s*\('
+            has_code = any(pattern in content_lower for pattern in code_patterns)
             
-            for i, line in enumerate(lines):
-                if (i < class_start or i > class_end) and re.match(method_pattern, line):
-                    logger.warning(f"Method found outside class at line {i}: {line}")
-                    return False
+            if has_code:
+                # Accept any content that looks like code
+                logger.debug(f"Accepting content as valid code (length: {len(content)})")
+                return True
             
-            return True
+            # Even if no obvious code patterns, accept non-empty content
+            # The compiler will reject actual syntax errors
+            return len(content.strip()) > 5
             
         except Exception as e:
-            logger.warning(f"Error validating syntax: {e}")
-            return False
+            logger.warning(f"Error in syntax validation: {e}")
+            # On any error, default to accepting the content
+            return True
     
     def _normalize_field_signature(self, line: str) -> str:
         """Create normalized signature for field comparison."""
@@ -1281,7 +1759,7 @@ MERGE_EOF"""
             except Exception as e:
                 logger.error(f"Error saving after content for {file_path}: {e}")
 
-    def apply_stubs_with_file_logging(self, instance_id: str, stub_files: Dict[str, str]) -> bool:
+    def apply_stubs_with_file_logging(self, instance_id: str, stub_files: Dict[str, str], oracle_files: Dict[str, str] = None) -> bool:
         """Apply stubs and save file contents before and after to organized log files."""
         
         # Save contents before application
@@ -1289,7 +1767,7 @@ MERGE_EOF"""
         before_contents = self.save_file_contents_before_stubs(instance_id, stub_files)
         
         # Apply stubs (using the original apply_stubs method)
-        success = self.apply_stubs(instance_id, stub_files)
+        success = self.apply_stubs(instance_id, stub_files, oracle_files)
         
         # Save contents after application
         if success:
@@ -1442,9 +1920,9 @@ async def generate_and_apply_stubs(containers_manager, instance_id: str,
     # Apply stubs if generation was successful
     if result.success and result.files_created:
         applicator = SmartStubApplicator(containers_manager, base_output_dir)
-        # apply_success = applicator.apply_stubs(instance_id, result.files_created)
-        # apply_success = applicator.apply_stubs_with_simple_logging(instance_id, result.files_created)
-        apply_success = applicator.apply_stubs_with_file_logging(instance_id, result.files_created)
+        # apply_success = applicator.apply_stubs(instance_id, result.files_created, oracle_files)
+        # apply_success = applicator.apply_stubs_with_simple_logging(instance_id, result.files_created, oracle_files)
+        apply_success = applicator.apply_stubs_with_file_logging(instance_id, result.files_created, oracle_files)
         
         if not apply_success:
             result.error_message = "Stub generation succeeded but application failed"

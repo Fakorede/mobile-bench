@@ -183,3 +183,201 @@ All test cases:
 
 
 
+
+ANTENNAPOD
+
+success
+7815 - patch application failed
+7581 - patch application failed
+7537 - test execution failed
+7060 - 
+6739 - patch application failed
+7215 (no f2p)
+6529 (no f2p)
+6530 (no f2p)
+7098 (no f2p)
+6147 (no f2p)
+6057 (no f2p)
+5872 (no f2p)
+5644 (no f2p)
+
+
+persistent compilation error
+6808
+6659
+6573
+6358
+6266
+6210
+6153
+5886
+5751
+
+instrumented test
+7713
+7192
+7176
+7096
+7011
+6434
+6403
+6400
+6384
+6328
+6286
+6276
+6236
+6095
+6041
+6001
+5726
+7159
+
+no test
+7730
+6652
+6333
+6029
+5835
+
+git issue
+7103
+6852
+
+error generating stubs
+6420 (Final prompt size: 718228 chars (~179557 tokens), 60 oracle files, Base prompt tokens: ~179131 => limit to about 150k)
+
+failed to apply patch
+5679
+
+
+9+5+8+18
+
+
+
+Re-RUN
+9481 (remove impl-legacy module from test command)
+
+
+
+
+COMPILATION ERRORS
+
+
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/helper/MessageHelperTest.kt:70:21 No parameter with name 'isHideUserAgent' found.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/message/quote/QuoteDateFormatterTest.kt:35:13 No parameter with name 'isHideUserAgent' found.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/AuthenticationErrorNotificationControllerTest.kt:154:25 No parameter with name 'isHideUserAgent' found.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/CertificateErrorNotificationControllerTest.kt:154:21 No parameter with name 'isHideUserAgent' found.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/NewMailNotificationManagerTest.kt:84:25 No parameter with name 'isHideUserAgent' found.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/NotificationContentCreatorTest.kt:180:25 No parameter with name 'isHideUserAgent' found.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/SendFailedNotificationControllerTest.kt:71:21 No parameter with name 'isHideUserAgent' found.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/SummaryNotificationDataCreatorTest.kt:63:13 No parameter with name 'isHideUserAgent' found.
+
+e: file:///workspace/legacy/ui/legacy/src/test/java/com/fsck/k9/message/PgpMessageBuilderTest.kt:784:17 Too many arguments for 'constructor(p0: MessageIdGenerator!, p1: BoundaryGenerator!, p2: AutocryptOperations!, p3: AutocryptOpenPgpApiInteractor!, p4: CoreResourceProvider!): PgpMessageBuilder'.
+e: file:///workspace/legacy/ui/legacy/src/test/java/com/fsck/k9/message/PgpMessageBuilderTest.kt:873:43 No parameter with name 'isHideUserAgent' found.
+e: file:///workspace/legacy/ui/legacy/src/test/java/com/fsck/k9/message/PgpMessageBuilderTest.kt:946:13 'setIsHideUserAgent' overrides nothing.
+
+
+
+Configuration cache entry stored.
+e: file:///workspace/core/preference/impl/src/commonMain/kotlin/net/thunderbird/core/preference/privacy/DefaultPrivacySettingsPreferenceManager.kt:68:46 Unresolved reference 'KEY_HIDE_USER_AGENT'.
+e: file:///workspace/core/preference/impl/src/commonMain/kotlin/net/thunderbird/core/preference/privacy/DefaultPrivacySettingsPreferenceManager.kt:75:42 Unresolved reference 'KEY_HIDE_USER_AGENT'.
+
+
+Configuration cache entry reused.
+e: file:///workspace/core/preference/api/src/commonMain/kotlin/net/thunderbird/core/preference/privacy/PrivacySettings.kt:5:9 Conflicting declarations:
+isHideUserAgent: Boolean
+isHideUserAgent: Boolean = ...
+e: file:///workspace/core/preference/api/src/commonMain/kotlin/net/thunderbird/core/preference/privacy/PrivacySettings.kt:5:9 Conflicting declarations:
+val isHideUserAgent: Boolean
+e: file:///workspace/core/preference/api/src/commonMain/kotlin/net/thunderbird/core/preference/privacy/PrivacySettings.kt:6:9 Conflicting declarations:
+isHideUserAgent: Boolean
+isHideUserAgent: Boolean = ...
+e: file:///workspace/core/preference/api/src/commonMain/kotlin/net/thunderbird/core/preference/privacy/PrivacySettings.kt:6:9 Conflicting declarations:
+val isHideUserAgent: Boolean
+e: file:///workspace/core/preference/api/src/commonMain/kotlin/net/thunderbird/core/preference/privacy/PrivacySettingsManager.kt:8:5 Conflicting overloads:
+fun setIsHideUserAgent(isHideUserAgent: Boolean): Unit
+e: file:///workspace/core/preference/api/src/commonMain/kotlin/net/thunderbird/core/preference/privacy/PrivacySettingsManager.kt:9:5 Conflicting overloads:
+fun setIsHideUserAgent(isHideUserAgent: Boolean): Unit
+
+
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/helper/MessageHelperTest.kt:68:43 No value passed for parameter 'isHideUserAgent'.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/message/quote/QuoteDateFormatterTest.kt:33:35 No value passed for parameter 'isHideUserAgent'.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/AuthenticationErrorNotificationControllerTest.kt:152:47 No value passed for parameter 'isHideUserAgent'.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/CertificateErrorNotificationControllerTest.kt:152:43 No value passed for parameter 'isHideUserAgent'.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/NewMailNotificationManagerTest.kt:82:47 No value passed for parameter 'isHideUserAgent'.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/NotificationContentCreatorTest.kt:178:47 No value passed for parameter 'isHideUserAgent'.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/SendFailedNotificationControllerTest.kt:69:43 No value passed for parameter 'isHideUserAgent'.
+e: file:///workspace/legacy/core/src/test/java/com/fsck/k9/notification/SummaryNotificationDataCreatorTest.kt:61:35 No value passed for parameter 'isHideUserAgent'.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: [1] Wrote GeneratedAppGlideModule with: [com.fsck.k9.contacts.ContactPictureGlideModule]
+e: file:///workspace/legacy/ui/legacy/src/test/java/com/fsck/k9/message/PgpMessageBuilderTest.kt:776:17 No value passed for parameter 'p5'.
+
+
+
+The patch generation system needs:
+
+Better dependency analysis - when changing constructors, find and update all callers
+Improved patch validation - detect malformed patches before application
+Interface consistency checking - ensure access modifiers allow required usage
+More comprehensive context - provide the LLM with more information about dependent files
+
+
+Conflict Prevention Strategy
+Intelligent Conflict Detection:
+
+Parse first pass patches to understand existing modifications
+Extract identifiers (properties, methods, classes) from both passes
+Filter conflicting patches before application
+Prevent internal duplicates within single patches
+Enhanced Second Pass Prompting:
+
+Explicit conflict avoidance instructions
+Error-specific strategies for different types of compilation issues
+Step-by-step analysis process before patch generation
+Key Strategy Points:
+
+Analyze First - Examine what was already changed
+Avoid Duplicates - Never add existing properties/methods/classes
+Check Conflicts - Look for "Conflicting declarations" errors
+Complement Changes - Add only missing pieces
+Verify Before Apply - Filter patches that would create conflicts
+
+
+
+
+
+2025-09-10 22:35:33,022 - patch_based_stub_generator - INFO - Parsed 16 modifications in core/preference/impl/src/commonMain/kotlin/net/thunderbird/core/preference/privacy/DefaultPrivacySettingsPreferenceManager.kt.orig: {'mutex', 'ioDispatcher', 'KEY_HIDE_TIME_ZONE', 'getConfig', 'changeBroker', 'save', 'loadConfig', 'storageEditor', 'getConfigFlow', 'writeConfig', 'asSettingsFlow', 'DefaultPrivacySettingsPreferenceManager', 'configState', 'subscriber', 'storage', 'scope'}
+2025-09-10 22:35:33,022 - patch_based_stub_generator - INFO - Parsed 1 modifications in feature/mail/message/list/src/test/kotlin/net/thunderbird/feature/mail/message/list/domain/usecase/BuildSwipeActionsTest.kt: {'setIsHideUserAgent'}
+2025-09-10 22:35:33,022 - patch_based_stub_generator - INFO - Parsed 54 modifications in feature/mail/message/list/src/test/kotlin/net/thunderbird/feature/mail/message/list/domain/usecase/BuildSwipeActionsTest.kt.orig: {'uuidPop3', 'setIsShowContactPicture', 'setIsHideUserAgent', 'testSubject', 'setQuietTimeStarts', 'accountManagerUuids', 'setIsChangeContactNameColor', 'FakeGeneralSettingsManager', 'setMessageViewTheme', 'getBoolean', 'uuids', 'uuid', 'values', 'getAll', 'getString', 'getStringOrDefault', 'getStringOrNull', 'setIsShowCorrespondentNames', 'uuidWithoutArchiveFolder', 'setIsShowUnifiedInbox', 'setIsShowAnimations', 'generalSettings', 'privacySettingsManager', 'setAppTheme', 'setIsColorizeMissingContactPictures', 'setIsUseBackgroundAsUnreadIndicator', 'setQuietTimeEnds', 'setIsThreadedViewEnabled', 'setMessageComposeTheme', 'getInt', 'setIsShowContactName', 'BuildSwipeActionsTest', 'setIsUseMessageViewFixedWidthFont', 'getLong', 'getSettingsFlow', 'setIsHideTimeZone', 'setIsShowStarredCount', 'defaultGeneralSettings', 'uuidWithArchiveFolder', 'setSetupArchiveShouldNotShowAgain', 'setIsMessageListSenderAboveSubject', 'setIsShowComposeButtonOnMessageList', 'setIsAutoFitWidth', 'FakeStorage', 'isEmpty', 'createTestSubject', 'setIsQuietTimeEnabled', 'setFixedMessageViewTheme', 'actions', 'setIsShowMessageListStars', 'contains', 'accountsSize', 'getSettings', 'setShowRecentChanges'}
+2025-09-10 22:35:33,022 - patch_based_stub_generator - INFO - Parsed 4 modifications in feature/mail/message/list/src/test/kotlin/net/thunderbird/feature/mail/message/list/domain/usecase/BuildSwipeActionsTest.kt.rej: {'FakeGeneralSettingsManager', 'setIsHideTimeZone', 'setIsHideUserAgent', 'FakeStorage'}
+2025-09-10 22:35:33,022 - patch_based_stub_generator - INFO - Parsed 1 modifications in legacy/core/src/main/java/com/fsck/k9/message/MessageBuilder.java: {'generalSettingsManager'}
+2025-09-10 22:35:33,022 - patch_based_stub_generator - INFO - Parsed 1 modifications in legacy/ui/legacy/src/test/java/com/fsck/k9/message/PgpMessageBuilderTest.kt: {'setIsHideUserAgent'}
+2025-09-10 22:35:33,023 - patch_based_stub_generator - INFO - Parsed 93 modifications in legacy/ui/legacy/src/test/java/com/fsck/k9/message/PgpMessageBuilderTest.kt.orig: {'defaultCryptoStatus', 'returnIntent', 'buildSignWithAttach__withInlineEnabled__shouldThrow', 'setIsShowContactPicture', 'setIsHideUserAgent', 'buildEncryptWithAttach__withInlineEnabled__shouldThrow', 'intentExtra', 'setIsChangeContactNameColor', 'mockCallback', 'captor', 'mockReturnIntent', 'buildSign__withNoDetachedSignatureExtra__shouldFail', 'buildSign__withDetachedSignatureInResult__shouldSucceed', 'buildSign__withNoDetachedSignatureInResult__shouldThrow', 'buildEncrypt__checkGossip', 'buildEncrypt__draftWithoutRecipients', 'buildDraft_replyToEncrypted', 'expectedIntent', 'piCaptor', 'AUTOCRYPT_KEY_MATERIAL', 'message', 'fakeGeneralSettingsManager', 'setIsShowAnimations', 'returnIntentSigned', 'pgpMessageBuilder', 'expectedApiIntent', 'setAppTheme', 'pendingIntent', 'setQuietTimeEnds', 'setIsThreadedViewEnabled', 'buildDraft', 'setMessageComposeTheme', 'setIsShowContactName', 'setIsUseMessageViewFixedWidthFont', 'buildEncrypt__checkGossip__filterBcc', 'getSettingsFlow', 'capturedApiIntent', 'SENDER_EMAIL', 'identity', 'buildOpportunisticEncrypt__withNoKeysAndNoSignOnly__shouldNotBeSigned', 'setSetupArchiveShouldNotShowAgain', 'setIsMessageListSenderAboveSubject', 'name', 'PgpMessageBuilderTest', 'buildDraft_encrypt', 'openPgpApi', 'privacySettings', 'setIsQuietTimeEnabled', 'autocryptOpenPgpApiInteractor', 'setFixedMessageViewTheme', 'setIsShowMessageListStars', 'rcCaptor', 'getSettings', 'mimeMessageCaptor', 'createDefaultPgpMessageBuilder', 'buildDraft_sign', 'returnedRequestCode', 'buildMessage', 'TEST_MESSAGE_TEXT', 'builder', 'setQuietTimeStarts', 'resourceProvider', 'mimeMessage', 'setMessageViewTheme', 'buildEncrypt__shouldSucceed', 'Assert', 'buildCleartext__withNoSigningKey__shouldBuildTrivialMessage', 'expectedExtra', 'setIsShowCorrespondentNames', 'setIsShowUnifiedInbox', 'build__withCryptoProviderUninitialized__shouldThrow', 'buildCleartext__shouldSucceed', 'build__withCryptoProviderUnconfigured__shouldThrow', 'setIsColorizeMissingContactPictures', 'setIsUseBackgroundAsUnreadIndicator', 'buildSign__withReturnAfterUserInteraction__shouldSucceed', 'TEST_KEY_ID', 'setIsHideTimeZone', 'setIsShowStarredCount', 'cryptoStatus', 'expectedExtras', 'intentExtras', 'setUp', 'setIsShowComposeButtonOnMessageList', 'setIsAutoFitWidth', 'buildEncrypt__withInlineEnabled__shouldSucceed', 'build__withCryptoProviderError__shouldThrow', 'buildEncrypt__checkGossip__filterBccSingleRecipient', 'buildSign__withUserInteractionResult__shouldReturnUserInteraction', 'mockPendingIntent', 'setShowRecentChanges', 'buildEncrypt__withoutRecipients__shouldThrow', 'buildSign__withInlineEnabled__shouldSucceed'}
+2025-09-10 22:35:33,023 - patch_based_stub_generator - INFO - Parsed 4 modifications in legacy/ui/legacy/src/test/java/com/fsck/k9/message/PgpMessageBuilderTest.kt.rej: {'setIsHideUserAgent', 'setIsHideTimeZone', 'PgpMessageBuilderTest', 'privacySettings'}
+2025-09-10 22:35:33,023 - patch_based_stub_generator - INFO - Found existing modifications in 13 files
+2025-09-10 22:35:33,023 - patch_based_stub_generator - INFO - ✅ Approved patch for legacy/core/src/main/java/com/fsck/k9/message/SimpleMessageBuilder.java
+2025-09-10 22:35:33,023 - patch_based_stub_generator - WARNING - ❌ Filtering out patch for already modified file: legacy/core/src/main/java/com/fsck/k9/message/MessageBuilder.java (matches legacy/core/src/main/java/com/fsck/k9/message/MessageBuilder.java)
+2025-09-10 22:35:33,024 - patch_based_stub_generator - INFO - ✅ Approved patch for core/preference/api/src/commonMain/kotlin/net/thunderbird/core/preference/GeneralSettings.kt
+2025-09-10 22:35:33,024 - patch_based_stub_generator - WARNING - Detected identifier conflicts in core/preference/api/src/commonMain/kotlin/net/thunderbird/core/preference/privacy/PrivacySettings.kt: {'isHideUserAgent'}
+2025-09-10 22:35:33,024 - patch_based_stub_generator - WARNING - ❌ Filtering out conflicting patch for core/preference/api/src/commonMain/kotlin/net/thunderbird/core/preference/privacy/PrivacySettings.kt
+2025-09-10 22:35:33,024 - patch_based_stub_generator - INFO - Conflict analysis complete: 4 → 2 patches
+2025-09-10 22:35:33,024 - patch_based_stub_generator - INFO - Additive second pass: Filtered to 2 non-conflicting patches
+2025-09-10 22:35:33,297 - patch_based_stub_generator - INFO - Successfully applied patch to legacy/core/src/main/java/com/fsck/k9/message/SimpleMessageBuilder.java
+2025-09-10 22:35:33,410 - patch_based_stub_generator - INFO - Successfully applied patch to core/preference/api/src/commonMain/kotlin/net/thunderbird/core/preference/GeneralSettings.kt
+2025-09-10 22:35:33,410 - patch_based_stub_generator - INFO - Successfully applied patches to 2 files
+2025-09-10 22:35:33,410 - patch_based_stub_generator - INFO - Additive second pass: Successfully applied 2 patches
+2025-09-10 22:36:37,813 - patch_based_stub_generator - INFO - Saved gradle output (failure) to: validation_results/thunderbird__thunderbird-android-9423/compilation_logs/gradle_failure_20250910_223637.log
+2025-09-10 22:36:37,813 - patch_based_stub_generator - WARNING - Compilation failed after patch application (exit_code: 1)
+2025-09-10 22:36:37,813 - patch_based_stub_generator - WARNING - Second pass failed - rolling back to first pass state
+2025-09-10 22:36:38,061 - patch_based_stub_generator - INFO - Successfully reset to checkpoint: after_first_pass
+2025-09-10 22:36:38,062 - patch_based_stub_integration - WARNING - Patch-based stub generation failed for thunderbird__thunderbird-android-9423: Patch application or compilation failed. Compilation output:
+
+
+
+./gradlew compileDebugSources
+
+
+
+

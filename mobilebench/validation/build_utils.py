@@ -6,6 +6,7 @@ This module handles gradle test execution for Android validation.
 """
 
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Optional, List, Set, Dict, Any
@@ -22,6 +23,7 @@ class BuildResult:
     output: str
     duration: float
     log_file_path: Optional[str] = None
+    gradle_command: Optional[str] = None
 
 
 class AndroidBuildManager:
@@ -57,7 +59,8 @@ class AndroidBuildManager:
         return False
 
     def run_tests_for_instance(self, containers_manager, instance_id: str, 
-                              timeout: int = 600, test_patch: str = None) -> BuildResult:
+                              timeout: int = 600, test_patch: str = None, 
+                              phase: str = "UNKNOWN") -> BuildResult:
         """
         Run tests for the Android project. Only runs tests, no building or compilation.
         
@@ -80,7 +83,8 @@ class AndroidBuildManager:
                 success=True,
                 exit_code=0,
                 output="No test patch provided - no tests to run",
-                duration=time.time() - start_time
+                duration=time.time() - start_time,
+                gradle_command=None
             )
         
         # Extract test files from patch
@@ -91,7 +95,8 @@ class AndroidBuildManager:
                 success=True,
                 exit_code=0,
                 output="No test files found in patch - no tests to run",
-                duration=time.time() - start_time
+                duration=time.time() - start_time,
+                gradle_command=None
             )
         
         logger.info(f"[{instance_id}] Found {len(test_files)} test files - running targeted tests")
@@ -110,7 +115,8 @@ class AndroidBuildManager:
                 success=True,
                 exit_code=0,
                 output="Could not generate test tasks - no tests to run",
-                duration=time.time() - start_time
+                duration=time.time() - start_time,
+                gradle_command=None
             )
         
         logger.info(f"[{instance_id}] Generated test tasks: {test_tasks}")
@@ -122,8 +128,9 @@ class AndroidBuildManager:
         # Execute the tests
         test_command = f"""
 cd /workspace &&
-echo "=== Starting Test-Only Execution ===" &&
+echo "=== Starting Test-Only Execution - PHASE: {phase} ===" &&
 echo "Instance ID: {instance_id}" &&
+echo "Test Phase: {phase}" &&
 echo "Working directory: $(pwd)" &&
 
 # Java version detection
@@ -182,17 +189,18 @@ echo "Exit code: $?"
                 "test_files_found": test_files,
                 "build_variants": build_variants
             }
-            
+
             log_file = self._save_test_log(instance_id, 
-                                         BuildResult(success, exit_code, output, duration),
-                                         command_info)
+                                         BuildResult(success, exit_code, output, duration, gradle_command=gradle_command),
+                                         command_info, phase)
             
             return BuildResult(
                 success=success,
                 exit_code=exit_code,
                 output=output,
                 duration=duration,
-                log_file_path=log_file
+                log_file_path=log_file,
+                gradle_command=gradle_command
             )
             
         except Exception as e:
@@ -204,12 +212,14 @@ echo "Exit code: $?"
                 success=False,
                 exit_code=1,
                 output=error_output,
-                duration=duration
+                duration=duration,
+                gradle_command=None
             )
 
     def _detect_build_variants(self, containers_manager, instance_id: str, target_modules: List[str] = None) -> Dict[str, Any]:
         """
         Detect build variants, flavors, and configurations from the project.
+        Uses faster detection with fallbacks to avoid timeouts.
         """
         variants_info = {
             "flavors": ["debug"],  # Default
@@ -226,36 +236,91 @@ echo "Exit code: $?"
             all_test_tasks = []
             module_variants = {}
 
-            # Query each target module
+            # First, try a fast approach - check if build.gradle files exist to infer variants
             for module in modules_to_query:
                 logger.info(f"[{instance_id}]: Detecting build variants for module: {module}")
-
-                gradle_info_command = f"""
-    cd /workspace &&
-    if [ -f './gradlew' ]; then
-        timeout 60 ./gradlew {module}:tasks --group=verification --quiet 2>/dev/null || \
-        timeout 60 ./gradlew tasks --group=verification --quiet 2>/dev/null || \
-        echo "Could not get task info for {module}"
+                
+                # Convert module to path
+                module_path = module.replace(':', '/') if module.startswith(':') else module
+                if module_path.startswith('/'):
+                    module_path = module_path[1:]  # Remove leading slash
+                
+                # Try fast variant detection first by checking build files
+                build_check_command = f"""
+cd /workspace &&
+# Check if module has foss/full flavors by looking at build files
+if [ -d "{module_path}" ]; then
+    # Check for flavor-specific configurations
+    if grep -r "foss\\|full" {module_path}/build.gradle* {module_path}/src/ 2>/dev/null | head -5; then
+        echo "HAS_FLAVORS=true"
+    else
+        echo "HAS_FLAVORS=false"
     fi
-    """
+    echo "MODULE_EXISTS=true"
+else
+    echo "MODULE_EXISTS=false"
+fi
+"""
                 
                 exit_code, output = containers_manager.exec_command(
-                    instance_id, gradle_info_command, workdir="/workspace", timeout=90
+                    instance_id, build_check_command, workdir="/workspace", timeout=30
                 )
                 
-                if exit_code == 0 and output:
-                    # Parse tasks for this module
-                    module_tasks = []
-                    for line in output.split('\n'):
-                        if 'test' in line.lower() and ('unittest' in line.lower() or 'debug' in line.lower()):
-                            task_name = line.strip().split()[0] if line.strip() else ""
-                            if task_name and ':' not in task_name:
-                                module_tasks.append(task_name)
+                # Apply module-specific variant selection rules
+                module_tasks = []
+                
+                # Apply hardcoded rules based on module patterns
+                if module in [":app-thunderbird", ":app-k9mail"]:
+                    # App modules use foss flavors
+                    module_tasks = [
+                        "testFossDebugUnitTest",
+                        "testFullDebugUnitTest", 
+                        "testFossReleaseUnitTest",
+                        "testFullReleaseUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for foss flavors - using foss/full variants")
+                elif module.startswith(":feature:") or module == ":legacy:core":
+                    # Feature modules and legacy:core use simple variants
+                    module_tasks = [
+                        "testDebugUnitTest",
+                        "testReleaseUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for simple variants - using debug/release variants")
+                else:
+                    # Default fallback for other modules
+                    module_tasks = ["testDebugUnitTest"]
+                    logger.info(f"[{instance_id}]: Module {module} using default variants")
+                
+                # Try to verify with a quick gradle command if we have time
+                if module_tasks and len(module_tasks) > 1:  # Only verify if we detected flavors
+                    verify_command = f"""
+cd /workspace &&
+timeout 20 ./gradlew {module}:tasks --group=verification --console=plain 2>/dev/null | grep -E "test.*UnitTest" | head -10 || echo "VERIFICATION_FAILED"
+"""
                     
-                    # Store module-specific variants
-                    module_variants[module] = module_tasks
-                    all_test_tasks.extend(module_tasks)
-                    logger.info(f"[{instance_id}]: Module {module} tasks: {module_tasks}")
+                    verify_exit_code, verify_output = containers_manager.exec_command(
+                        instance_id, verify_command, workdir="/workspace", timeout=30
+                    )
+                    
+                    if verify_exit_code == 0 and "VERIFICATION_FAILED" not in verify_output and verify_output.strip():
+                        # Parse actual tasks from verification
+                        verified_tasks = []
+                        for line in verify_output.split('\n'):
+                            line = line.strip()
+                            if 'test' in line.lower() and 'unittest' in line.lower():
+                                # Extract task name (first word)
+                                task_name = line.split()[0] if line.split() else ""
+                                if task_name and ':' not in task_name:
+                                    verified_tasks.append(task_name)
+                        
+                        if verified_tasks:
+                            module_tasks = verified_tasks
+                            logger.info(f"[{instance_id}]: Verified tasks for {module}: {verified_tasks}")
+                
+                # Store module-specific variants
+                module_variants[module] = module_tasks
+                all_test_tasks.extend(module_tasks)
+                logger.info(f"[{instance_id}]: Module {module} final tasks: {module_tasks}")
 
             # Store module-specific variants in the result
             variants_info["module_variants"] = module_variants
@@ -329,32 +394,88 @@ echo "Exit code: $?"
             
             # Process unit tests
             if unit_tests:
-                # Find appropriate unit test variant for this module
+                # Find appropriate unit test variant for this module following exact requirements:
+                # 1. If module has testDebugUnitTest -> use testDebugUnitTest
+                # 2. If module has testFossDebugUnitTest -> use testFossDebugUnitTest
                 unit_variant = None
                 
-                # Prefer variants with 'unittest' and 'debug' 
-                # Make selection deterministic by prioritizing more specific variants
-                matching_variants = []
-                for variant in available_variants:
-                    if 'unittest' in variant.lower() and 'debug' in variant.lower():
-                        matching_variants.append(variant)
+                # Apply module-specific variant selection rules
+                if module in [":app-thunderbird", ":app-k9mail"]:
+                    # App modules should use testFossDebugUnitTest
+                    if 'testFossDebugUnitTest' in available_variants:
+                        unit_variant = 'testFossDebugUnitTest'
+                        logger.info(f"Selected testFossDebugUnitTest for {module} (app module rule)")
+                elif module.startswith(":feature:") or module == ":legacy:core":
+                    # Feature modules and legacy:core should use testDebugUnitTest
+                    if 'testDebugUnitTest' in available_variants:
+                        unit_variant = 'testDebugUnitTest'
+                        logger.info(f"Selected testDebugUnitTest for {module} (feature/legacy module rule)")
+                else:
+                    # Default modules use testDebugUnitTest
+                    if 'testDebugUnitTest' in available_variants:
+                        unit_variant = 'testDebugUnitTest'
+                        logger.info(f"Selected testDebugUnitTest for {module} (default rule)")
                 
-                if matching_variants:
-                    # Sort to make selection deterministic - prefer longer/more specific variants
-                    # This ensures consistent selection between runs
-                    matching_variants.sort(key=lambda x: (-len(x), x.lower()))
-                    unit_variant = matching_variants[0]
-                    logger.info(f"Found {len(matching_variants)} matching variants for {module}: {matching_variants}, selected: {unit_variant}")
-                
-                # Fallback to first unit test variant or default
+                # Strategy 2: If neither exact variant found, look for other test variants (excluding detekt)
                 if not unit_variant:
-                    unit_variants = [v for v in available_variants if 'unittest' in v.lower()]
-                    if unit_variants:
-                        # Sort for deterministic selection
-                        unit_variants.sort(key=lambda x: (-len(x), x.lower()))
-                        unit_variant = unit_variants[0]
-                    else:
-                        unit_variant = "testDebugUnitTest"
+                    simple_test_variants = []
+                    for variant in available_variants:
+                        if (variant.lower().startswith('test') and 
+                            'unittest' in variant.lower() and 
+                            'debug' in variant.lower() and
+                            'detekt' not in variant.lower()):  # Exclude detekt tasks
+                            simple_test_variants.append(variant)
+                    
+                    if simple_test_variants:
+                        # Sort to prioritize: foss > free > debug > full
+                        def variant_sort_key(variant_name):
+                            v_lower = variant_name.lower()
+                            if 'foss' in v_lower:
+                                return (1, len(variant_name), variant_name)  # Highest priority
+                            elif 'free' in v_lower:
+                                return (2, len(variant_name), variant_name)  
+                            elif 'debug' in v_lower and 'full' not in v_lower:
+                                return (3, len(variant_name), variant_name)
+                            elif 'full' in v_lower:
+                                return (4, len(variant_name), variant_name)  # Lowest priority
+                            else:
+                                return (5, len(variant_name), variant_name)
+                        
+                        simple_test_variants.sort(key=variant_sort_key)
+                        unit_variant = simple_test_variants[0]
+                        logger.info(f"Found {len(simple_test_variants)} simple test variants for {module}: {simple_test_variants}, selected: {unit_variant}")
+                
+                # Strategy 3: Final fallback to any unittest variant (including detekt) if no test variants found
+                if not unit_variant:
+                    matching_variants = []
+                    for variant in available_variants:
+                        if 'unittest' in variant.lower() and 'debug' in variant.lower():
+                            matching_variants.append(variant)
+                    
+                    if matching_variants:
+                        # Sort to make selection deterministic and prefer certain variants
+                        # Priority: foss > free > debug > full (lower number = higher priority)
+                        def variant_sort_key(variant_name):
+                            v_lower = variant_name.lower()
+                            if 'foss' in v_lower:
+                                return (1, len(variant_name), variant_name)  # Highest priority
+                            elif 'free' in v_lower:
+                                return (2, len(variant_name), variant_name)  
+                            elif 'debug' in v_lower and 'full' not in v_lower:
+                                return (3, len(variant_name), variant_name)
+                            elif 'full' in v_lower:
+                                return (4, len(variant_name), variant_name)  # Lowest priority
+                            else:
+                                return (5, len(variant_name), variant_name)
+                        
+                        matching_variants.sort(key=variant_sort_key)
+                        unit_variant = matching_variants[0]
+                        logger.info(f"Found {len(matching_variants)} fallback matching variants for {module}: {matching_variants}, selected: {unit_variant}")
+                
+                # Strategy 4: Absolute final fallback
+                if not unit_variant:
+                    unit_variant = "testDebugUnitTest"
+                    logger.warning(f"No suitable variants found for {module}, falling back to default: {unit_variant}")
                 
                 logger.info(f"Selected variant for module {module}: {unit_variant}")
                 
@@ -381,6 +502,8 @@ echo "Exit code: $?"
         - app/src/test/java/com/example/MyTest.java -> com.example.MyTest
         - net/download/service/src/test/java/de/danoeh/antennapod/net/download/service/episode/autodownload/DbReaderTest.java 
         -> de.danoeh.antennapod.net.download.service.episode.autodownload.DbReaderTest
+        
+        Filters out utility/helper classes that shouldn't be run as test classes.
         """
         try:
             # Get the file name without extension
@@ -390,6 +513,11 @@ echo "Exit code: $?"
             elif file_name.endswith('.kt'):
                 class_name = file_name[:-3]
             else:
+                return None
+            
+            # Check if this is a utility/helper class that should be filtered out
+            if self._is_utility_class_name(class_name):
+                logger.debug(f"Skipping utility class: {class_name} from file {test_file}")
                 return None
             
             # Extract package from path
@@ -407,10 +535,17 @@ echo "Exit code: $?"
             if package_start >= 0 and package_start < len(parts) - 1:
                 package_parts = parts[package_start:-1]  # Exclude the file name
                 package_name = '.'.join(package_parts)
-                return f"{package_name}.{class_name}"
+                full_class_name = f"{package_name}.{class_name}"
             else:
                 # Fallback: just return the class name
-                return class_name
+                full_class_name = class_name
+            
+            # Additional check: verify this is an actual test class by examining the file
+            if not self._is_actual_test_class(test_file):
+                logger.debug(f"Skipping non-test class: {full_class_name} from file {test_file}")
+                return None
+                
+            return full_class_name
                 
         except Exception as e:
             logger.warning(f"Could not extract class name from {test_file}: {e}")
@@ -440,23 +575,28 @@ echo "Exit code: $?"
             "could not compile",
             "cannot find symbol",
             "package does not exist",
-            "BUILD FAILED"
+            "BUILD FAILED",
+            "build failed",
+            "compilation error",
+            "Execution failed for task"
         ]
         
         output_lower = output.lower()
         
-        # If we see test execution indicators, consider it successful even with failures
-        if any(indicator in output_lower for indicator in test_execution_indicators):
-            logger.info("Test execution detected - marking as successful even with possible test failures")
-            return True
-        
-        # If we see compilation failures, it's not successful
+        # CRITICAL FIX: Check for compilation failures FIRST, before test execution indicators
+        # This ensures that BUILD FAILED always takes precedence over other indicators
         if any(failure in output_lower for failure in compilation_failures):
             logger.warning("Compilation failure detected - marking as unsuccessful")
             return False
         
-        # If exit code is 0, assume tests ran successfully
+        # If we see test execution indicators and no compilation failures, consider it successful
+        if any(indicator in output_lower for indicator in test_execution_indicators):
+            logger.info("Test execution detected - marking as successful even with possible test failures")
+            return True
+        
+        # If exit code is 0 and no failures detected, assume tests ran successfully
         if exit_code == 0:
+            logger.info("Exit code 0 with no compilation failures detected - marking as successful")
             return True
 
         # Default: if exit code is not 0 and no clear indicators, consider failed
@@ -464,7 +604,7 @@ echo "Exit code: $?"
         return False
 
     def _save_test_log(self, instance_id: str, test_result: BuildResult, 
-                      command_info: Dict[str, Any] = None) -> str:
+                      command_info: Dict[str, Any] = None, phase: str = "UNKNOWN") -> str:
         """
         Save test execution log for an instance.
         
@@ -472,6 +612,7 @@ echo "Exit code: $?"
             instance_id: ID of the instance
             test_result: The test result to save
             command_info: Optional dictionary with command information
+            phase: The execution phase (e.g., BUILD-PRE-SOLUTION, TEST-PRE-SOLUTION)
             
         Returns:
             Path to the saved log file
@@ -484,6 +625,7 @@ echo "Exit code: $?"
             with open(log_file, 'w', encoding='utf-8') as f:
                 f.write(f"Android Test Execution Log\n")
                 f.write(f"Instance ID: {instance_id}\n")
+                f.write(f"Phase: {phase}\n")
                 f.write(f"Test Success: {test_result.success}\n")
                 f.write(f"Exit Code: {test_result.exit_code}\n")
                 f.write(f"Duration: {test_result.duration:.2f} seconds\n")
@@ -647,6 +789,136 @@ echo "Exit code: $?"
         
         return any(indicator in test_file_lower for indicator in instrumented_indicators)
     
+    def _is_utility_class_name(self, class_name: str) -> bool:
+        """
+        Check if a class name indicates it's a utility/helper class that shouldn't be run as a test.
+        
+        Based on the filtering logic from config.py but simplified for build_utils usage.
+        """
+        # Patterns that indicate utility/helper classes (not actual test classes)
+        utility_patterns = [
+            'Mock',           # MockPop3Server, MockSmtpServer, MockHttpServer
+            'Fake',           # FakeDataSource, FakeRepository
+            'Stub',           # StubEmailProvider, StubNotificationService
+            'Dummy',          # DummyObject, DummyData
+            'Helper',         # TestHelper, DatabaseHelper
+            'Util',           # TestUtil, StringUtil
+            'Utils',          # TestUtils, FileUtils
+            'Factory',        # TestFactory, ObjectFactory
+            'Builder',        # TestBuilder, DataBuilder
+            'Fixture',        # TestFixture, DataFixture
+            'Base',           # BaseTest, BaseTestCase (often abstract)
+            'Abstract',       # AbstractTest, AbstractTestCase
+            'Support',        # TestSupport, SupportClass
+            'Common',         # CommonTestData, CommonHelper
+            'Shared',         # SharedTestData, SharedHelper
+            'TestData',       # TestDataProvider, TestDataConstants
+            'Constants',      # TestConstants, DatabaseConstants
+            'Config',         # TestConfig, TestConfiguration
+            'Setup',          # TestSetup, DatabaseSetup
+            'Harness',        # TestHarness, FrameworkHarness
+            'Framework',      # TestFramework, BaseFramework
+            'Rule',           # TestRule, CustomRule (JUnit rules)
+            'Extension',      # TestExtension, JUnitExtension
+            'Listener',       # TestListener, ResultListener
+            'Runner',         # TestRunner, CustomRunner
+            'Suite',          # TestSuite, IntegrationTestSuite
+            'Category',       # TestCategory, SlowTests
+            'Tag',            # TestTags, CategoryTags
+            'Matcher',        # CustomMatcher, TestMatcher
+            'Assertion',      # CustomAssertion, TestAssertion
+            'Verifier',       # TestVerifier, ResultVerifier
+            'Provider',       # DataProvider, ServiceProvider
+            'Generator',      # DataGenerator, TestDataGenerator
+            'Creator',        # ObjectCreator, EntityCreator
+            'Server',         # TestServer, MockServer
+            'Client',         # TestClient, MockClient
+            'Service',        # TestService, MockService (when not actual test classes)
+            'Repository',     # TestRepository, MockRepository (when not actual test classes)
+            'Database',       # TestDatabase, DatabaseTestSupport
+            'Schema',         # TestSchema, DatabaseSchema
+            'Migration',      # TestMigration, DatabaseMigration
+            'Container',      # TestContainer, MockContainer
+            'Context',        # TestContext, ApplicationContext
+            'Environment',    # TestEnvironment, MockEnvironment
+            'Interceptor',    # TestInterceptor, MockInterceptor
+            'Adapter',        # TestAdapter, MockAdapter
+            'Wrapper',        # TestWrapper, ServiceWrapper
+            'Proxy',          # TestProxy, MockProxy
+            'Handler',        # TestHandler, MockHandler
+            'Processor',      # TestProcessor, DataProcessor
+            'Validator',      # TestValidator, InputValidator
+            'Converter',      # TestConverter, DataConverter
+            'Transformer',    # TestTransformer, DataTransformer
+            'Serializer',     # TestSerializer, JsonSerializer
+            'Deserializer',   # TestDeserializer, JsonDeserializer
+            'Parser',         # TestParser, XmlParser
+            'Formatter',      # TestFormatter, DateFormatter
+            'Calculator',     # TestCalculator, PriceCalculator
+            'Engine',         # TestEngine, CalculationEngine
+            'Manager',        # TestManager, ResourceManager (when not actual test classes)
+            'Controller',     # TestController, MockController (when not actual test classes)
+            'Component',      # TestComponent, MockComponent (when not actual test classes)
+        ]
+        
+        # Check if class name starts with any utility pattern
+        for pattern in utility_patterns:
+            if class_name.startswith(pattern) or class_name.endswith(pattern):
+                return True
+        
+        # Check for specific known problematic classes
+        known_utility_classes = [
+            'MockPop3Server',
+            'MockSmtpServer', 
+            'MockImapServer',
+            'TestUtils',
+            'TestHelper',
+            'TestBase',
+            'BaseTestCase',
+            'AbstractTestCase',
+            'TestConstants',
+            'TestData',
+            'TestConfig'
+        ]
+        
+        if class_name in known_utility_classes:
+            return True
+        
+        # Check for interface-like patterns (often not test classes)
+        if (class_name.startswith('I') and len(class_name) > 1 and 
+            class_name[1].isupper()):  # ITestInterface pattern
+            return True
+        
+        return False
+    
+    def _is_actual_test_class(self, test_file: str) -> bool:
+        """
+        Check if a file represents an actual test class with test methods,
+        not a utility/helper/mock class.
+        
+        This is a simplified version that doesn't read file contents for performance.
+        The main filtering is done by _is_utility_class_name.
+        """
+        
+        # Get just the filename for checking
+        filename = os.path.basename(test_file)
+        
+        # Check if it's a utility class that should be excluded
+        if filename.endswith('.java'):
+            class_name = filename[:-5]
+        elif filename.endswith('.kt'):
+            class_name = filename[:-3]
+        else:
+            return False
+        
+        # Apply utility class filtering
+        if self._is_utility_class_name(class_name):
+            return False
+        
+        # If we can't definitively determine it's a utility class, assume it's a test class
+        # This prevents false negatives where we skip actual test files
+        return True
+    
     def _extract_modules_from_targets(self, targets: List[str]) -> Set[str]:
         """Extract unique modules from build targets."""
         modules = set()
@@ -660,7 +932,8 @@ echo "Exit code: $?"
 
 # Utility function for quick integration
 def run_build_step(containers_manager, instance_id: str, 
-                   test_patch: str = None, results_dir: str = "validation_results") -> BuildResult:
+                   test_patch: str = None, results_dir: str = "validation_results",
+                   phase: str = "UNKNOWN") -> BuildResult:
     """
     Convenience function to run a build test step with automatic test detection.
     Will only run tests if test files are detected in the patch, otherwise logs and continues.
@@ -675,4 +948,4 @@ def run_build_step(containers_manager, instance_id: str,
         BuildResult object
     """
     build_manager = AndroidBuildManager(results_dir)
-    return build_manager.run_tests_for_instance(containers_manager, instance_id, test_patch=test_patch)
+    return build_manager.run_tests_for_instance(containers_manager, instance_id, test_patch=test_patch, phase=phase)

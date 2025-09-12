@@ -37,7 +37,8 @@ class AndroidConfig:
             'build_tools': self.DEFAULT_BUILD_TOOLS,
             'ndk_version': None,
             'jvm_args': '-Xmx4096m',
-            'test_variant': 'debug'
+            'test_variant': 'debug',
+            'stub_generation_method': 'patch_based'  # 'patch_based' or 'file_merging'
         }
     
     def parse_build_config(self) -> Dict[str, str]:
