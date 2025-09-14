@@ -80,23 +80,46 @@ fi
     
     def apply_patch(self, instance_id: str, patch_content: str, patch_name: str = "patch") -> Tuple[bool, str]:
         """Apply a patch to the repository using multiple strategies."""
+        import tempfile
+        import os
+        
         try:
             # Validate patch content
             if not patch_content.strip():
                 return True, "Empty patch - nothing to apply"
             
-            # Escape the patch content for safe shell transmission
-            escaped_patch = patch_content.replace("'", "'\"'\"'")
+            # For large patches, write to temporary file and copy to container
+            # to avoid "Argument list too long" error
+            temp_patch_file = None
+            try:
+                # Create temporary file on host
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch') as f:
+                    f.write(patch_content)
+                    temp_patch_file = f.name
+                
+                # Copy patch file to container
+                container_name = self.containers.containers[instance_id]['name']
+                docker_cmd = ["docker", "cp", temp_patch_file, f"{container_name}:/tmp/{patch_name}.patch"]
+                
+                import subprocess
+                result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=30)
+                
+                if result.returncode != 0:
+                    logger.error(f"Failed to copy patch file to container: {result.stderr}")
+                    return False, f"Failed to copy patch to container: {result.stderr}"
+                    
+            finally:
+                # Clean up temporary file
+                if temp_patch_file and os.path.exists(temp_patch_file):
+                    os.unlink(temp_patch_file)
             
-            # Comprehensive patch application command
+            # Comprehensive patch application command (without embedding patch content)
             patch_command = f"""
 cd /workspace &&
 echo "=== Applying patch: {patch_name} ===" &&
 
-# Create patch file
-cat > /tmp/{patch_name}.patch << 'PATCH_EOF'
-{patch_content}
-PATCH_EOF
+echo "=== Patch file info ===" &&
+ls -la /tmp/{patch_name}.patch &&
 
 echo "=== Patch file created ===" &&
 echo "Patch size: $(wc -l < /tmp/{patch_name}.patch) lines" &&
@@ -170,15 +193,40 @@ exit 1
     
     def apply_patch_to_path(self, instance_id: str, patch_content: str, patch_name: str = "patch", workdir: str = "/workspace") -> Tuple[bool, str]:
         """Apply a patch to a specific path in the repository using multiple strategies."""
+        import tempfile
+        import os
+        
         try:
             # Validate patch content
             if not patch_content.strip():
                 return True, "Empty patch - nothing to apply"
             
-            # Escape the patch content for safe shell transmission
-            escaped_patch = patch_content.replace("'", "'\"'\"'")
+            # For large patches, write to temporary file and copy to container
+            # to avoid "Argument list too long" error
+            temp_patch_file = None
+            try:
+                # Create temporary file on host
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch') as f:
+                    f.write(patch_content)
+                    temp_patch_file = f.name
+                
+                # Copy patch file to container
+                container_name = self.containers.containers[instance_id]['name']
+                docker_cmd = ["docker", "cp", temp_patch_file, f"{container_name}:/tmp/{patch_name}.patch"]
+                
+                import subprocess
+                result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=30)
+                
+                if result.returncode != 0:
+                    logger.error(f"Failed to copy patch file to container: {result.stderr}")
+                    return False, f"Failed to copy patch to container: {result.stderr}"
+                    
+            finally:
+                # Clean up temporary file
+                if temp_patch_file and os.path.exists(temp_patch_file):
+                    os.unlink(temp_patch_file)
             
-            # Comprehensive patch application command
+            # Comprehensive patch application command (without embedding patch content)
             patch_command = f"""
 cd {workdir} &&
 echo "=== Applying patch: {patch_name} to {workdir} ===" &&
@@ -186,10 +234,9 @@ echo "=== Applying patch: {patch_name} to {workdir} ===" &&
 # Set up git config for this directory
 git config --global --add safe.directory {workdir} &&
 
-# Create patch file
-cat > /tmp/{patch_name}.patch << 'PATCH_EOF'
-{patch_content}
-PATCH_EOF
+echo "=== Patch file info ===" &&
+ls -la /tmp/{patch_name}.patch &&
+echo "Patch size: $(wc -l < /tmp/{patch_name}.patch) lines" &&
 
 echo "=== Patch content ===" &&
 head -20 /tmp/{patch_name}.patch &&

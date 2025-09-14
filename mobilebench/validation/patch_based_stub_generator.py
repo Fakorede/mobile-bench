@@ -245,6 +245,9 @@ class PatchBasedStubGenerator:
     
     def _apply_single_patch(self, instance_id: str, file_path: str, patch_content: str) -> bool:
         """Apply a single patch using git apply."""
+        import tempfile
+        import os
+        
         try:
             if not self.containers:
                 logger.error("No container manager available")
@@ -255,18 +258,39 @@ class PatchBasedStubGenerator:
                 # Convert simple diff to proper patch format
                 patch_content = self._convert_to_proper_patch(file_path, patch_content)
             
-            # Escape patch content for safe transmission
-            escaped_patch = patch_content.replace("'", "'\"'\"'")
+            # For large patches, write to temporary file and copy to container
+            # to avoid "Argument list too long" error
+            temp_patch_file = None
+            try:
+                # Create temporary file on host
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch') as f:
+                    f.write(patch_content)
+                    temp_patch_file = f.name
+                
+                # Copy patch file to container
+                container_name = self.containers.containers[instance_id]['name']
+                docker_cmd = ["docker", "cp", temp_patch_file, f"{container_name}:/tmp/patch.patch"]
+                
+                import subprocess
+                result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=30)
+                
+                if result.returncode != 0:
+                    logger.error(f"Failed to copy patch file to container: {result.stderr}")
+                    return False
+                    
+            finally:
+                # Clean up temporary file
+                if temp_patch_file and os.path.exists(temp_patch_file):
+                    os.unlink(temp_patch_file)
             
-            # Apply patch using git apply with multiple strategies
+            # Apply patch using git apply with multiple strategies (without embedding patch content)
             patch_apply_command = f"""
 cd /workspace &&
 echo "=== Applying patch to {file_path} ===" &&
 
-# Create patch file
-cat > /tmp/patch.patch << 'PATCH_EOF'
-{patch_content}
-PATCH_EOF
+echo "=== Patch file info ===" &&
+ls -la /tmp/patch.patch &&
+echo "Patch size: $(wc -l < /tmp/patch.patch) lines" &&
 
 echo "=== Patch file created ===" &&
 
