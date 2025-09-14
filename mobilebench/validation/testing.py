@@ -120,6 +120,12 @@ class AndroidTestingParallel:
                         "testFullReleaseUnitTest"
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for foss flavors - using foss/full variants")
+                elif module == ":AnkiDroid":
+                    # AnkiDroid module uses play variant with debug build type
+                    module_tasks = [
+                        "testPlayDebugUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for play variant - using play debug variant")
                 elif module.startswith(":feature:") or module == ":legacy:core":
                     # Feature modules and legacy:core use simple variants
                     module_tasks = [
@@ -284,6 +290,11 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
                     if 'testFossDebugUnitTest' in available_variants_for_module:
                         unit_variant = 'testFossDebugUnitTest'
                         logger.info(f"Selected testFossDebugUnitTest for {module} (app module rule)")
+                elif module == ":AnkiDroid":
+                    # AnkiDroid module should use testPlayDebugUnitTest
+                    if 'testPlayDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testPlayDebugUnitTest'
+                        logger.info(f"Selected testPlayDebugUnitTest for {module} (AnkiDroid module rule)")
                 elif module.startswith(":feature:") or module == ":legacy:core":
                     # Feature modules and legacy:core should use testDebugUnitTest
                     if 'testDebugUnitTest' in available_variants_for_module:
