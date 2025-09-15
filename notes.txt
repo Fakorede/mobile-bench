@@ -381,3 +381,49 @@ Verify Before Apply - Filter patches that would create conflicts
 
 
 
+$ python fail_to_pass_analyzer.py "/home/researchuser/dev/mobile-bench/data/validated-tasks/Thunderbird"
+
+
+Analysis Results for: /home/researchuser/dev/mobile-bench/data/validated-tasks/Thunderbird
+================================================================================
+
+Project: Thunderbird
+  Total instances: 151
+  Instances with fail_to_pass > 0: 18
+  Total fail_to_pass transitions: 87
+  Max transitions in single instance: 31
+  Percentage with transitions: 11.92%
+  Top 10 instances with most transitions:
+    - thunderbird__thunderbird-android-6522: 31
+    - thunderbird__thunderbird-android-5881: 18
+    - thunderbird__thunderbird-android-7340: 7
+    - thunderbird__thunderbird-android-5958: 4
+    - thunderbird__thunderbird-android-7699: 4
+    - thunderbird__thunderbird-android-9399: 4
+    - thunderbird__thunderbird-android-6840: 3
+    - thunderbird__thunderbird-android-5946: 2
+    - thunderbird__thunderbird-android-6030: 2
+    - thunderbird__thunderbird-android-7365: 2
+
+================================================================================
+OVERALL SUMMARY
+Total projects analyzed: 1
+Total instances analyzed: 151
+Total instances with fail_to_pass > 0: 18
+Total fail_to_pass transitions: 87
+Overall percentage with fail_to_pass transitions: 11.92%
+Average transitions per instance (with transitions): 4.83
+
+
+$ python fail_to_pass_analyzer.py "/home/researchuser/dev/mobile-bench/data/validated-tasks" --recursive
+
+ankidroid__Anki-Android-18903
+
+
+student-cse2327pcaa
+SCRAPE1234ALL
+
+
+monitornotworking
+
+
