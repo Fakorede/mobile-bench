@@ -126,6 +126,12 @@ class AndroidTestingParallel:
                         "testPlayDebugUnitTest"
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for play variant - using play debug variant")
+                elif module == ":WordPress":
+                    # WordPress Android module uses WordPressVanilla flavor with debug build type
+                    module_tasks = [
+                        "testWordPressVanillaDebugUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for WordPress flavor - using WordPressVanilla variant")
                 elif module.startswith(":feature:") or module == ":legacy:core":
                     # Feature modules and legacy:core use simple variants
                     module_tasks = [
@@ -154,7 +160,7 @@ class AndroidTestingParallel:
             flavors = set()
             build_types = set()
             for task in all_test_tasks:
-                # Parse patterns like "testDebugUnitTest", "testReleaseUnitTest", "testFreeDebugUnitTest"
+                # Parse patterns like "testDebugUnitTest", "testWordPressVanillaDebugUnitTest", "testFreeDebugUnitTest"
                 task_lower = task.lower()
                 if 'test' in task_lower and 'unittest' in task_lower:
                     # Remove 'test' prefix and 'unittest' suffix
@@ -166,7 +172,11 @@ class AndroidTestingParallel:
                         build_types.add('release')
                         middle = middle.replace('release', '')
                     if middle:  # Remaining part might be flavor
-                        flavors.add(middle.capitalize())
+                        # Handle WordPress specific flavors
+                        if 'wordpressvanilla' in middle:
+                            flavors.add('WordPressVanilla')
+                        else:
+                            flavors.add(middle.capitalize())
             
             if flavors:
                 variants_info["flavors"] = list(flavors)
@@ -295,6 +305,11 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
                     if 'testPlayDebugUnitTest' in available_variants_for_module:
                         unit_variant = 'testPlayDebugUnitTest'
                         logger.info(f"Selected testPlayDebugUnitTest for {module} (AnkiDroid module rule)")
+                elif module == ":WordPress":
+                    # WordPress Android module should use testWordPressVanillaDebugUnitTest
+                    if 'testWordPressVanillaDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testWordPressVanillaDebugUnitTest'
+                        logger.info(f"Selected testWordPressVanillaDebugUnitTest for {module} (WordPress module rule)")
                 elif module.startswith(":feature:") or module == ":legacy:core":
                     # Feature modules and legacy:core should use testDebugUnitTest
                     if 'testDebugUnitTest' in available_variants_for_module:
@@ -317,11 +332,13 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
                             simple_test_variants.append(variant)
                     
                     if simple_test_variants:
-                        # Sort to prioritize: foss > free > debug > full
+                        # Sort to prioritize: WordPressVanilla > foss > free > debug > full
                         def variant_sort_key(variant_name):
                             v_lower = variant_name.lower()
-                            if 'foss' in v_lower:
-                                return (1, len(variant_name), variant_name)  # Highest priority
+                            if 'wordpressvanilla' in v_lower:
+                                return (0, len(variant_name), variant_name)  # Highest priority for WordPress
+                            elif 'foss' in v_lower:
+                                return (1, len(variant_name), variant_name)  # High priority
                             elif 'free' in v_lower:
                                 return (2, len(variant_name), variant_name)  
                             elif 'debug' in v_lower and 'full' not in v_lower:
@@ -330,7 +347,7 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
                                 return (4, len(variant_name), variant_name)  # Lowest priority
                             else:
                                 return (5, len(variant_name), variant_name)
-                        
+
                         simple_test_variants.sort(key=variant_sort_key)
                         unit_variant = simple_test_variants[0]
                         logger.info(f"Found {len(simple_test_variants)} simple test variants for {module}: {simple_test_variants}, selected: {unit_variant}")
@@ -344,13 +361,15 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
                     
                     if matching_variants:
                         # Sort to make selection deterministic and prefer certain variants
-                        # Priority: foss > free > debug > full (lower number = higher priority)
+                        # Priority: WordPressVanilla > foss > free > debug > full (lower number = higher priority)
                         def variant_sort_key(variant_name):
                             v_lower = variant_name.lower()
-                            if 'foss' in v_lower:
-                                return (1, len(variant_name), variant_name)  # Highest priority
+                            if 'wordpressvanilla' in v_lower:
+                                return (0, len(variant_name), variant_name)  # Highest priority for WordPress
+                            elif 'foss' in v_lower:
+                                return (1, len(variant_name), variant_name)  # High priority
                             elif 'free' in v_lower:
-                                return (2, len(variant_name), variant_name)  
+                                return (2, len(variant_name), variant_name)
                             elif 'debug' in v_lower and 'full' not in v_lower:
                                 return (3, len(variant_name), variant_name)
                             elif 'full' in v_lower:
