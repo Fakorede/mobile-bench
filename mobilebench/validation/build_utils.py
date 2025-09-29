@@ -107,7 +107,7 @@ class AndroidBuildManager:
         
         # Analyze project structure for variants and flavors
         build_variants = self._detect_build_variants(containers_manager, instance_id, target_modules)
-        test_tasks = self._generate_test_tasks(test_files, build_variants)
+        test_tasks = self._generate_test_tasks(test_files, build_variants, instance_id)
         
         if not test_tasks:
             logger.info(f"[{instance_id}] Could not generate test tasks - no tests to run, continuing to next instance")
@@ -291,6 +291,20 @@ fi
                         "testWordPressVanillaDebugUnitTest"
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for WordPress flavor - using WordPressVanilla variant")
+                elif "antennapod" in str(instance_id).lower() and (module in [":model", ":event", ":ui:episodes", ":ui:common", ":ui:app-start-intent", ":ui:i18n", ":ui:notifications", ":storage:preferences", ":playback:base", ":parser:feed", ":parser:media", ":parser:transcript", ":net:sync:service-interface", ":net:sync:gpoddernet"]):
+                    # Specific AntennaPod modules use debug variants
+                    module_tasks = [
+                        "testDebugUnitTest",
+                        "testReleaseUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for specific AntennaPod modules - using debug/release variants")
+                elif "antennapod" in str(instance_id).lower():
+                    # Other AntennaPod modules use free/play flavors
+                    module_tasks = [
+                        "testFreeDebugUnitTest",
+                        "testPlayDebugUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for general AntennaPod flavors - using free/play variants")
                 elif module.startswith(":feature:") or module == ":legacy:core":
                     # Feature modules and legacy:core use simple variants
                     module_tasks = [
@@ -373,7 +387,7 @@ timeout 20 ./gradlew {module}:tasks --group=verification --console=plain 2>/dev/
         
         return variants_info
 
-    def _generate_test_tasks(self, test_files: List[str], build_variants: Dict[str, Any]) -> List[str]:
+    def _generate_test_tasks(self, test_files: List[str], build_variants: Dict[str, Any], instance_id: str) -> List[str]:
         """
         Generate appropriate Gradle test tasks for the given test files and variants.
         """
@@ -431,6 +445,16 @@ timeout 20 ./gradlew {module}:tasks --group=verification --console=plain 2>/dev/
                     if 'testWordPressVanillaDebugUnitTest' in available_variants:
                         unit_variant = 'testWordPressVanillaDebugUnitTest'
                         logger.info(f"Selected testWordPressVanillaDebugUnitTest for {module} (WordPress module rule)")
+                elif "antennapod" in str(instance_id).lower() and (module in [":model", ":event", ":ui:episodes", ":ui:common", ":ui:app-start-intent", ":ui:i18n", ":ui:notifications", ":storage:preferences", ":playback:base", ":parser:feed", ":parser:media", ":parser:transcript", ":net:sync:service-interface", ":net:sync:gpoddernet"]):
+                    # Specific AntennaPod modules should use testDebugUnitTest
+                    if 'testDebugUnitTest' in available_variants:
+                        unit_variant = 'testDebugUnitTest'
+                        logger.info(f"Selected testDebugUnitTest for {module} (specific AntennaPod module rule)")
+                elif "antennapod" in str(instance_id).lower():
+                    # Other AntennaPod modules should use testFreeDebugUnitTest
+                    if 'testFreeDebugUnitTest' in available_variants:
+                        unit_variant = 'testFreeDebugUnitTest'
+                        logger.info(f"Selected testFreeDebugUnitTest for {module} (general AntennaPod module rule)")
                 elif module.startswith(":feature:") or module == ":legacy:core":
                     # Feature modules and legacy:core should use testDebugUnitTest
                     if 'testDebugUnitTest' in available_variants:
@@ -509,11 +533,8 @@ timeout 20 ./gradlew {module}:tasks --group=verification --console=plain 2>/dev/
                 
                 logger.info(f"Selected variant for module {module}: {unit_variant}")
                 
-                # Build the task
-                if module == ":app":
-                    base_task = f":app:{unit_variant}"
-                else:
-                    base_task = f"{module}:{unit_variant}"
+                # Build the task - always include module prefix for consistency
+                base_task = f"{module}:{unit_variant}"
                 
                 # Add test class filters
                 test_filters = ' '.join([f'--tests "{tc}"' for tc in unit_tests])

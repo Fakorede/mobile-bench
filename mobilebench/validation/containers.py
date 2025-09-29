@@ -491,7 +491,7 @@ echo "Container prepared for test execution"
             return False
     
     def copy_to_container(self, instance_id: str, host_path: str, container_path: str) -> bool:
-        """Copy directory from host to container."""
+        """Copy file or directory from host to container."""
         if instance_id not in self.containers:
             raise ValueError(f"Container not found for instance: {instance_id}")
         
@@ -500,10 +500,17 @@ echo "Container prepared for test execution"
         try:
             logger.info(f"Copying {host_path} to {container_name}:{container_path}")
             
-            # Use docker cp to copy the directory
-            docker_cmd = self._get_docker_cmd_prefix() + [
-                "cp", f"{host_path}/.", f"{container_name}:{container_path}"
-            ]
+            # Check if host_path is a file or directory
+            if os.path.isfile(host_path):
+                # Copy single file
+                docker_cmd = self._get_docker_cmd_prefix() + [
+                    "cp", host_path, f"{container_name}:{container_path}"
+                ]
+            else:
+                # Copy directory contents 
+                docker_cmd = self._get_docker_cmd_prefix() + [
+                    "cp", f"{host_path}/.", f"{container_name}:{container_path}"
+                ]
             
             result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=300)
             

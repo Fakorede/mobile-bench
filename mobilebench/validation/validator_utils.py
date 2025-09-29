@@ -4,8 +4,7 @@ Android-bench validation engine with proper test result tracking and tuple handl
 """
 
 import asyncio
-import datetime
-import aiohttp
+from datetime import datetime
 import re
 import json
 import logging
@@ -27,7 +26,6 @@ from repository import AndroidRepository
 from testing import AndroidTestingParallel, TestExecutionResult
 from build_utils import run_build_step, BuildResult
 from stub_generator_utils import generate_and_apply_stubs, StubGenerationResult
-from patch_based_stub_integration import generate_and_apply_patches
 
 # Configure logging
 logging.basicConfig(
@@ -40,6 +38,23 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+# Import parser module for AST-based stubbing
+import sys
+sys.path.append(str(Path(__file__).parent.parent / "parser"))
+try:
+    from tree_sitter import Language, Parser
+    from ast_code_manipulator import JavaCodeStubber, KotlinCodeStubber
+    AST_AVAILABLE = True
+    
+    # Debug info for troubleshooting
+    import tree_sitter
+    ts_version = getattr(tree_sitter, '__version__', 'unknown')
+    logger.info(f"tree_sitter version: {ts_version}, Language: {Language}")
+    
+except ImportError as e:
+    logger.warning(f"AST parsing dependencies not available: {e}")
+    AST_AVAILABLE = False
 
 
 @dataclass
@@ -88,6 +103,20 @@ class ValidationResult:
     
     # Metrics
     total_duration: float = 0.0
+
+    def to_dict(self) -> dict:
+        """Convert ValidationResult to dictionary for JSON serialization."""
+        result = {}
+        for key, value in self.__dict__.items():
+            if hasattr(value, 'to_dict'):
+                result[key] = value.to_dict()
+            elif isinstance(value, list):
+                result[key] = [item.to_dict() if hasattr(item, 'to_dict') else item for item in value]
+            elif value is not None:
+                result[key] = value
+            else:
+                result[key] = None
+        return result
 
     def compute_test_transitions(self):
         """Compute test transitions from pre and post test execution results."""
@@ -174,6 +203,10 @@ class AndroidBenchValidator:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True, parents=True)
         
+        # Create debug directory for AST analysis
+        self.debug_dir = self.output_dir / "ast_debug"
+        self.debug_dir.mkdir(exist_ok=True, parents=True)
+        
         # Initialize components
         self.containers = AndroidContainersPersistent(docker_context=docker_context)
         self.repository = AndroidRepository(self.containers)
@@ -181,6 +214,318 @@ class AndroidBenchValidator:
         # Will be initialized per instance
         self.config_parser = None
         self.testing = None
+        
+        # Initialize AST stubbers if available
+        self.java_stubber = None
+        self.kotlin_stubber = None
+        if AST_AVAILABLE:
+            self._initialize_ast_stubbers()
+    
+    def _initialize_ast_stubbers(self):
+        """Initialize AST stubbers for Java and Kotlin."""
+        try:
+            # Check if language libraries exist
+            parser_dir = Path(__file__).parent.parent / "parser"
+            java_so = parser_dir / "build" / "java-language.so"
+            kotlin_so = parser_dir / "build" / "kotlin-language.so"
+            
+            if java_so.exists():
+                java_language = Language(str(java_so), 'java')
+                self.java_stubber = JavaCodeStubber(java_language)
+                logger.info("Java AST stubber initialized")
+            else:
+                logger.warning(f"Java language library not found at {java_so}")
+                
+            if kotlin_so.exists():
+                kotlin_language = Language(str(kotlin_so), 'kotlin')
+                self.kotlin_stubber = KotlinCodeStubber(kotlin_language)
+                logger.info("Kotlin AST stubber initialized")
+            else:
+                logger.warning(f"Kotlin language library not found at {kotlin_so}")
+                
+        except Exception as e:
+            logger.warning(f"Failed to initialize AST stubbers: {e}")
+            self.java_stubber = None
+            self.kotlin_stubber = None
+    
+    def _extract_modified_files_from_patch(self, patch_content: str) -> Dict[str, List[str]]:
+        """
+        Extract modified files and the methods/functions added or modified from patch.
+        Returns: {file_path: [method_names]}
+        """
+        modified_files = {}
+        
+        try:
+            # Split patch into file sections
+            file_sections = re.split(r'(?=diff --git)', patch_content)
+            
+            for section in file_sections:
+                if not section.strip():
+                    continue
+                    
+                # Extract file path
+                file_match = re.search(r'diff --git a/([^\s]+)', section)
+                if not file_match:
+                    continue
+                    
+                file_path = file_match.group(1)
+                
+                # Only process Java and Kotlin files
+                if not (file_path.endswith('.java') or file_path.endswith('.kt')):
+                    continue
+                
+                # Extract added/modified method names
+                methods = self._extract_methods_from_patch_section(section, file_path)
+                
+                if methods:
+                    modified_files[file_path] = methods
+                    logger.info(f"Found {len(methods)} modified methods in {file_path}: {methods}")
+                    
+        except Exception as e:
+            logger.error(f"Error extracting modified files from patch: {e}")
+        
+        # Save debug information about detected methods
+        self._save_debug_patch_analysis(patch_content, modified_files)
+            
+        return modified_files
+    
+    def _extract_methods_from_patch_section(self, section: str, file_path: str) -> List[str]:
+        """Extract method/function names from a patch section."""
+        methods = []
+        
+        try:
+            # Look for added lines that contain method signatures
+            is_java = file_path.endswith('.java')
+            is_kotlin = file_path.endswith('.kt')
+            
+            # Split into added lines (lines starting with +)
+            added_lines = [line[1:] for line in section.split('\n') if line.startswith('+') and len(line) > 1]
+            
+            for line in added_lines:
+                line = line.strip()
+                
+                if is_java:
+                    # Java method patterns
+                    patterns = [
+                        r'(?:public|private|protected|static|\s)*\s+(?:\w+(?:<[^>]*>)?)\s+(\w+)\s*\(',  # method with return type
+                        r'(?:public|private|protected)\s+(\w+)\s*\(',  # constructor
+                    ]
+                elif is_kotlin:
+                    # Kotlin function patterns
+                    patterns = [
+                        r'(?:fun|suspend fun)\s+(\w+)\s*\(',  # function
+                        r'constructor\s*\(',  # constructor
+                    ]
+                else:
+                    continue
+                
+                for pattern in patterns:
+                    matches = re.findall(pattern, line)
+                    methods.extend(matches)
+            
+            # Remove duplicates and filter out common non-method words
+            methods = list(set(methods))
+            methods = [m for m in methods if m not in ['if', 'for', 'while', 'switch', 'when', 'try', 'catch']]
+            
+        except Exception as e:
+            logger.error(f"Error extracting methods from patch section: {e}")
+            
+        return methods
+    
+    def _apply_solution_patch_and_stub_methods(self, instance_id: str, solution_patch: str) -> bool:
+        """
+        Apply solution patch and generate stubs for modified methods.
+        Returns True if successful.
+        """
+        try:
+            # Step 1: Extract modified files and methods from patch
+            modified_files = self._extract_modified_files_from_patch(solution_patch)
+            
+            if not modified_files:
+                logger.info(f"No Java/Kotlin files modified in solution patch for {instance_id}")
+                return True
+            
+            # Step 2: Apply the solution patch temporarily to get full file content
+            logger.info(f"Applying solution patch temporarily to extract method implementations for {instance_id}")
+            patch_success, patch_output = self.repository.apply_patch(instance_id, solution_patch, "solution_patch")
+            
+            if not patch_success:
+                logger.error(f"Failed to apply solution patch for {instance_id}: {patch_output}")
+                return False
+            
+            # Step 3: For each modified file, read content and generate stubs
+            for file_path, modified_methods in modified_files.items():
+                self._stub_methods_in_file(instance_id, file_path, modified_methods)
+            
+            logger.info(f"Successfully applied solution patch and stubbed methods for {instance_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error in apply_solution_patch_and_stub_methods for {instance_id}: {e}")
+            return False
+    
+    def _stub_methods_in_file(self, instance_id: str, file_path: str, modified_methods: List[str]):
+        """Generate stubs for specific methods in a file."""
+        try:
+            # Read the file content from container
+            exit_code, file_content = self.containers.exec_command(
+                instance_id,
+                f"cat {file_path}",
+                workdir="/workspace"
+            )
+            
+            if exit_code != 0 or not file_content:
+                logger.warning(f"Could not read file content for {file_path} in {instance_id}: {file_content}")
+                return
+            
+            # Determine file type and apply appropriate stubbing
+            is_java = file_path.endswith('.java')
+            is_kotlin = file_path.endswith('.kt')
+            
+            stubbed_content = None
+            
+            if is_java and self.java_stubber:
+                # For selective stubbing, we need to modify the JavaCodeStubber
+                # For now, stub all methods in the file
+                stubbed_content = self.java_stubber.stub_java_methods(file_content)
+                
+            elif is_kotlin and self.kotlin_stubber:
+                # For selective stubbing, we need to modify the KotlinCodeStubber 
+                # For now, stub all functions in the file
+                stubbed_content = self.kotlin_stubber.stub_kotlin_functions(file_content)
+                
+            else:
+                logger.warning(f"No stubber available for file type: {file_path}")
+                return
+            
+            if stubbed_content and stubbed_content != file_content:
+                # Save debug information before applying stubs
+                self._save_debug_stub_files(instance_id, file_path, file_content, stubbed_content, modified_methods)
+                
+                # Write stubbed content directly to replace the original file in container
+                import tempfile
+                import os
+                
+                # Create temporary file with stubbed content
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.java') as temp_file:
+                    temp_file.write(stubbed_content)
+                    temp_file_path = temp_file.name
+                
+                try:
+                    # Copy the stubbed file directly to replace the original file in container
+                    container_file_path = f"/workspace/{file_path}"
+                    
+                    # Ensure the parent directory exists in the container
+                    container_dir = os.path.dirname(container_file_path)
+                    self.containers.exec_command(instance_id, f"mkdir -p {container_dir}", workdir="/")
+                    
+                    if self.containers.copy_to_container(instance_id, temp_file_path, container_file_path):
+                        logger.info(f"Applied stubs to {len(modified_methods)} methods in {file_path}")
+                    else:
+                        logger.error(f"Failed to copy stubbed content to {container_file_path}")
+                        
+                finally:
+                    # Clean up temporary file on host
+                    try:
+                        os.unlink(temp_file_path)
+                    except:
+                        pass
+                        
+            else:
+                logger.info(f"No stubbing changes needed for {file_path}")
+                
+        except Exception as e:
+            logger.error(f"Error stubbing methods in {file_path} for {instance_id}: {e}")
+    
+    def _save_debug_patch_analysis(self, patch_content: str, modified_files: Dict[str, List[str]]):
+        """Save debug information about patch analysis and detected methods."""
+        try:
+            debug_data = {
+                'timestamp': datetime.now().isoformat(),
+                'patch_content': patch_content,
+                'detected_files': modified_files,
+                'summary': {
+                    'total_files': len(modified_files),
+                    'total_methods': sum(len(methods) for methods in modified_files.values()),
+                    'file_breakdown': {
+                        file_path: {
+                            'method_count': len(methods),
+                            'methods': methods,
+                            'file_type': 'java' if file_path.endswith('.java') else 'kotlin' if file_path.endswith('.kt') else 'unknown'
+                        } for file_path, methods in modified_files.items()
+                    }
+                }
+            }
+            
+            # Save to debug directory with timestamp
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            debug_file = self.debug_dir / f"patch_analysis_{timestamp}.json"
+            
+            with open(debug_file, 'w', encoding='utf-8') as f:
+                json.dump(debug_data, f, indent=2, ensure_ascii=False)
+            
+            # Also save raw patch for reference
+            patch_file = self.debug_dir / f"raw_patch_{timestamp}.patch"
+            with open(patch_file, 'w', encoding='utf-8') as f:
+                f.write(patch_content)
+            
+            logger.info(f"Saved debug patch analysis to {debug_file}")
+            logger.info(f"Saved raw patch to {patch_file}")
+            
+        except Exception as e:
+            logger.error(f"Failed to save debug patch analysis: {e}")
+    
+    def _save_debug_stub_files(self, instance_id: str, file_path: str, original_content: str, 
+                              stubbed_content: str, modified_methods: List[str]):
+        """Save debug information about original and stubbed files."""
+        try:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            instance_debug_dir = self.debug_dir / instance_id
+            instance_debug_dir.mkdir(exist_ok=True, parents=True)
+            
+            # Create safe filename from file path
+            safe_filename = file_path.replace('/', '_').replace('\\', '_')
+            
+            # Save original file content
+            original_file = instance_debug_dir / f"original_{safe_filename}_{timestamp}"
+            with open(original_file, 'w', encoding='utf-8') as f:
+                f.write(original_content)
+            
+            # Save stubbed file content
+            stubbed_file = instance_debug_dir / f"stubbed_{safe_filename}_{timestamp}"
+            with open(stubbed_file, 'w', encoding='utf-8') as f:
+                f.write(stubbed_content)
+            
+            # Save metadata about the stubbing process
+            metadata = {
+                'timestamp': datetime.now().isoformat(),
+                'instance_id': instance_id,
+                'file_path': file_path,
+                'modified_methods': modified_methods,
+                'file_type': 'java' if file_path.endswith('.java') else 'kotlin' if file_path.endswith('.kt') else 'unknown',
+                'original_lines': len(original_content.split('\n')),
+                'stubbed_lines': len(stubbed_content.split('\n')),
+                'stub_difference': {
+                    'lines_added': len(stubbed_content.split('\n')) - len(original_content.split('\n')),
+                    'content_changed': original_content != stubbed_content
+                },
+                'files': {
+                    'original': str(original_file.name),
+                    'stubbed': str(stubbed_file.name)
+                }
+            }
+            
+            metadata_file = instance_debug_dir / f"stub_metadata_{safe_filename}_{timestamp}.json"
+            with open(metadata_file, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Saved debug stub files for {file_path}:")
+            logger.info(f"  Original: {original_file}")
+            logger.info(f"  Stubbed: {stubbed_file}")
+            logger.info(f"  Metadata: {metadata_file}")
+            
+        except Exception as e:
+            logger.error(f"Failed to save debug stub files for {file_path}: {e}")
     
     async def validate_dataset(self, dataset_file: str, instance_ids: list = None, 
                         exclude_instance_ids: list = None, max_instances: int = None) -> Dict[str, ValidationResult]:
@@ -279,7 +624,7 @@ class AndroidBenchValidator:
                     self.containers.cleanup_container(instance_id, keep_persistent=False)
             
             # Save final results
-            _save_final_results(results, self.output_dir)
+            self._save_final_results(results, self.output_dir)
             
         except Exception as e:
             logger.error(f"Error during dataset validation: {e}")
@@ -344,105 +689,48 @@ class AndroidBenchValidator:
                 result.error_message = f"Failed to apply test patch: {test_patch_output}"
                 return result
             result.test_patch_applied = True
+            
+            # try:
+            #     build_result = run_build_step(self.containers, instance_id, test_patch=instance['test_patch'], phase="BUILD-NO-STUBS")
+            #     result.build_result = build_result
+            # except Exception as e:
+            #     logger.error(f"Error in fallback build step for {instance_id}: {e}")
+            #     result.build_result = None
 
-            # STEP 6a: Build project and save logs
-            logger.info(f"Step 6a: Building project for {instance_id}")
+            # STEP 6: Intelligent method stubbing based on solution patch analysis
+            logger.info(f"Step 6: Starting ast method stubbing for {instance_id}")
+            
             try:
-                build_result = run_build_step(self.containers, instance_id, test_patch=instance['test_patch'], phase="BUILD-PRE-STUBS")
-                result.build_result = build_result
-                
-                logger.info(f"Build completed: success={build_result.success}, "
-                        f"duration={build_result.duration:.1f}s")
-                
-            except Exception as e:
-                logger.error(f"Error in build step for {instance_id}: {e}")
-                # Continue with validation even if build fails
-                build_result = None
-
-            # STEP 6b: Generate stubs if build failed OR if compilation errors detected
-            should_generate_stubs = False
-            stub_reason = ""
-            
-            if not build_result:
-                should_generate_stubs = True
-                stub_reason = "build step failed with exception"
-            elif not build_result.success:
-                should_generate_stubs = True
-                stub_reason = "build marked as unsuccessful"
-            elif self._has_compilation_errors(build_result.output):
-                should_generate_stubs = True
-                stub_reason = "compilation errors detected in build output"
-            
-            if should_generate_stubs:
-                logger.info(f"Step 6b: Generating stubs for {instance_id} due to: {stub_reason}")
-                
-                try:
-                    # Get API key
-                    openrouter_key = os.getenv('OPENROUTER_API_KEY')
-                    if not openrouter_key:
-                        logger.warning(f"No OpenRouter API key found, skipping stub generation for {instance_id}")
-                        result.stub_generation_result = None
+                # Apply solution patch and generate stubs for modified methods
+                if AST_AVAILABLE and (self.java_stubber or self.kotlin_stubber):
+                    stub_success = self._apply_solution_patch_and_stub_methods(
+                        instance_id, 
+                        instance['patch']  # Using correct key from JSONL data
+                    )
+                    
+                    if stub_success:
+                        logger.info(f"Successfully applied AST-based method stubbing for {instance_id}")
                     else:
-                        # Generate and apply stubs - use build output if available, otherwise empty string
-                        build_log = build_result.output if build_result else ""
-                        
-                        # Choose stub generation approach based on configuration
-                        stub_method = os.getenv('STUB_GENERATION_METHOD', 'patch_based')
-                        
-                        if stub_method == 'patch_based':
-                            logger.info(f"Using patch-based stub generation for {instance_id}")
-                            # Extract gradle command from build result to use same command for stub validation
-                            gradle_cmd = build_result.gradle_command if build_result and build_result.gradle_command else None
-                            stub_result = await generate_and_apply_patches(
-                                containers_manager=self.containers,
-                                instance_id=instance_id,
-                                build_log=build_log,
-                                test_patch=instance['test_patch'],
-                                solution_patch=instance.get('patch', ''),
-                                api_key=openrouter_key,
-                                model="anthropic/claude-3.7-sonnet",
-                                gradle_command=gradle_cmd
-                            )
-                        else:
-                            logger.info(f"Using traditional file merging stub generation for {instance_id}")
-                            stub_result = await generate_and_apply_stubs(
-                                containers_manager=self.containers,
-                                instance_id=instance_id,
-                                build_log=build_log,
-                                test_patch=instance['test_patch'],
-                                solution_patch=instance.get('patch', ''),
-                                api_key=openrouter_key,
-                                model="anthropic/claude-3.7-sonnet"
-                            )
-                        
-                        result.stub_generation_result = stub_result
-                        
-                        if stub_result.success:
-                            logger.info(f"Stub generation successful for {instance_id}: "
-                                    f"{len(stub_result.files_created)} files created, "
-                                    f"cost=${stub_result.api_cost:.4f}")
-                            
-                            # Try building again after applying stubs
-                            logger.info(f"Retrying build after applying stubs for {instance_id}")
-                            retry_build_result = run_build_step(self.containers, instance_id, test_patch=instance['test_patch'], phase="BUILD-POST-STUBS")
-                            result.retry_build_result = retry_build_result
-                            
-                            if retry_build_result.success and not self._has_compilation_errors(retry_build_result.output):
-                                logger.info(f"Build successful and compilation errors resolved after stub generation for {instance_id}")
-                            elif retry_build_result.success and self._has_compilation_errors(retry_build_result.output):
-                                logger.warning(f"Build marked successful but compilation errors persist after stub generation for {instance_id}")
-                            else:
-                                logger.warning(f"Build still failing after stub generation for {instance_id}")
-                        else:
-                            logger.warning(f"Stub generation failed for {instance_id}: {stub_result.error_message}")
-                            
-                except Exception as e:
-                    logger.error(f"Error in stub generation step for {instance_id}: {e}")
-                    result.stub_generation_result = None
-            else:
-                logger.info(f"Step 6b: Skipping stub generation for {instance_id} - no build issues detected")
+                        logger.warning(f"AST-based stubbing failed for {instance_id}, continuing without stubs")
+                        # Revert to clean state by checking out base commit again
+                        self.repository.checkout_base_commit(instance_id, instance['base_commit'])
+                        # Reapply only the test patch
+                        self.repository.apply_patch(instance_id, instance['test_patch'], "test_patch")
+                else:
+                    logger.warning(f"AST stubbing not available for {instance_id}, skipping method stubbing")
+                    
+            except Exception as e:
+                logger.error(f"Error in Step 6 for {instance_id}: {e}")
+                # Revert to clean state by checking out base commit again
+                try:
+                    self.repository.checkout_base_commit(instance_id, instance['base_commit'])
+                    # Reapply only the test patch
+                    self.repository.apply_patch(instance_id, instance['test_patch'], "test_patch")
+                    logger.info(f"Reverted to test-patch-only state for {instance_id}")
+                except Exception as revert_error:
+                    logger.error(f"Failed to revert to clean state for {instance_id}: {revert_error}")
 
-            logger.info(f"Step 6 completed for {instance_id}!")
+            logger.info(f"Step 6 (stub generation) completed for {instance_id}!")
             
             # Step 7: Run pre-solution tests (only test patch)
             logger.info(f"Running pre-solution tests for {instance_id}")
@@ -792,6 +1080,15 @@ class AndroidBenchValidator:
                 shutil.rmtree(temp_dir, ignore_errors=True)
                 return None
             
+            # Clean untracked files and handle submodules before checkout to avoid conflicts
+            # First, deinitialize submodules to remove submodule directories
+            submodule_cmd = ["git", "submodule", "deinit", "--all", "-f"]
+            subprocess.run(submodule_cmd, cwd=temp_dir, capture_output=True, text=True, timeout=30)
+            
+            # Then clean untracked files and directories
+            clean_cmd = ["git", "clean", "-fdx"]
+            subprocess.run(clean_cmd, cwd=temp_dir, capture_output=True, text=True, timeout=30)
+            
             # Checkout base commit
             checkout_cmd = ["git", "checkout", base_commit]
             result = subprocess.run(checkout_cmd, cwd=temp_dir, capture_output=True, text=True, timeout=120)
@@ -802,6 +1099,10 @@ class AndroidBenchValidator:
                 fetch_result = subprocess.run(fetch_cmd, cwd=temp_dir, capture_output=True, text=True, timeout=300)
                 
                 if fetch_result.returncode == 0:
+                    # Clean submodules and untracked files again before retry
+                    subprocess.run(submodule_cmd, cwd=temp_dir, capture_output=True, text=True, timeout=30)
+                    subprocess.run(clean_cmd, cwd=temp_dir, capture_output=True, text=True, timeout=30)
+                    
                     # Try checkout again
                     result = subprocess.run(checkout_cmd, cwd=temp_dir, capture_output=True, text=True, timeout=120)
                 
@@ -1014,6 +1315,66 @@ echo "=== Workspace restored to original ==="
             logger.error(f"Error switching workspace back for {instance_id}: {e}")
             return False
 
+    def _save_final_results(self, results: Dict[str, ValidationResult], output_dir: Path):
+        """Save final summary results with test transitions only."""
+        successful = [r for r in results.values() if r.success]
+        failed = [r for r in results.values() if not r.success]
+        
+        # Calculate aggregate test statistics (only test transitions)
+        total_fail_to_pass = sum(r.fail_to_pass_count for r in successful)
+        total_pass_to_pass = sum(r.pass_to_pass_count for r in successful)
+        total_pass_to_fail = sum(r.pass_to_fail_count for r in successful)
+        total_fail_to_fail = sum(r.fail_to_fail_count for r in successful)
+        
+        # Calculate test statistics
+        all_tests_found = set()
+        for result in successful:
+            all_tests_found.update(result.pre_passed_tests)
+            all_tests_found.update(result.pre_failed_tests)
+            all_tests_found.update(result.post_passed_tests)
+            all_tests_found.update(result.post_failed_tests)
+        
+        # Calculate durations
+        total_duration = sum(r.total_duration for r in successful if r.total_duration > 0)
+        avg_duration = total_duration / len(successful) if successful else 0
+        
+        # Create comprehensive summary
+        summary = {
+            'validation_metadata': {
+                'completion_time': datetime.now().isoformat(),
+                'total_duration_hours': total_duration / 3600,
+                'execution_summary': f"Completed {len(successful)}/{len(results)} instances successfully"
+            },
+            'overall_statistics': {
+                'total_instances': len(results),
+                'successful': len(successful),
+                'failed': len(failed),
+                'success_rate': len(successful) / len(results) if results else 0
+            },
+            'test_transition_statistics': {
+                'fail_to_pass': total_fail_to_pass,
+                'pass_to_pass': total_pass_to_pass,
+                'pass_to_fail': total_pass_to_fail,
+                'fail_to_fail': total_fail_to_fail,
+                'summary': {
+                    'total_tests_fixed': total_fail_to_pass,
+                    'total_tests_broken': total_pass_to_fail,
+                    'unique_tests_found': len(all_tests_found)
+                }
+            },
+            'performance_metrics': {
+                'avg_duration_seconds': avg_duration,
+                'total_duration_hours': total_duration / 3600
+            }
+        }
+        
+        # Save summary
+        summary_file = output_dir / "final_validation_summary.json"
+        with open(summary_file, 'w') as f:
+            json.dump(summary, f, indent=2)
+        
+        logger.info(f"Saved final validation summary to {summary_file}")
+
 
 def _save_test_analysis(instance_id: str, result: ValidationResult, output_dir: Path):
     """Save test transition analysis."""
@@ -1066,66 +1427,6 @@ def _save_test_analysis(instance_id: str, result: ValidationResult, output_dir: 
         json.dump(analysis_data, f, indent=2)
     
     logger.info(f"Saved test analysis to {analysis_file}")
-
-def _save_final_results(self, results: Dict[str, ValidationResult], output_dir: Path):
-    """Save final summary results with test transitions only."""
-    successful = [r for r in results.values() if r.success]
-    failed = [r for r in results.values() if not r.success]
-    
-    # Calculate aggregate test statistics (only test transitions)
-    total_fail_to_pass = sum(r.fail_to_pass_count for r in successful)
-    total_pass_to_pass = sum(r.pass_to_pass_count for r in successful)
-    total_pass_to_fail = sum(r.pass_to_fail_count for r in successful)
-    total_fail_to_fail = sum(r.fail_to_fail_count for r in successful)
-    
-    # Calculate test statistics
-    all_tests_found = set()
-    for result in successful:
-        all_tests_found.update(result.pre_passed_tests)
-        all_tests_found.update(result.pre_failed_tests)
-        all_tests_found.update(result.post_passed_tests)
-        all_tests_found.update(result.post_failed_tests)
-    
-    # Calculate durations
-    total_duration = sum(r.total_duration for r in successful if r.total_duration > 0)
-    avg_duration = total_duration / len(successful) if successful else 0
-    
-    # Create comprehensive summary
-    summary = {
-        'validation_metadata': {
-            'completion_time': datetime.now().isoformat(),
-            'total_duration_hours': total_duration / 3600,
-            'execution_summary': f"Completed {len(successful)}/{len(results)} instances successfully"
-        },
-        'overall_statistics': {
-            'total_instances': len(results),
-            'successful': len(successful),
-            'failed': len(failed),
-            'success_rate': len(successful) / len(results) if results else 0
-        },
-        'test_transition_statistics': {
-            'fail_to_pass': total_fail_to_pass,
-            'pass_to_pass': total_pass_to_pass,
-            'pass_to_fail': total_pass_to_fail,
-            'fail_to_fail': total_fail_to_fail,
-            'summary': {
-                'total_tests_fixed': total_fail_to_pass,
-                'total_tests_broken': total_pass_to_fail,
-                'unique_tests_found': len(all_tests_found)
-            }
-        },
-        'performance_metrics': {
-            'avg_duration_seconds': avg_duration,
-            'total_duration_hours': total_duration / 3600
-        }
-    }
-    
-    # Save summary
-    summary_file = output_dir / "final_validation_summary.json"
-    with open(summary_file, 'w') as f:
-        json.dump(summary, f, indent=2)
-    
-    logger.info(f"Saved final validation summary to {summary_file}")
 
 
 async def main():

@@ -39,6 +39,12 @@ git clean -fdx 2>/dev/null || true &&
 echo "=== Fetching latest changes ===" &&
 git fetch origin --unshallow 2>/dev/null || git fetch origin 2>/dev/null || true &&
 
+echo "=== Deinitializing submodules before checkout ===" &&
+git submodule deinit --all -f 2>/dev/null || true &&
+
+echo "=== Cleaning untracked files before checkout ===" &&
+git clean -fdx 2>/dev/null || true &&
+
 echo "=== Checking out base commit {base_commit} ===" &&
 git checkout --force {base_commit} &&
 
@@ -429,8 +435,12 @@ git config --global user.email 'android-bench@example.com' &&
 git config --global user.name 'Android Bench Evaluator' &&
 git clone --depth 100 https://github.com/{repo_name}.git /workspace &&
 cd /workspace &&
+echo "=== Deinitializing submodules before checkout ===" &&
+git submodule deinit --all -f 2>/dev/null || true &&
+echo "=== Cleaning untracked files before checkout ===" &&
+git clean -fdx 2>/dev/null || true &&
 echo "=== Checking out base commit ===" &&
-git checkout {base_commit} || (git fetch --unshallow && git checkout {base_commit}) &&
+git checkout {base_commit} || (git fetch --unshallow && git submodule deinit --all -f 2>/dev/null && git clean -fdx 2>/dev/null && git checkout {base_commit}) &&
 echo "=== Fresh clone complete ==="
 """
             

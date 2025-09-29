@@ -13,9 +13,10 @@ pyyaml
 requests
 tenacity
 tiktoken
-tqdm
 transformers
+tree-sitter==0.20.4
 typing-extensions
+tqdm
 unidiff
 # uuid
 xmltodict

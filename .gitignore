@@ -17,3 +17,6 @@ data/validated-tasks/*
 mobilebench/validation/validation_results/*
 mobilebench/validation/scripts-antennapod/*
 **/*.md
+parsers/*
+validation_results/*
+vinaik/*

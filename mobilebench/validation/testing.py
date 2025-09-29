@@ -22,6 +22,17 @@ class TestResult:
     duration: float = 0.0
     failure_message: str = ""
     error_message: str = ""
+    
+    def to_dict(self) -> dict:
+        """Convert TestResult to dictionary for JSON serialization."""
+        return {
+            'test_name': self.test_name,
+            'class_name': self.class_name,
+            'status': self.status,
+            'duration': self.duration,
+            'failure_message': self.failure_message,
+            'error_message': self.error_message
+        }
 
 
 @dataclass
@@ -38,6 +49,20 @@ class TestExecutionResult:
     test_results: List[TestResult]
     build_successful: bool = False
     gradle_command: str = ""
+    
+    def to_dict(self) -> dict:
+        """Convert TestExecutionResult to dictionary for JSON serialization."""
+        result = {}
+        for key, value in self.__dict__.items():
+            if hasattr(value, 'to_dict'):
+                result[key] = value.to_dict()
+            elif isinstance(value, list):
+                result[key] = [item.to_dict() if hasattr(item, 'to_dict') else item for item in value]
+            elif value is not None:
+                result[key] = value
+            else:
+                result[key] = None
+        return result
 
 
 class AndroidTestingParallel:
@@ -132,6 +157,20 @@ class AndroidTestingParallel:
                         "testWordPressVanillaDebugUnitTest"
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for WordPress flavor - using WordPressVanilla variant")
+                elif "antennapod" in str(instance_id).lower() and (module in [":model", ":event", ":ui:episodes", ":ui:common", ":ui:app-start-intent", ":ui:i18n", ":ui:notifications", ":storage:preferences", ":playback:base", ":parser:feed", ":parser:media", ":parser:transcript", ":net:sync:service-interface", ":net:sync:gpoddernet"]):
+                    # Specific AntennaPod modules use debug variants
+                    module_tasks = [
+                        "testDebugUnitTest",
+                        "testReleaseUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for specific AntennaPod modules - using debug/release variants")
+                elif "antennapod" in str(instance_id).lower():
+                    # Other AntennaPod modules use free/play flavors
+                    module_tasks = [
+                        "testFreeDebugUnitTest",
+                        "testPlayDebugUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for general AntennaPod flavors - using free/play variants")
                 elif module.startswith(":feature:") or module == ":legacy:core":
                     # Feature modules and legacy:core use simple variants
                     module_tasks = [
@@ -310,6 +349,16 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
                     if 'testWordPressVanillaDebugUnitTest' in available_variants_for_module:
                         unit_variant = 'testWordPressVanillaDebugUnitTest'
                         logger.info(f"Selected testWordPressVanillaDebugUnitTest for {module} (WordPress module rule)")
+                elif "antennapod" in str(instance_id).lower() and (module in [":model", ":event", ":ui:episodes", ":ui:common", ":ui:app-start-intent", ":ui:i18n", ":ui:notifications", ":storage:preferences", ":playback:base", ":parser:feed", ":parser:media", ":parser:transcript", ":net:sync:service-interface", ":net:sync:gpoddernet"]):
+                    # Specific AntennaPod modules should use testDebugUnitTest
+                    if 'testDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testDebugUnitTest'
+                        logger.info(f"Selected testDebugUnitTest for {module} (specific AntennaPod module rule)")
+                elif "antennapod" in str(instance_id).lower():
+                    # Other AntennaPod modules should use testFreeDebugUnitTest
+                    if 'testFreeDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testFreeDebugUnitTest'
+                        logger.info(f"Selected testFreeDebugUnitTest for {module} (general AntennaPod module rule)")
                 elif module.startswith(":feature:") or module == ":legacy:core":
                     # Feature modules and legacy:core should use testDebugUnitTest
                     if 'testDebugUnitTest' in available_variants_for_module:
@@ -391,13 +440,9 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
                 # Create test filters for this module
                 test_filters = ' '.join([f'--tests "{test_class}"' for test_class in test_classes])
                 
-                # Build task (consistent with build_utils.py logic)
-                if module == ":app":
-                    # For :app module, don't add module prefix (consistent with build_utils.py)
-                    module_commands.append(f'{unit_variant} {test_filters}')
-                else:
-                    # For other modules, add module prefix (consistent with build_utils.py)
-                    module_commands.append(f'{module}:{unit_variant} {test_filters}')
+                # Build task - always include module prefix for multi-module projects
+                # This ensures Gradle can properly locate tests in the correct module
+                module_commands.append(f'{module}:{unit_variant} {test_filters}')
                 
                 logger.info(f"Generated command for module {module}: {unit_variant} with {len(test_classes)} test classes")
 

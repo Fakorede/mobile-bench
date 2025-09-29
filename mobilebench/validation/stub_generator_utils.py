@@ -456,6 +456,8 @@ class StubGenerator:
             r'Execution failed for task',
             # Enhanced patterns for specific build issues
             r'Too many arguments',
+            r'Argument type mismatch:',
+            r'No value passed for parameter', # Missing argument
             r'No parameter with name',
             r'overrides nothing',
             r'constructor.*: .* cannot be applied to',
@@ -583,6 +585,8 @@ class StubGenerator:
             r'Compilation failed',
             # Enhanced high-priority patterns for specific build issues
             r'Too many arguments',
+            r'Argument type mismatch:',
+            r'No value passed for parameter', # Missing argument
             r'No parameter with name',
             r'overrides nothing',
             r'constructor.*cannot be applied to',
