@@ -32,11 +32,12 @@ from validator_utils import (
 class ResumeableValidator(AndroidBenchValidator):
     """Enhanced validator with resume and incremental saving capabilities."""
     
-    def __init__(self, output_dir: str, docker_context: Optional[str] = None):
+    def __init__(self, output_dir: str, docker_context: Optional[str] = None, keep_containers: bool = False):
         super().__init__(output_dir, docker_context)
         self.progress_file = Path(self.output_dir) / "validation_progress.json"
         self.checkpoint_file = Path(self.output_dir) / "validation_checkpoint.json"
         self.statistics_file = Path(self.output_dir) / "incremental_statistics.json"
+        self.keep_containers = keep_containers
         
         # Ensure output directory exists
         Path(self.output_dir).mkdir(parents=True, exist_ok=True)
@@ -337,9 +338,13 @@ class ResumeableValidator(AndroidBenchValidator):
                     self._save_incremental_statistics()
                 
                 finally:
-                    # Always cleanup container after each instance
-                    logger.info(f"Cleaning up container for {instance_id}")
-                    self.containers.cleanup_container(instance_id, keep_persistent=False)
+                    # Cleanup container after each instance (keep if --keep-containers flag is set)
+                    if self.keep_containers:
+                        logger.info(f"Keeping container for {instance_id} for manual debugging (--keep-containers flag)")
+                        self.containers.cleanup_container(instance_id, keep_persistent=True, preserve_for_debug=True)
+                    else:
+                        logger.info(f"Cleaning up container for {instance_id}")
+                        self.containers.cleanup_container(instance_id, keep_persistent=False, preserve_for_debug=False)
             
             # Final checkpoint save
             self._save_checkpoint(results)
@@ -362,8 +367,12 @@ class ResumeableValidator(AndroidBenchValidator):
         
         finally:
             # Final cleanup
-            logger.info("Performing final cleanup of all containers")
-            self.containers.cleanup_all(keep_persistent=False)
+            if self.keep_containers:
+                logger.info("Keeping all containers for manual debugging (--keep-containers flag)")
+                self.containers.cleanup_all(keep_persistent=True) # MARKER
+            else:
+                logger.info("Performing final cleanup of all containers")
+                self.containers.cleanup_all(keep_persistent=False)
     
     def _load_existing_results(self, instances: List[Dict[str, Any]]) -> Dict[str, ValidationResult]:
         """Load existing results from previous runs."""
@@ -574,6 +583,7 @@ INSTANCE_ID_PATTERNS = {
     'thunderbird': 'thunderbird__thunderbird-android-',
     'AntennaPod': 'AntennaPod__AntennaPod-',
     'wordPress': 'wordpress-mobile__WordPress-Android-',
+    'Tusky': 'tuskyapp__Tusky-',
     # Add more patterns as needed
 }
 
@@ -667,6 +677,8 @@ Examples:
     parser.add_argument("--output-dir", default="android_validation_results_enhanced", help="Output directory")
     parser.add_argument("--log-level", default="INFO", help="Logging level")
     parser.add_argument("--docker-context", help="Docker context to use")
+    parser.add_argument("--keep-containers", action="store_true", 
+                       help="Keep containers running after tests for manual debugging")
     parser.add_argument("--force-restart", action="store_true", 
                        help="Force restart from beginning, ignoring previous progress")
     
@@ -683,7 +695,8 @@ Examples:
     # Create enhanced validator
     validator = ResumeableValidator(
         args.output_dir, 
-        args.docker_context
+        args.docker_context,
+        args.keep_containers
     )
     
     # Clear previous progress if force restart requested
@@ -728,18 +741,29 @@ Examples:
         print(f"  - incremental_statistics.json: Running statistics")
         print(f"  - validation_progress.json: Resume information")
         
+        # Show container debugging info if containers are kept
+        if args.keep_containers:
+            print(f"\n🐳 CONTAINERS KEPT FOR DEBUGGING:")
+            print(f"  Use 'docker ps' to see running containers")
+            print(f"  Connect with: docker exec -it -w / <container_name> /bin/bash")
+            print(f"  Container names typically start with 'android-bench-'")
+            print(f"  📁 PRESERVED DIRECTORIES:")
+            print(f"    /workspace - Pre-solution test state (with build artifacts)")
+            print(f"    /workspace_post - Post-solution test state (final working solution)")
+            print(f"  Remember to clean up containers manually when done!")
+        
         # Exit with appropriate code
         sys.exit(0 if successful > 0 else 1)
         
     except KeyboardInterrupt:
         print("\nValidation interrupted by user")
         print("Progress has been saved. Re-run the same command to resume.")
-        validator.containers.cleanup_all(keep_persistent=False)
+        validator.containers.cleanup_all(keep_persistent=validator.keep_containers, preserve_for_debug=validator.keep_containers)
         sys.exit(1)
     except Exception as e:
         print(f"Validation failed: {e}")
         logger.error(traceback.format_exc())
-        validator.containers.cleanup_all(keep_persistent=False)
+        validator.containers.cleanup_all(keep_persistent=validator.keep_containers, preserve_for_debug=validator.keep_containers)
         sys.exit(1)
 
 if __name__ == "__main__":

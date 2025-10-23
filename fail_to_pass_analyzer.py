@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Flexible analyzer for fail_to_pass and pass_to_pass transitions across multiple projects.
+Flexible analyzer for fail_to_pass, pass_to_pass, and fail_to_fail transitions across multiple projects.
 
 This script can analyze a single project directory or multiple projects within
-a parent directory structure. It computes both fail_to_pass and pass_to_pass
+a parent directory structure. It computes fail_to_pass, pass_to_pass, and fail_to_fail
 test transitions from test_analysis.json files.
 
 Usage:
@@ -61,7 +61,7 @@ def find_test_analysis_files(base_path, recursive=False):
 
 def analyze_project_transitions(test_files):
     """
-    Analyze fail_to_pass transitions for a single project.
+    Analyze fail_to_pass, pass_to_pass, and fail_to_fail transitions for a single project.
     
     Args:
         test_files (list): List of test_analysis.json file paths
@@ -77,7 +77,12 @@ def analyze_project_transitions(test_files):
         'instances_with_pass_to_pass': 0,
         'total_pass_to_pass_transitions': 0,
         'max_pass_to_pass': 0,
-        'detailed_instances': [],
+        'instances_with_fail_to_fail': 0,
+        'total_fail_to_fail_transitions': 0,
+        'max_fail_to_fail': 0,
+        'instances_fail_to_pass': [],
+        'instances_pass_to_pass': [],
+        'instances_fail_to_fail': [],
         'error_count': 0
     }
     
@@ -90,40 +95,50 @@ def analyze_project_transitions(test_files):
             
             fail_to_pass_count = data.get('test_transitions', {}).get('fail_to_pass', {}).get('count', 0)
             pass_to_pass_count = data.get('test_transitions', {}).get('pass_to_pass', {}).get('count', 0)
-            
-            instance_details = {
-                'instance': instance_name,
-                'fail_to_pass_count': fail_to_pass_count,
-                'pass_to_pass_count': pass_to_pass_count
-            }
+            fail_to_fail_count = data.get('test_transitions', {}).get('fail_to_fail', {}).get('count', 0)
             
             if fail_to_pass_count > 0:
                 results['instances_with_fail_to_pass'] += 1
                 results['total_fail_to_pass_transitions'] += fail_to_pass_count
                 results['max_fail_to_pass'] = max(results['max_fail_to_pass'], fail_to_pass_count)
+                results['instances_fail_to_pass'].append({
+                    'instance': instance_name,
+                    'count': fail_to_pass_count
+                })
             
             if pass_to_pass_count > 0:
                 results['instances_with_pass_to_pass'] += 1
                 results['total_pass_to_pass_transitions'] += pass_to_pass_count
                 results['max_pass_to_pass'] = max(results['max_pass_to_pass'], pass_to_pass_count)
+                results['instances_pass_to_pass'].append({
+                    'instance': instance_name,
+                    'count': pass_to_pass_count
+                })
             
-            # Only add to detailed instances if there are any transitions
-            if fail_to_pass_count > 0 or pass_to_pass_count > 0:
-                results['detailed_instances'].append(instance_details)
+            if fail_to_fail_count > 0:
+                results['instances_with_fail_to_fail'] += 1
+                results['total_fail_to_fail_transitions'] += fail_to_fail_count
+                results['max_fail_to_fail'] = max(results['max_fail_to_fail'], fail_to_fail_count)
+                results['instances_fail_to_fail'].append({
+                    'instance': instance_name,
+                    'count': fail_to_fail_count
+                })
                 
         except (json.JSONDecodeError, FileNotFoundError, IOError, KeyError, TypeError) as e:
             results['error_count'] += 1
             print(f"Warning: Error processing {test_file}: {e}")
     
-    # Sort instances by total transitions (fail_to_pass + pass_to_pass) descending
-    results['detailed_instances'].sort(key=lambda x: x['fail_to_pass_count'] + x['pass_to_pass_count'], reverse=True)
+    # Sort each list by count descending
+    results['instances_fail_to_pass'].sort(key=lambda x: x['count'], reverse=True)
+    results['instances_pass_to_pass'].sort(key=lambda x: x['count'], reverse=True)
+    results['instances_fail_to_fail'].sort(key=lambda x: x['count'], reverse=True)
     
     return results
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Analyze fail_to_pass and pass_to_pass transitions in test results",
+        description="Analyze fail_to_pass, pass_to_pass, and fail_to_fail transitions in test results",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -155,8 +170,10 @@ Examples:
         total_instances = 0
         total_with_fail_to_pass = 0
         total_with_pass_to_pass = 0
+        total_with_fail_to_fail = 0
         grand_total_fail_to_pass = 0
         grand_total_pass_to_pass = 0
+        grand_total_fail_to_fail = 0
         
         for project_name, test_files in projects.items():
             results = analyze_project_transitions(test_files)
@@ -164,8 +181,10 @@ Examples:
             total_instances += results['total_instances']
             total_with_fail_to_pass += results['instances_with_fail_to_pass']
             total_with_pass_to_pass += results['instances_with_pass_to_pass']
+            total_with_fail_to_fail += results['instances_with_fail_to_fail']
             grand_total_fail_to_pass += results['total_fail_to_pass_transitions']
             grand_total_pass_to_pass += results['total_pass_to_pass_transitions']
+            grand_total_fail_to_fail += results['total_fail_to_fail_transitions']
             
             print(f"\nProject: {project_name}")
             print(f"  Total instances: {results['total_instances']}")
@@ -175,22 +194,35 @@ Examples:
             print(f"  Instances with pass_to_pass > 0: {results['instances_with_pass_to_pass']}")
             print(f"  Total pass_to_pass transitions: {results['total_pass_to_pass_transitions']}")
             print(f"  Max pass_to_pass in single instance: {results['max_pass_to_pass']}")
+            print(f"  Instances with fail_to_fail > 0: {results['instances_with_fail_to_fail']}")
+            print(f"  Total fail_to_fail transitions: {results['total_fail_to_fail_transitions']}")
+            print(f"  Max fail_to_fail in single instance: {results['max_fail_to_fail']}")
             
-            if results['instances_with_fail_to_pass'] > 0 or results['instances_with_pass_to_pass'] > 0:
+            if results['instances_with_fail_to_pass'] > 0 or results['instances_with_pass_to_pass'] > 0 or results['instances_with_fail_to_fail'] > 0:
                 fail_percentage = results['instances_with_fail_to_pass'] / results['total_instances'] * 100
                 pass_percentage = results['instances_with_pass_to_pass'] / results['total_instances'] * 100
+                fail_to_fail_percentage = results['instances_with_fail_to_fail'] / results['total_instances'] * 100
                 print(f"  Percentage with fail_to_pass transitions: {fail_percentage:.2f}%")
                 print(f"  Percentage with pass_to_pass transitions: {pass_percentage:.2f}%")
+                print(f"  Percentage with fail_to_fail transitions: {fail_to_fail_percentage:.2f}%")
                 
-                # Show top instances if there are many
-                if len(results['detailed_instances']) > 10:
-                    print(f"  Top 10 instances with most transitions:")
-                    for instance in results['detailed_instances'][:10]:
-                        print(f"    - {instance['instance']}: fail_to_pass={instance['fail_to_pass_count']}, pass_to_pass={instance['pass_to_pass_count']}")
-                else:
-                    print(f"  Instances with transitions:")
-                    for instance in results['detailed_instances']:
-                        print(f"    - {instance['instance']}: fail_to_pass={instance['fail_to_pass_count']}, pass_to_pass={instance['pass_to_pass_count']}")
+                # Show all instances with fail_to_pass transitions
+                if results['instances_fail_to_pass']:
+                    print(f"\n  All instances with fail_to_pass > 0:")
+                    for instance in results['instances_fail_to_pass']:
+                        print(f"    - {instance['instance']}: {instance['count']}")
+                
+                # Show all instances with pass_to_pass transitions
+                if results['instances_pass_to_pass']:
+                    print(f"\n  All instances with pass_to_pass > 0:")
+                    for instance in results['instances_pass_to_pass']:
+                        print(f"    - {instance['instance']}: {instance['count']}")
+                
+                # Show all instances with fail_to_fail transitions
+                if results['instances_fail_to_fail']:
+                    print(f"\n  All instances with fail_to_fail > 0:")
+                    for instance in results['instances_fail_to_fail']:
+                        print(f"    - {instance['instance']}: {instance['count']}")
             
             if results['error_count'] > 0:
                 print(f"  Errors encountered: {results['error_count']}")
@@ -202,14 +234,18 @@ Examples:
         print(f"Total instances analyzed: {total_instances}")
         print(f"Total instances with fail_to_pass > 0: {total_with_fail_to_pass}")
         print(f"Total instances with pass_to_pass > 0: {total_with_pass_to_pass}")
+        print(f"Total instances with fail_to_fail > 0: {total_with_fail_to_fail}")
         print(f"Total fail_to_pass transitions: {grand_total_fail_to_pass}")
         print(f"Total pass_to_pass transitions: {grand_total_pass_to_pass}")
+        print(f"Total fail_to_fail transitions: {grand_total_fail_to_fail}")
         
         if total_instances > 0:
             fail_percentage = total_with_fail_to_pass / total_instances * 100
             pass_percentage = total_with_pass_to_pass / total_instances * 100
+            fail_to_fail_percentage = total_with_fail_to_fail / total_instances * 100
             print(f"Overall percentage with fail_to_pass transitions: {fail_percentage:.2f}%")
             print(f"Overall percentage with pass_to_pass transitions: {pass_percentage:.2f}%")
+            print(f"Overall percentage with fail_to_fail transitions: {fail_to_fail_percentage:.2f}%")
             
             if total_with_fail_to_pass > 0:
                 avg_fail_transitions = grand_total_fail_to_pass / total_with_fail_to_pass
@@ -218,6 +254,10 @@ Examples:
             if total_with_pass_to_pass > 0:
                 avg_pass_transitions = grand_total_pass_to_pass / total_with_pass_to_pass
                 print(f"Average pass_to_pass transitions per instance (with pass_to_pass): {avg_pass_transitions:.2f}")
+            
+            if total_with_fail_to_fail > 0:
+                avg_fail_to_fail_transitions = grand_total_fail_to_fail / total_with_fail_to_fail
+                print(f"Average fail_to_fail transitions per instance (with fail_to_fail): {avg_fail_to_fail_transitions:.2f}")
         
     except Exception as e:
         print(f"Error: {e}")

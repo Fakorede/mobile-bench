@@ -254,19 +254,21 @@ class KotlinCodeStubber:
         functions_to_stub = []
         self._find_functions_recursive(tree.root_node, source_code, functions_to_stub)
         
+        # Filter out functions without bodies (interfaces, abstract methods)
+        functions_to_stub = [f for f in functions_to_stub if f['body_start'] is not None and f['body_end'] is not None]
+        
         # Sort by start position in reverse order
         functions_to_stub.sort(key=lambda x: x['body_start'], reverse=True)
         
         # Replace each function body with a stub
         for function in functions_to_stub:
-            if function['body_start'] is not None and function['body_end'] is not None:
-                # Generate stub body
-                stub_body = self._generate_kotlin_stub_body(function)
-                
-                # Replace the function body in the source code
-                before = modified_code[:function['body_start']]
-                after = modified_code[function['body_end']:]
-                modified_code = before + stub_body + after
+            # Generate stub body
+            stub_body = self._generate_kotlin_stub_body(function)
+            
+            # Replace the function body in the source code
+            before = modified_code[:function['body_start']]
+            after = modified_code[function['body_end']:]
+            modified_code = before + stub_body + after
         
         return modified_code
     
@@ -306,7 +308,7 @@ class KotlinCodeStubber:
             elif child.type == 'function_value_parameters':
                 func_info['parameters'] = self._extract_kotlin_parameters(child, source_code)
             
-            elif child.type in ['user_type', 'type_identifier']:
+            elif child.type in ['user_type', 'type_identifier', 'nullable_type']:  # Added nullable_type
                 func_info['return_type'] = source_code[child.start_byte:child.end_byte]
             
             elif child.type == 'function_body':
@@ -349,25 +351,48 @@ class KotlinCodeStubber:
         stub_lines.append(" {")
         stub_lines.append(f"        // TODO: Implement {func_name}")
         
+        # Determine if this is a nullable type
+        is_nullable = return_type.endswith('?')
+        base_type = return_type.rstrip('?').strip()
+        
         # Add appropriate return statement
         if return_type == 'Unit' or return_type == '':
             stub_lines.append("        // Function implementation goes here")
-        elif return_type in ['Int', 'Long', 'Short', 'Byte']:
-            stub_lines.append("        return 0")
-        elif return_type in ['Float', 'Double']:
-            stub_lines.append("        return 0.0")
-        elif return_type == 'Boolean':
-            stub_lines.append("        return false")
-        elif return_type == 'String':
-            stub_lines.append("        return \"\"")
-        elif self._is_array_type_kotlin(return_type):
+        elif base_type in ['Int', 'Long', 'Short', 'Byte']:
+            if is_nullable:
+                stub_lines.append("        return null")
+            else:
+                stub_lines.append("        return 0")
+        elif base_type in ['Float', 'Double']:
+            if is_nullable:
+                stub_lines.append("        return null")
+            else:
+                stub_lines.append("        return 0.0")
+        elif base_type == 'Boolean':
+            if is_nullable:
+                stub_lines.append("        return null")
+            else:
+                stub_lines.append("        return false")
+        elif base_type == 'String':
+            if is_nullable:
+                stub_lines.append("        return null")
+            else:
+                stub_lines.append("        return \"\"")
+        elif self._is_array_type_kotlin(base_type):
             # Handle Kotlin arrays
-            if func_name == 'newArray':
+            if is_nullable:
+                stub_lines.append("        return null")
+            elif func_name == 'newArray':
                 stub_lines.append("        return arrayOfNulls(size)")
             else:
                 stub_lines.append("        return emptyArray()")
+        elif is_nullable:
+            # Nullable types - return null
+            stub_lines.append("        return null")
         else:
-            stub_lines.append("        TODO(\"Not yet implemented\")")
+            # Non-nullable reference types - try to construct or throw
+            # Use error() which throws IllegalStateException - this compiles and is idiomatic Kotlin
+            stub_lines.append(f"        error(\"Not yet implemented: {func_name}\")")
         
         stub_lines.append("    }")
         

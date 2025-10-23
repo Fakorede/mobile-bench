@@ -20,3 +20,4 @@ mobilebench/validation/scripts-antennapod/*
 parsers/*
 validation_results/*
 vinaik/*
+repos/*

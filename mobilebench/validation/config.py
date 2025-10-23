@@ -44,15 +44,31 @@ class AndroidConfig:
     def parse_build_config(self) -> Dict[str, str]:
         """Parse all configuration files and return build requirements."""
         logger.info(f"Parsing Android configuration for {self.project_path}")
+        logger.info(f"Starting with default config: {self.config}")
         
         # Parse in order of priority (AGP version detection is critical)
+        logger.info("Step 1: Parsing gradle wrapper...")
         self._parse_gradle_wrapper()
+        logger.info(f"After gradle wrapper: {self.config}")
+        
+        logger.info("Step 2: Parsing gradle properties...")
         self._parse_gradle_properties()
+        logger.info(f"After gradle properties: {self.config}")
+        
+        logger.info("Step 3: Parsing project gradle...")
         self._parse_project_gradle()  # This now detects AGP and sets Java accordingly
+        logger.info(f"After project gradle: {self.config}")
+        
+        logger.info("Step 4: Parsing app gradle...")
         self._parse_app_gradle()
+        logger.info(f"After app gradle: {self.config}")
+        
+        logger.info("Step 5: Determining test variant...")
         self._determine_test_variant()
+        logger.info(f"After test variant: {self.config}")
         
         # Final validation and adjustment
+        logger.info("Step 6: Validating config...")
         self._validate_config()
         
         logger.info(f"Final configuration: {self.config}")
@@ -117,15 +133,18 @@ class AndroidConfig:
     
     def _parse_project_gradle(self):
         """Parse project-level build.gradle for Java version and AGP version."""
+        gradle_file_found = None
         for gradle_file in ['build.gradle', 'build.gradle.kts']:
             project_gradle = self.project_path / gradle_file
             if project_gradle.exists():
+                gradle_file_found = project_gradle
                 break
         else:
-            logger.warning("Project build.gradle not found")
+            print("DEBUG: Project build.gradle not found")
             return
             
         try:
+            logger.info(f"Parsing project build file: {gradle_file_found}")
             content = project_gradle.read_text(encoding='utf-8')
             
             # First check AGP version which determines minimum Java requirement
@@ -135,34 +154,55 @@ class AndroidConfig:
                 if required_java:
                     self.config['java_version'] = required_java
                     logger.info(f"AGP {agp_version} requires Java {required_java}")
+            else:
+                logger.warning("No AGP version detected in project build file")
             
             # Extract Java version from various patterns (but AGP takes precedence)
             java_patterns = [
+                # Java toolchain (modern Gradle/Android)
+                r'java\s*\{[^}]*toolchain\.languageVersion\s*=\s*JavaLanguageVersion\.of\((\d+)\)',
+                r'toolchain\s*\{[^}]*languageVersion\s*=\s*JavaLanguageVersion\.of\((\d+)\)',
+                r'languageVersion\s*=\s*JavaLanguageVersion\.of\((\d+)\)',
+                # Traditional compatibility settings
                 r'sourceCompatibility\s*[=:]\s*JavaVersion\.VERSION_(\d+)',
                 r'targetCompatibility\s*[=:]\s*JavaVersion\.VERSION_(\d+)',
                 r'jvmTarget\s*[=:]\s*["\'](\d+)["\']',
                 r'JavaVersion\.VERSION_(\d+)',
                 r'compileOptions\s*\{[^}]*sourceCompatibility\s*[=:]\s*JavaVersion\.VERSION_(\d+)',
-                r'kotlinOptions\s*\{[^}]*jvmTarget\s*[=:]\s*["\'](\d+)["\']'
+                r'kotlinOptions\s*\{[^}]*jvmTarget\s*[=:]\s*["\'](\d+)["\']',
+                # Direct version numbers
+                r'sourceCompatibility\s*[=:]\s*["\'](\d+)["\']',
+                r'targetCompatibility\s*[=:]\s*["\'](\d+)["\']',
+                r'javaVersion\s*[=:]\s*["\'](\d+)["\']'
             ]
             
             # Only override AGP decision if explicitly specified and higher
-            for pattern in java_patterns:
+            java_version_found = False
+            for i, pattern in enumerate(java_patterns):
                 match = re.search(pattern, content, re.DOTALL)
                 if match:
                     java_version = match.group(1)
+                    java_version_found = True
+                    logger.info(f"Found Java version {java_version} using pattern {i+1}: {pattern}")
+                    
                     if java_version in self.SUPPORTED_JAVA_VERSIONS:
                         # Only use if higher than AGP requirement
                         if not agp_version or int(java_version) >= int(self.config['java_version']):
+                            old_version = self.config['java_version']
                             self.config['java_version'] = java_version
-                            logger.info(f"Found explicit Java version: {java_version}")
+                            logger.info(f"Updated Java version from {old_version} to {java_version}")
                     else:
                         # Map to supported version
                         mapped_version = self._map_java_version(java_version)
                         if not agp_version or int(mapped_version) >= int(self.config['java_version']):
+                            old_version = self.config['java_version']
                             self.config['java_version'] = mapped_version
-                            logger.warning(f"Java {java_version} mapped to {mapped_version}")
+                            logger.warning(f"Java {java_version} mapped to {mapped_version} (was {old_version})")
                     break
+            
+            if not java_version_found:
+                logger.warning(f"No Java version patterns matched in {gradle_file_found}")
+                logger.debug(f"File content preview (first 1000 chars): {content[:1000]}")
                     
         except Exception as e:
             logger.error(f"Error parsing project build.gradle: {e}")
@@ -185,30 +225,37 @@ class AndroidConfig:
                 return agp_version
         
         # Also check in gradle.properties or gradle/libs.versions.toml
-        self._check_version_catalogs()
+        catalog_version = self._check_version_catalogs()
+        if catalog_version:
+            return catalog_version
         
         return None
     
     def _check_version_catalogs(self) -> Optional[str]:
         """Check gradle/libs.versions.toml for AGP version."""
         version_catalog = self.project_path / "gradle" / "libs.versions.toml"
+        print(f"DEBUG: Checking version catalog: {version_catalog}")
         if version_catalog.exists():
             try:
                 content = version_catalog.read_text(encoding='utf-8')
+                print(f"DEBUG: Version catalog content preview: {content[:300]}...")
                 agp_patterns = [
                     r'agp\s*=\s*["\'](\d+\.\d+(?:\.\d+)?)["\']',
                     r'android-gradle\s*=\s*["\'](\d+\.\d+(?:\.\d+)?)["\']',
                     r'androidGradlePlugin\s*=\s*["\'](\d+\.\d+(?:\.\d+)?)["\']'
                 ]
                 
-                for pattern in agp_patterns:
+                for i, pattern in enumerate(agp_patterns):
                     match = re.search(pattern, content)
+                    print(f"DEBUG: Pattern {i+1} ({pattern}): {'Match' if match else 'No match'}")
                     if match:
                         agp_version = match.group(1)
-                        logger.info(f"Detected AGP version from catalog: {agp_version}")
+                        print(f"DEBUG: Detected AGP version from catalog: {agp_version}")
                         return agp_version
             except Exception as e:
-                logger.warning(f"Error reading version catalog: {e}")
+                print(f"DEBUG: Error reading version catalog: {e}")
+        else:
+            print(f"DEBUG: Version catalog does not exist")
         
         return None
     
@@ -257,6 +304,8 @@ class AndroidConfig:
             self.project_path / "build.gradle",
             self.project_path / "build.gradle.kts"
         ]
+        
+        logger.info(f"Looking for app build files in: {[str(f) for f in potential_build_files]}")
         
         # Also check for android-specific modules
         for item in self.project_path.iterdir():

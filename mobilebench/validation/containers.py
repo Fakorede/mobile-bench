@@ -77,7 +77,7 @@ class AndroidContainersPersistent:
             raise RuntimeError(f"Error ensuring Docker image: {e}")
     
     def create_container(self, instance_id: str, config: Dict[str, str], 
-                        repo_path: str) -> bool:
+                        repo_path: str, mount_repo: bool = False) -> bool:
         """Create persistent container for the instance."""
         
         logger.info(f"Creating persistent container for {instance_id}")
@@ -91,9 +91,10 @@ class AndroidContainersPersistent:
                 logger.info(f"Reusing existing container {container_name}")
                 self.containers[instance_id] = {
                     'config': config,
-                    'repo_path': os.path.abspath(repo_path),
+                    'repo_path': os.path.abspath(repo_path) if mount_repo else None,
                     'name': container_name,
-                    'persistent': True
+                    'persistent': True,
+                    'mount_repo': mount_repo
                 }
                 return True
             else:
@@ -101,7 +102,7 @@ class AndroidContainersPersistent:
                 self._remove_container(container_name)
         
         # Create new persistent container
-        return self._create_new_container(instance_id, config, repo_path, container_name)
+        return self._create_new_container(instance_id, config, repo_path, container_name, mount_repo)
     
     def _container_exists(self, container_name: str) -> bool:
         """Check if container exists (running or stopped)."""
@@ -168,7 +169,7 @@ class AndroidContainersPersistent:
             logger.warning(f"Error removing container {container_name}: {e}")
     
     def _create_new_container(self, instance_id: str, config: Dict[str, str], 
-                             repo_path: str, container_name: str) -> bool:
+                             repo_path: str, container_name: str, mount_repo: bool = False) -> bool:
         """Create a new persistent container."""
         
         try:
@@ -182,7 +183,6 @@ class AndroidContainersPersistent:
                 "create",
                 "--name", container_name,
                 "--network", "host",
-                "-v", f"{os.path.abspath(repo_path)}:/workspace",
                 "-w", "/workspace",
                 # Persistent volumes for caching
                 "-v", f"gradle-cache-{instance_id}:/tmp/.gradle",
@@ -192,6 +192,13 @@ class AndroidContainersPersistent:
                 "-e", f"GRADLE_USER_HOME=/tmp/.gradle",
                 "--user", "root"
             ]
+            
+            # Add repository mount only if mount_repo is True
+            if mount_repo:
+                create_cmd.extend(["-v", f"{os.path.abspath(repo_path)}:/workspace"])
+                logger.info(f"Mounting repository from {repo_path} to /workspace")
+            else:
+                logger.info("Creating container without repository mount - will copy files later")
             
             # Add environment variables
             for key, value in env_vars.items():
@@ -206,9 +213,10 @@ class AndroidContainersPersistent:
                 logger.info(f"Created persistent container: {container_name}")
                 self.containers[instance_id] = {
                     'config': config,
-                    'repo_path': os.path.abspath(repo_path),
+                    'repo_path': os.path.abspath(repo_path) if mount_repo else None,
                     'name': container_name,
-                    'persistent': True
+                    'persistent': True,
+                    'mount_repo': mount_repo
                 }
                 return True
             else:
@@ -451,31 +459,51 @@ cd {workdir}
         
         logger.info(f"SDK components will be installed during container initialization for {instance_id}")
     
-    def prepare_for_test_execution(self, instance_id: str, phase: str = "pre") -> bool:
+    def prepare_for_test_execution(self, instance_id: str, phase: str = "pre", workdir: str = "/workspace", preserve_build_artifacts: bool = False) -> bool:
         """Prepare container for test execution phase."""
-        logger.info(f"Preparing container for {phase}-test execution: {instance_id}")
+        logger.info(f"Preparing container for {phase}-test execution in {workdir}: {instance_id}")
         
-        # Clean only build artifacts, preserve caches
-        cleanup_command = """
-echo "=== Preparing for test execution ===" &&
-cd /workspace &&
+        if preserve_build_artifacts:
+            # Skip build cleanup for debugging
+            cleanup_command = f"""
+echo "=== Preparing for test execution (preserving build artifacts) in {workdir} ===" &&
+cd {workdir} &&
 
-# Clean build artifacts but preserve downloaded dependencies
-rm -rf build/ app/build/ */build/ || true &&
+# Skip build artifact cleanup for debugging
+echo "Preserving build artifacts for debugging" &&
 
-# Stop any running Gradle daemons
+# Stop any running Gradle daemons to prevent workspace interference
 ./gradlew --stop 2>/dev/null || true &&
 
 # Ensure proper permissions
 chmod +x ./gradlew 2>/dev/null || true &&
 
-echo "Container prepared for test execution"
+echo "Container prepared for test execution in {workdir}"
+"""
+        else:
+            # Clean build artifacts for isolation between phases
+            cleanup_command = f"""
+echo "=== Preparing for test execution in {workdir} ===" &&
+cd {workdir} &&
+
+# Clean build artifacts for proper isolation between pre/post phases
+rm -rf build/ app/build/ */build/ .gradle/daemon/ || true &&
+echo "Cleaned build artifacts from {workdir}" &&
+
+# Stop any running Gradle daemons to prevent workspace interference
+./gradlew --stop 2>/dev/null || true &&
+
+# Ensure proper permissions
+chmod +x ./gradlew 2>/dev/null || true &&
+
+echo "Container prepared for test execution in {workdir}"
 """
         
         try:
             exit_code, output = self.exec_command(
                 instance_id,
                 cleanup_command,
+                workdir=workdir,
                 timeout=120
             )
             
@@ -530,7 +558,7 @@ echo "Container prepared for test execution"
             logger.error(f"Error copying to container {instance_id}: {e}")
             return False
     
-    def cleanup_container(self, instance_id: str, keep_persistent: bool = True):
+    def cleanup_container(self, instance_id: str, keep_persistent: bool = True, preserve_for_debug: bool = False):
         """Cleanup container."""
         if instance_id not in self.containers:
             return
@@ -538,16 +566,22 @@ echo "Container prepared for test execution"
         container_name = self.containers[instance_id]['name']
         
         if keep_persistent and self.containers[instance_id].get('persistent', False):
-            logger.info(f"Keeping persistent container {container_name} for potential reuse")
-            # Just clean build artifacts
-            try:
-                self.exec_command(
-                    instance_id,
-                    "cd /workspace && rm -rf build/ app/build/ */build/ .gradle/daemon/ || true",
-                    timeout=60
-                )
-            except Exception as e:
-                logger.warning(f"Error cleaning build artifacts: {e}")
+            if preserve_for_debug:
+                logger.info(f"Keeping persistent container {container_name} for debugging - preserving all workspace state")
+                # Don't clean anything when preserving for debug
+                logger.info("Preserving both /workspace and /workspace_post for manual debugging")
+            else: # MARKER
+                logger.info(f"Keeping persistent container {container_name} for potential reuse")
+                # Just clean build artifacts
+                try:
+                    # self.exec_command(
+                    #     instance_id,
+                    #     "cd /workspace && rm -rf build/ app/build/ */build/ .gradle/daemon/ || true",
+                    #     timeout=60
+                    # )
+                    pass
+                except Exception as e:
+                    logger.warning(f"Error cleaning build artifacts: {e}")
         else:
             # Fully remove container
             logger.info(f"Removing container {container_name}")

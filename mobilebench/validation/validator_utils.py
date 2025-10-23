@@ -40,11 +40,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Import parser module for AST-based stubbing
-import sys
-sys.path.append(str(Path(__file__).parent.parent / "parser"))
+# import sys
+# sys.path.append(str(Path(__file__).parent.parent / "parser"))
 try:
     from tree_sitter import Language, Parser
-    from ast_code_manipulator import JavaCodeStubber, KotlinCodeStubber
+    from parser.ast_code_manipulator import JavaCodeStubber, KotlinCodeStubber
     AST_AVAILABLE = True
     
     # Debug info for troubleshooting
@@ -221,11 +221,78 @@ class AndroidBenchValidator:
         if AST_AVAILABLE:
             self._initialize_ast_stubbers()
     
+    def _setup_wordpress_project(self, instance_id: str, workspace_path: str = "/workspace") -> bool:
+        """Setup WordPress-specific configuration files in the specified workspace."""
+        try:
+            workspace_name = "main workspace" if workspace_path == "/workspace" else "clean workspace"
+            logger.info(f"Setting up WordPress-specific configuration in {workspace_name} for {instance_id}")
+            
+            # Setup command to create local.properties and gradle.properties
+            setup_command = f"""
+# WordPress-specific setup in {workspace_name}
+echo "=== Setting up WordPress project configuration in {workspace_name} ===" &&
+
+# Create local.properties with Android SDK path
+echo "sdk.dir=/opt/android-sdk/" > {workspace_path}/local.properties &&
+echo "Created local.properties with SDK path in {workspace_name}" &&
+
+# Setup gradle.properties for WordPress
+if [ -f "{workspace_path}/gradle.properties-example" ]; then
+    echo "Copying gradle.properties from gradle.properties-example in {workspace_name}" &&
+    cp {workspace_path}/gradle.properties-example {workspace_path}/gradle.properties
+elif [ -f "{workspace_path}/wp-gradle-properties-example.txt" ]; then
+    echo "Copying gradle.properties from wp-gradle-properties-example.txt in {workspace_name}" &&
+    cp {workspace_path}/wp-gradle-properties-example.txt {workspace_path}/gradle.properties
+else
+    echo "Warning: Neither gradle.properties-example nor wp-gradle-properties-example.txt found in {workspace_name}"
+fi &&
+
+# Fix build.gradle to remove allWarningsAsErrors that causes compilation failures
+echo "Fixing build.gradle to remove allWarningsAsErrors property in {workspace_name}" &&
+if [ -f "{workspace_path}/build.gradle" ]; then
+    # Create backup of original build.gradle
+    cp {workspace_path}/build.gradle {workspace_path}/build.gradle.backup &&
+    # Remove or comment out allWarningsAsErrors lines
+    sed -i 's/.*allWarningsAsErrors.*=.*true.*//g' {workspace_path}/build.gradle &&
+    sed -i '/^[[:space:]]*allWarningsAsErrors[[:space:]]*=/d' {workspace_path}/build.gradle &&
+    echo "Removed allWarningsAsErrors from build.gradle in {workspace_name}"
+else
+    echo "Warning: build.gradle not found in {workspace_name}"
+fi &&
+
+# Also check and fix any build.gradle files in subdirectories (like app/build.gradle)
+find {workspace_path} -name "build.gradle" -type f -not -path "*/build/*" -exec sh -c '
+    for file; do
+        if grep -q "allWarningsAsErrors" "$file"; then
+            echo "Fixing allWarningsAsErrors in $file"
+            cp "$file" "$file.backup"
+            sed -i "s/.*allWarningsAsErrors.*=.*true.*//g" "$file"
+            sed -i "/^[[:space:]]*allWarningsAsErrors[[:space:]]*=/d" "$file"
+        fi
+    done
+' sh {{}} + &&
+
+echo "WordPress setup in {workspace_name} completed successfully"
+"""
+            
+            exit_code, output = self.containers.exec_command(instance_id, setup_command)
+            
+            if exit_code == 0:
+                logger.info(f"WordPress setup in {workspace_name} completed successfully for {instance_id}")
+                return True
+            else:
+                logger.error(f"WordPress setup in {workspace_name} failed for {instance_id}: {output}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error setting up WordPress project in {workspace_name} for {instance_id}: {e}")
+            return False
+    
     def _initialize_ast_stubbers(self):
         """Initialize AST stubbers for Java and Kotlin."""
         try:
             # Check if language libraries exist
-            parser_dir = Path(__file__).parent.parent / "parser"
+            parser_dir = Path(__file__).parent.parent / "validation" / "parser"
             java_so = parser_dir / "build" / "java-language.so"
             kotlin_so = parser_dir / "build" / "kotlin-language.so"
             
@@ -662,8 +729,8 @@ class AndroidBenchValidator:
             
             logger.info(f"Build configuration: {build_config}")
             
-            # Step 3: Create and start container
-            if not self.containers.create_container(instance_id, build_config, repo_path):
+            # Step 3: Create and start container (without mounting repository)
+            if not self.containers.create_container(instance_id, build_config, repo_path, mount_repo=False):
                 result.error_message = "Failed to create container"
                 return result
             result.container_created = True
@@ -672,14 +739,27 @@ class AndroidBenchValidator:
                 result.error_message = "Failed to start container"
                 return result
 
+            # Step 3.5: Copy repository to container at /workspace
+            if not self.containers.copy_to_container(instance_id, repo_path, "/workspace"):
+                result.error_message = "Failed to copy repository to container"
+                return result
+            logger.info(f"Successfully copied repository to /workspace in container")
+
             # Initialize testing module
             self.testing = AndroidTestingParallel(self.containers, self.config_parser)
             
-            # Step 4: Checkout base commit
+            # Step 4: Checkout base commit (now working inside container)
             if not self.repository.checkout_base_commit(instance_id, instance['base_commit']):
                 result.error_message = "Failed to checkout base commit"
                 return result
             result.base_commit_checked_out = True
+            
+            # Step 4.5: Setup WordPress-specific configuration if this is a WordPress project
+            repo_name = instance.get('repo', '').lower()
+            if 'wordpress' in repo_name:
+                logger.info(f"Detected WordPress project: {repo_name}")
+                if not self._setup_wordpress_project(instance_id, "/workspace"):
+                    logger.warning(f"WordPress setup failed for {instance_id}, continuing anyway")
             
             # Step 5: Apply test patch
             test_patch_success, test_patch_output = self.repository.apply_patch(
@@ -716,6 +796,10 @@ class AndroidBenchValidator:
                         self.repository.checkout_base_commit(instance_id, instance['base_commit'])
                         # Reapply only the test patch
                         self.repository.apply_patch(instance_id, instance['test_patch'], "test_patch")
+                        # Re-setup WordPress configuration after revert
+                        repo_name = instance.get('repo', '').lower()
+                        if 'wordpress' in repo_name:
+                            self._setup_wordpress_project(instance_id, "/workspace")
                 else:
                     logger.warning(f"AST stubbing not available for {instance_id}, skipping method stubbing")
                     
@@ -726,6 +810,10 @@ class AndroidBenchValidator:
                     self.repository.checkout_base_commit(instance_id, instance['base_commit'])
                     # Reapply only the test patch
                     self.repository.apply_patch(instance_id, instance['test_patch'], "test_patch")
+                    # Re-setup WordPress configuration after revert
+                    repo_name = instance.get('repo', '').lower()
+                    if 'wordpress' in repo_name:
+                        self._setup_wordpress_project(instance_id, "/workspace")
                     logger.info(f"Reverted to test-patch-only state for {instance_id}")
                 except Exception as revert_error:
                     logger.error(f"Failed to revert to clean state for {instance_id}: {revert_error}")
@@ -734,7 +822,7 @@ class AndroidBenchValidator:
             
             # Step 7: Run pre-solution tests (only test patch)
             logger.info(f"Running pre-solution tests for {instance_id}")
-            self.containers.prepare_for_test_execution(instance_id, "pre")
+            self.containers.prepare_for_test_execution(instance_id, "pre", workdir="/workspace")
             
             pre_test_results, pre_skipped_tests = self.testing.run_tests_from_patch(
                 instance_id, instance['test_patch'], build_config, "TEST-PRE-SOLUTION"
@@ -761,14 +849,14 @@ class AndroidBenchValidator:
                 return result
             
             try:
-                # Copy fresh repository to container at /workspace_clean
-                if not self.containers.copy_to_container(instance_id, clean_repo_path, "/workspace_clean"):
+                # Copy fresh repository to container at /workspace_post
+                if not self.containers.copy_to_container(instance_id, clean_repo_path, "/workspace_post"):
                     result.error_message = "Failed to copy fresh repository to container"
                     return result
                 
                 # Apply test patch to fresh clone inside container
                 test_patch_success, _ = self.repository.apply_patch_to_path(
-                    instance_id, instance['test_patch'], "test_patch_clean", "/workspace_clean"
+                    instance_id, instance['test_patch'], "test_patch_clean", "/workspace_post"
                 )
                 if not test_patch_success:
                     result.error_message = "Failed to apply test patch to fresh clone"
@@ -776,12 +864,19 @@ class AndroidBenchValidator:
                 
                 # Apply solution patch to fresh clone inside container
                 solution_patch_success, solution_patch_output = self.repository.apply_patch_to_path(
-                    instance_id, instance['patch'], "solution_patch", "/workspace_clean"
+                    instance_id, instance['patch'], "solution_patch", "/workspace_post"
                 )
                 if not solution_patch_success:
                     result.error_message = f"Failed to apply solution patch to fresh clone: {solution_patch_output}"
                     return result
                 result.solution_patch_applied = True
+                
+                # Setup WordPress-specific configuration in clean workspace if this is a WordPress project
+                repo_name = instance.get('repo', '').lower()
+                if 'wordpress' in repo_name:
+                    logger.info(f"Setting up WordPress configuration in clean workspace for {instance_id}")
+                    if not self._setup_wordpress_project(instance_id, "/workspace_post"):
+                        logger.warning(f"WordPress setup in clean workspace failed for {instance_id}, continuing anyway")
                 
             finally:
                 # Clean up host copy of fresh repository
@@ -789,12 +884,12 @@ class AndroidBenchValidator:
             
             # Step 9: Run post-solution tests from clean repository
             logger.info(f"Running post-solution tests for {instance_id}")
-            self.containers.prepare_for_test_execution(instance_id, "post")
+            self.containers.prepare_for_test_execution(instance_id, "post", workdir="/workspace_post")
             
             # Run tests from clean workspace without directory switching
             try:
                 post_test_results, post_skipped_tests = self.testing.run_tests_from_patch(
-                    instance_id, instance['test_patch'], build_config, "TEST-POST-SOLUTION", workdir="/workspace_clean"
+                    instance_id, instance['test_patch'], build_config, "TEST-POST-SOLUTION", workdir="/workspace_post"
                 )
                 result.post_test_execution = post_test_results
                 result.skipped_instrumented_tests.extend(post_skipped_tests)
@@ -1248,72 +1343,6 @@ class AndroidBenchValidator:
         
         # Return unique test names, preferring qualified names
         return list(set(qualified_tests)) if qualified_tests else list(set(test_names))
-
-    def _switch_workspace_to_clean(self, instance_id: str) -> bool:
-        """Switch workspace to clean directory by renaming directories."""
-        try:
-            switch_command = """
-echo "=== Switching workspace to clean directory ===" &&
-cd / &&
-# Backup original workspace
-if [ -d /workspace_original ]; then
-    echo "Removing old backup..."
-    rm -rf /workspace_original
-fi &&
-mv /workspace /workspace_original &&
-# Move clean workspace to main workspace location
-mv /workspace_clean /workspace &&
-echo "=== Workspace switched to clean directory ==="
-"""
-            
-            exit_code, output = self.containers.exec_command(
-                instance_id,
-                switch_command,
-                workdir="/",
-                timeout=60
-            )
-            
-            if exit_code == 0:
-                logger.info(f"Successfully switched workspace to clean directory for {instance_id}")
-                return True
-            else:
-                logger.error(f"Failed to switch workspace to clean directory: {output}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error switching workspace for {instance_id}: {e}")
-            return False
-
-    def _switch_workspace_back(self, instance_id: str) -> bool:
-        """Switch workspace back to original directory."""
-        try:
-            switch_command = """
-echo "=== Switching workspace back to original ===" &&
-cd / &&
-# Remove the workspace directory (it was the clean one)
-rm -rf /workspace &&
-# Restore original workspace
-mv /workspace_original /workspace &&
-echo "=== Workspace restored to original ==="
-"""
-            
-            exit_code, output = self.containers.exec_command(
-                instance_id,
-                switch_command,
-                workdir="/",
-                timeout=60
-            )
-            
-            if exit_code == 0:
-                logger.info(f"Successfully switched workspace back to original for {instance_id}")
-                return True
-            else:
-                logger.error(f"Failed to switch workspace back: {output}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error switching workspace back for {instance_id}: {e}")
-            return False
 
     def _save_final_results(self, results: Dict[str, ValidationResult], output_dir: Path):
         """Save final summary results with test transitions only."""

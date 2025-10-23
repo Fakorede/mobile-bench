@@ -19,14 +19,16 @@ class AndroidRepository:
     def __init__(self, containers_manager):
         self.containers = containers_manager
     
-    def checkout_base_commit(self, instance_id: str, base_commit: str) -> bool:
+    def checkout_base_commit(self, instance_id: str, base_commit: str, workdir: str = "/workspace") -> bool:
         """Checkout the base commit and reset to clean state."""
         try:
             # Comprehensive git setup and checkout command
             checkout_command = f"""
-cd /workspace &&
+cd {workdir} &&
 echo "=== Setting up git configuration ===" &&
 git config --global --add safe.directory /workspace &&
+git config --global --add safe.directory /workspace_post &&
+git config --global --add safe.directory {workdir} &&
 git config --global user.email 'validator@android-bench.local' &&
 git config --global user.name 'Android Bench Validator' &&
 
@@ -69,7 +71,7 @@ fi
             exit_code, output = self.containers.exec_command(
                 instance_id,
                 checkout_command,
-                workdir="/workspace",
+                workdir=workdir,
                 timeout=300
             )
             
@@ -238,6 +240,8 @@ cd {workdir} &&
 echo "=== Applying patch: {patch_name} to {workdir} ===" &&
 
 # Set up git config for this directory
+git config --global --add safe.directory /workspace &&
+git config --global --add safe.directory /workspace_post &&
 git config --global --add safe.directory {workdir} &&
 
 echo "=== Patch file info ===" &&
@@ -320,14 +324,14 @@ exit 1
             logger.error(f"Error applying patch for {instance_id} at {workdir}: {e}")
             return False, str(e)
     
-    def get_git_diff(self, instance_id: str) -> Tuple[bool, str]:
+    def get_git_diff(self, instance_id: str, workdir: str = "/workspace") -> Tuple[bool, str]:
         """Get git diff to see current changes."""
         try:
-            command = "cd /workspace && git -c core.fileMode=false diff"
+            command = f"cd {workdir} && git -c core.fileMode=false diff"
             exit_code, output = self.containers.exec_command(
                 instance_id,
                 command,
-                workdir="/workspace"
+                workdir=workdir
             )
             
             return exit_code == 0, output.strip()
@@ -336,14 +340,14 @@ exit 1
             logger.error(f"Error getting git diff for {instance_id}: {e}")
             return False, str(e)
     
-    def get_git_status(self, instance_id: str) -> Tuple[bool, str]:
+    def get_git_status(self, instance_id: str, workdir: str = "/workspace") -> Tuple[bool, str]:
         """Get git status to see repository state."""
         try:
-            command = "cd /workspace && git status --porcelain"
+            command = f"cd {workdir} && git status --porcelain"
             exit_code, output = self.containers.exec_command(
                 instance_id,
                 command,
-                workdir="/workspace"
+                workdir=workdir
             )
             
             return exit_code == 0, output.strip()

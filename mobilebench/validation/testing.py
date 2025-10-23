@@ -152,11 +152,17 @@ class AndroidTestingParallel:
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for play variant - using play debug variant")
                 elif module == ":WordPress":
-                    # WordPress Android module uses WordPressVanilla flavor with debug build type
+                    # WordPress Android module uses WordpressVanilla flavor with debug build type
                     module_tasks = [
-                        "testWordPressVanillaDebugUnitTest"
+                        "testWordpressVanillaDebugUnitTest"
                     ]
-                    logger.info(f"[{instance_id}]: Module {module} configured for WordPress flavor - using WordPressVanilla variant")
+                    logger.info(f"[{instance_id}]: Module {module} configured for Wordpress flavor - using WordpressVanilla variant")
+                elif "thunderbird" in str(instance_id).lower() and module in [":mail:protocols:imap", ":mail:protocols:smtp", ":feature:autodiscovery:service", ":feature:autodiscovery:autoconfig", ":app:html-cleaner", ":backend:imap"]:
+                    # Thunderbird protocol modules use test command
+                    module_tasks = [
+                        "test"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for Thunderbird protocol - using test variant")
                 elif "antennapod" in str(instance_id).lower() and (module in [":model", ":event", ":ui:episodes", ":ui:common", ":ui:app-start-intent", ":ui:i18n", ":ui:notifications", ":storage:preferences", ":playback:base", ":parser:feed", ":parser:media", ":parser:transcript", ":net:sync:service-interface", ":net:sync:gpoddernet"]):
                     # Specific AntennaPod modules use debug variants
                     module_tasks = [
@@ -178,6 +184,18 @@ class AndroidTestingParallel:
                         "testReleaseUnitTest"
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for simple variants - using debug/release variants")
+                elif "tusky" in str(instance_id).lower():
+                    # Tusky modules use test command
+                    module_tasks = [
+                        "test"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for Tusky - using test variant")
+                elif "neostumbler" in str(instance_id).lower():
+                    # NeoStumbler modules use testFullDebugUnitTest
+                    module_tasks = [
+                        "testFullDebugUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for NeoStumbler - using testFullDebugUnitTest variant")
                 else:
                     # Default fallback for other modules
                     module_tasks = ["testDebugUnitTest"]
@@ -199,7 +217,7 @@ class AndroidTestingParallel:
             flavors = set()
             build_types = set()
             for task in all_test_tasks:
-                # Parse patterns like "testDebugUnitTest", "testWordPressVanillaDebugUnitTest", "testFreeDebugUnitTest"
+                # Parse patterns like "testDebugUnitTest", "testWordpressVanillaDebugUnitTest", "testFreeDebugUnitTest"
                 task_lower = task.lower()
                 if 'test' in task_lower and 'unittest' in task_lower:
                     # Remove 'test' prefix and 'unittest' suffix
@@ -345,10 +363,15 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
                         unit_variant = 'testPlayDebugUnitTest'
                         logger.info(f"Selected testPlayDebugUnitTest for {module} (AnkiDroid module rule)")
                 elif module == ":WordPress":
-                    # WordPress Android module should use testWordPressVanillaDebugUnitTest
-                    if 'testWordPressVanillaDebugUnitTest' in available_variants_for_module:
-                        unit_variant = 'testWordPressVanillaDebugUnitTest'
-                        logger.info(f"Selected testWordPressVanillaDebugUnitTest for {module} (WordPress module rule)")
+                    # WordPress Android module should use testWordpressVanillaDebugUnitTest
+                    if 'testWordpressVanillaDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testWordpressVanillaDebugUnitTest'
+                        logger.info(f"Selected testWordpressVanillaDebugUnitTest for {module} (WordPress module rule)")
+                elif "thunderbird" in str(instance_id).lower() and module in [":mail:protocols:imap", ":mail:protocols:smtp", ":feature:autodiscovery:service", ":feature:autodiscovery:autoconfig", ":app:html-cleaner", ":backend:imap"]:
+                    # Thunderbird protocol modules should use test command
+                    if 'test' in available_variants_for_module:
+                        unit_variant = 'test'
+                        logger.info(f"Selected test for {module} (Thunderbird protocol module rule)")
                 elif "antennapod" in str(instance_id).lower() and (module in [":model", ":event", ":ui:episodes", ":ui:common", ":ui:app-start-intent", ":ui:i18n", ":ui:notifications", ":storage:preferences", ":playback:base", ":parser:feed", ":parser:media", ":parser:transcript", ":net:sync:service-interface", ":net:sync:gpoddernet"]):
                     # Specific AntennaPod modules should use testDebugUnitTest
                     if 'testDebugUnitTest' in available_variants_for_module:
@@ -364,6 +387,16 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
                     if 'testDebugUnitTest' in available_variants_for_module:
                         unit_variant = 'testDebugUnitTest'
                         logger.info(f"Selected testDebugUnitTest for {module} (feature/legacy module rule)")
+                elif "tusky" in str(instance_id).lower():
+                    # Tusky modules should use test command
+                    if 'test' in available_variants_for_module:
+                        unit_variant = 'test'
+                        logger.info(f"Selected test for {module} (Tusky rule)")
+                elif "neostumbler" in str(instance_id).lower():
+                    # NeoStumbler modules should use testFullDebugUnitTest
+                    if 'testFullDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testFullDebugUnitTest'
+                        logger.info(f"Selected testFullDebugUnitTest for {module} (NeoStumbler rule)")
                 else:
                     # Default modules use testDebugUnitTest
                     if 'testDebugUnitTest' in available_variants_for_module:
@@ -455,7 +488,7 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
             )
         
         gradle_test_command = ' '.join(module_commands)
-        total_timeout = min(1800, len(module_commands) * 600)  # 10 minutes per module, max 30 minutes
+        total_timeout = min(7200, len(module_commands) * 1800)  # 30 minutes per module, max 2 hours
         
         logger.info(f"Final Gradle command: ./gradlew {gradle_test_command}")
         
@@ -507,13 +540,19 @@ if [ -f './gradlew' ]; then
     
     echo "=== Running module-specific tests ===" &&
     echo "Executing: ./gradlew {gradle_test_command} --no-daemon --stacktrace --continue --parallel" &&
-    timeout {total_timeout} ./gradlew {gradle_test_command} --no-daemon --stacktrace --continue --parallel || echo "Module-specific test execution completed"
+    
+    # Run gradle and capture exit code - don't mask failures
+    timeout {total_timeout} ./gradlew {gradle_test_command} --no-daemon --stacktrace --continue --parallel
+    GRADLE_EXIT_CODE=$?
+    echo "=== Gradle execution finished with exit code: $GRADLE_EXIT_CODE ==="
+    
 else
     echo "ERROR: No gradlew found in workspace"
-fi &&
+    GRADLE_EXIT_CODE=1
+fi
 
 echo "=== Test execution completed ===" &&
-echo "Exit code: $?" &&
+echo "Exit code: $GRADLE_EXIT_CODE" &&
 
 echo "=== Collecting test results ===" &&
 find . -name "TEST-*.xml" -type f 2>/dev/null | head -30 | while read file; do
@@ -746,10 +785,16 @@ if [ -f './gradlew' ]; then
     
     echo "=== Running all tests in parallel ===" &&
     echo "Test filters: {test_filters}" &&
-    timeout {total_timeout} ./gradlew {unit_variant} {test_filters} --no-daemon --stacktrace --info --continue --parallel || echo "Combined test execution completed with issues"
+    
+    # Run gradle and capture exit code - don't mask failures
+    timeout {total_timeout} ./gradlew {unit_variant} {test_filters} --no-daemon --stacktrace --info --continue --parallel
+    GRADLE_EXIT_CODE=$?
+    echo "=== Gradle execution finished with exit code: $GRADLE_EXIT_CODE ==="
+    
 else
     echo "No gradlew found"
-fi &&
+    GRADLE_EXIT_CODE=1
+fi
 
 echo "=== Collecting test results ===" &&
 find . -name "TEST-*.xml" -type f 2>/dev/null | head -30 | while read file; do
