@@ -32,8 +32,9 @@ from validator_utils import (
 class ResumeableValidator(AndroidBenchValidator):
     """Enhanced validator with resume and incremental saving capabilities."""
     
-    def __init__(self, output_dir: str, docker_context: Optional[str] = None, keep_containers: bool = False):
-        super().__init__(output_dir, docker_context)
+    def __init__(self, output_dir: str, docker_context: Optional[str] = None, 
+                 keep_containers: bool = False, forced_java_version: str = None):
+        super().__init__(output_dir, docker_context, forced_java_version)
         self.progress_file = Path(self.output_dir) / "validation_progress.json"
         self.checkpoint_file = Path(self.output_dir) / "validation_checkpoint.json"
         self.statistics_file = Path(self.output_dir) / "incremental_statistics.json"
@@ -584,6 +585,8 @@ INSTANCE_ID_PATTERNS = {
     'AntennaPod': 'AntennaPod__AntennaPod-',
     'wordPress': 'wordpress-mobile__WordPress-Android-',
     'Tusky': 'tuskyapp__Tusky-',
+    'nextcloud-android': 'nextcloud__android-',
+    'nextcloud-talk': 'nextcloud__talk-android-',
     # Add more patterns as needed
 }
 
@@ -661,6 +664,9 @@ Examples:
   # Validate specific instances
   python enhanced_validator.py dataset.jsonl --instance-ids "6044" "6045"
 
+  # Force specific Java version (override auto-detection)
+  python enhanced_validator.py dataset.jsonl --java-version 17
+
   # Custom output directory
   python enhanced_validator.py dataset.jsonl --output-dir enhanced_results
 
@@ -681,6 +687,8 @@ Examples:
                        help="Keep containers running after tests for manual debugging")
     parser.add_argument("--force-restart", action="store_true", 
                        help="Force restart from beginning, ignoring previous progress")
+    parser.add_argument("--java-version", choices=['8', '11', '17', '21'],
+                       help="Force specific Java version (8, 11, 17, or 21) - overrides auto-detection")
     
     args = parser.parse_args()
     
@@ -692,11 +700,16 @@ Examples:
     # Set logging level
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
     
+    # Log forced Java version if specified
+    if args.java_version:
+        logger.info(f"🔧 Forced Java version: {args.java_version} (will override auto-detection)")
+    
     # Create enhanced validator
     validator = ResumeableValidator(
         args.output_dir, 
         args.docker_context,
-        args.keep_containers
+        args.keep_containers,
+        args.java_version
     )
     
     # Clear previous progress if force restart requested

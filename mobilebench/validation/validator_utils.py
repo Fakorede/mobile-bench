@@ -199,9 +199,13 @@ class AndroidBenchValidator:
     """AndroidBenchValidator validation engine with proper test result tracking and cleanup."""
 
     def __init__(self, output_dir: str = "android_validation_results", 
-                 docker_context: str = None):
+                 docker_context: str = None,
+                 forced_java_version: str = None):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Store forced Java version for config override
+        self.forced_java_version = forced_java_version
         
         # Create debug directory for AST analysis
         self.debug_dir = self.output_dir / "ast_debug"
@@ -723,14 +727,14 @@ echo "WordPress setup in {workspace_name} completed successfully"
             result.repo_cloned = True
             
             # Step 2: Parse build configuration
-            self.config_parser = AndroidConfig(repo_path)
+            self.config_parser = AndroidConfig(repo_path, forced_java_version=self.forced_java_version)
             build_config = self.config_parser.parse_build_config()
             result.config_parsed = True
             
             logger.info(f"Build configuration: {build_config}")
             
-            # Step 3: Create and start container (without mounting repository)
-            if not self.containers.create_container(instance_id, build_config, repo_path, mount_repo=False):
+            # Step 3: Create and start container
+            if not self.containers.create_container(instance_id, build_config, repo_path):
                 result.error_message = "Failed to create container"
                 return result
             result.container_created = True
@@ -748,7 +752,7 @@ echo "WordPress setup in {workspace_name} completed successfully"
             # Initialize testing module
             self.testing = AndroidTestingParallel(self.containers, self.config_parser)
             
-            # Step 4: Checkout base commit (now working inside container)
+            # Step 4: Checkout base commit
             if not self.repository.checkout_base_commit(instance_id, instance['base_commit']):
                 result.error_message = "Failed to checkout base commit"
                 return result
@@ -822,7 +826,7 @@ echo "WordPress setup in {workspace_name} completed successfully"
             
             # Step 7: Run pre-solution tests (only test patch)
             logger.info(f"Running pre-solution tests for {instance_id}")
-            self.containers.prepare_for_test_execution(instance_id, "pre", workdir="/workspace")
+            self.containers.prepare_for_test_execution(instance_id, "pre")
             
             pre_test_results, pre_skipped_tests = self.testing.run_tests_from_patch(
                 instance_id, instance['test_patch'], build_config, "TEST-PRE-SOLUTION"
@@ -884,7 +888,7 @@ echo "WordPress setup in {workspace_name} completed successfully"
             
             # Step 9: Run post-solution tests from clean repository
             logger.info(f"Running post-solution tests for {instance_id}")
-            self.containers.prepare_for_test_execution(instance_id, "post", workdir="/workspace_post")
+            self.containers.prepare_for_test_execution(instance_id, "post")
             
             # Run tests from clean workspace without directory switching
             try:
