@@ -22,8 +22,9 @@ class AndroidConfig:
     SUPPORTED_SDK_VERSIONS = range(21, 35)  # API 21-35
     DEFAULT_BUILD_TOOLS = '35.0.0'
     
-    def __init__(self, project_path: str):
+    def __init__(self, project_path: str, forced_java_version: str = None):
         self.project_path = Path(project_path)
+        self.forced_java_version = forced_java_version
         self.config = self._get_default_config()
         
     def _get_default_config(self) -> Dict[str, str]:
@@ -67,8 +68,14 @@ class AndroidConfig:
         self._determine_test_variant()
         logger.info(f"After test variant: {self.config}")
         
+        # Apply forced Java version if specified (overrides all auto-detection)
+        if self.forced_java_version:
+            logger.info(f"Step 6: Applying forced Java version: {self.forced_java_version}")
+            self.config['java_version'] = self.forced_java_version
+            logger.info(f"After forced Java version: {self.config}")
+        
         # Final validation and adjustment
-        logger.info("Step 6: Validating config...")
+        logger.info("Validating config...")
         self._validate_config()
         
         logger.info(f"Final configuration: {self.config}")
@@ -103,6 +110,11 @@ class AndroidConfig:
                         closest = self._find_closest_version(version, self.SUPPORTED_GRADLE_VERSIONS)
                         self.config['gradle_version'] = closest
                         logger.warning(f"Gradle {version} not supported, using {closest}")
+                    
+                    # CRITICAL: Ensure Java version is compatible with Gradle version
+                    # Gradle 8.5+ requires Java 17+ but supports Java 21
+                    # Gradle 7.x requires Java 11-17 (NOT Java 21!)
+                    self._ensure_java_gradle_compatibility(version)
                     break
                     
         except Exception as e:
@@ -281,6 +293,39 @@ class AndroidConfig:
         except Exception as e:
             logger.warning(f"Error parsing AGP version {agp_version}: {e}")
             return None
+    
+    def _ensure_java_gradle_compatibility(self, gradle_version: str):
+        """
+        Ensure Java version is compatible with Gradle version.
+        
+        Gradle version compatibility:
+        - Gradle 8.8+: Java 17-21
+        - Gradle 8.5-8.7: Java 17-20  
+        - Gradle 8.0-8.4: Java 17-19
+        - Gradle 7.6: Java 8-19
+        - Gradle 7.0-7.5: Java 8-18
+        
+        CRITICAL: Gradle 7.x does NOT support Java 21!
+        """
+        try:
+            gradle_parts = [int(x) for x in gradle_version.split('.')]
+            gradle_major = gradle_parts[0]
+            gradle_minor = gradle_parts[1] if len(gradle_parts) > 1 else 0
+            
+            current_java = int(self.config.get('java_version', '17'))
+            
+            # Gradle 7.x with Java 21 = INCOMPATIBLE!
+            if gradle_major == 7 and current_java >= 21:
+                logger.warning(f"Gradle {gradle_version} does NOT support Java 21! Downgrading to Java 17")
+                self.config['java_version'] = '17'
+            
+            # Gradle 8.0-8.4 with Java 21 = INCOMPATIBLE!
+            elif gradle_major == 8 and gradle_minor < 5 and current_java >= 21:
+                logger.warning(f"Gradle {gradle_version} does NOT support Java 21! Downgrading to Java 17")
+                self.config['java_version'] = '17'
+                
+        except Exception as e:
+            logger.error(f"Error checking Gradle-Java compatibility: {e}")
     
     def _map_java_version(self, java_version: str) -> str:
         """Map unsupported Java version to closest supported version."""

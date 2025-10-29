@@ -185,11 +185,14 @@ class AndroidTestingParallel:
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for simple variants - using debug/release variants")
                 elif "tusky" in str(instance_id).lower():
-                    # Tusky modules use test command
+                    # Tusky uses color-based flavors (blue/green) with debug/release build types
                     module_tasks = [
-                        "test"
+                        "testBlueDebugUnitTest",
+                        "testGreenDebugUnitTest",
+                        "testBlueReleaseUnitTest",
+                        "testGreenReleaseUnitTest"
                     ]
-                    logger.info(f"[{instance_id}]: Module {module} configured for Tusky - using test variant")
+                    logger.info(f"[{instance_id}]: Module {module} configured for Tusky - using blue/green flavor variants")
                 elif "neostumbler" in str(instance_id).lower():
                     # NeoStumbler modules use testFullDebugUnitTest
                     module_tasks = [

@@ -276,9 +276,7 @@ class KotlinCodeStubber:
         """Recursively find all function declarations"""
         if node.type == 'function_declaration':
             function_info = self._extract_function_info(node, source_code)
-            # CRITICAL: Skip constructors - they should never be stubbed
-            # Constructors are part of class declarations and stubbing them breaks the class structure
-            if function_info and function_info.get('name') != 'constructor':
+            if function_info:
                 functions_list.append(function_info)
         
         for child in node.children:
@@ -296,9 +294,6 @@ class KotlinCodeStubber:
             'is_suspend': False
         }
         
-        # Track if we've seen the function name yet (return type comes after it)
-        has_seen_name = False
-        
         for child in func_node.children:
             if child.type == 'modifiers':
                 for mod_child in child.children:
@@ -309,135 +304,18 @@ class KotlinCodeStubber:
             
             elif child.type == 'simple_identifier':
                 func_info['name'] = source_code[child.start_byte:child.end_byte]
-                has_seen_name = True
             
             elif child.type == 'function_value_parameters':
                 func_info['parameters'] = self._extract_kotlin_parameters(child, source_code)
             
-            # FIXED: Better return type extraction - capture the full type expression
-            elif has_seen_name and child.type in ['user_type', 'type_identifier', 'nullable_type', 'type_projection']:
-                # Extract the complete type, including generics and nullable markers
-                func_info['return_type'] = source_code[child.start_byte:child.end_byte].strip()
+            elif child.type in ['user_type', 'type_identifier', 'nullable_type']:  # Added nullable_type
+                func_info['return_type'] = source_code[child.start_byte:child.end_byte]
             
             elif child.type == 'function_body':
-                # Tree-sitter's function_body node may not correctly handle nested lambdas
-                # Store the start, but we'll find the true end by counting braces
-                func_info['body_start_hint'] = child.start_byte
-                func_info['body_end_hint'] = child.end_byte
-        
-        # FIXED: Manually find true function body boundaries by counting braces
-        # This handles complex Kotlin code with nested lambdas that confuse tree-sitter
-        if func_info.get('body_start_hint') is not None:
-            func_info['body_start'], func_info['body_end'] = self._find_true_function_body(
-                source_code, func_info['body_start_hint']
-            )
+                func_info['body_start'] = child.start_byte
+                func_info['body_end'] = child.end_byte
         
         return func_info
-    
-    def _find_true_function_body(self, source_code: str, start_hint: int):
-        """
-        Find the true function body by counting braces from the opening brace.
-        This is more reliable than tree-sitter's function_body node for complex Kotlin code.
-        
-        CRITICAL: We need to find the FIRST opening brace at or after the hint position,
-        then count braces from there. Tree-sitter might point to an inner brace.
-        """
-        # Move backwards from hint to find the function signature line
-        # Look for the pattern: ") {" or ") :" which marks the start of function body
-        pos = start_hint
-        
-        # First, move back to find the closing paren of parameters
-        paren_count = 0
-        while pos > 0:
-            if source_code[pos] == ')':
-                paren_count += 1
-                if paren_count == 1:
-                    # Found the closing paren of parameters
-                    break
-            pos -= 1
-        
-        # Now move forward from this paren to find the opening brace
-        # Pattern could be: ")" or ": ReturnType" followed by "{"
-        while pos < len(source_code):
-            if source_code[pos] == '{':
-                # Found the function's opening brace
-                break
-            pos += 1
-        
-        if pos >= len(source_code):
-            return None, None
-        
-        # Now count braces to find the matching closing brace
-        brace_count = 0
-        in_string = False
-        in_char = False
-        in_comment = False
-        in_multiline_comment = False
-        escape_next = False
-        
-        start_pos = pos
-        
-        while pos < len(source_code):
-            char = source_code[pos]
-            
-            # Handle escape sequences
-            if escape_next:
-                escape_next = False
-                pos += 1
-                continue
-            
-            if char == '\\' and (in_string or in_char):
-                escape_next = True
-                pos += 1
-                continue
-            
-            # Handle comments
-            if not in_string and not in_char:
-                if pos + 1 < len(source_code):
-                    two_char = source_code[pos:pos+2]
-                    if two_char == '/*':
-                        in_multiline_comment = True
-                        pos += 2
-                        continue
-                    elif two_char == '//':
-                        in_comment = True
-                        pos += 2
-                        continue
-                    elif two_char == '*/' and in_multiline_comment:
-                        in_multiline_comment = False
-                        pos += 2
-                        continue
-            
-            if in_comment:
-                if char == '\n':
-                    in_comment = False
-                pos += 1
-                continue
-            
-            if in_multiline_comment:
-                pos += 1
-                continue
-            
-            # Handle strings
-            if char == '"' and not in_char:
-                in_string = not in_string
-            elif char == '\'' and not in_string:
-                in_char = not in_char
-            
-            # Count braces when not in string/char/comment
-            if not in_string and not in_char and not in_comment and not in_multiline_comment:
-                if char == '{':
-                    brace_count += 1
-                elif char == '}':
-                    brace_count -= 1
-                    if brace_count == 0:
-                        # Found the matching closing brace
-                        return (start_pos, pos + 1)
-            
-            pos += 1
-        
-        # Couldn't find matching brace
-        return None, None
     
     def _extract_kotlin_parameters(self, params_node, source_code):
         """Extract Kotlin parameter information"""
@@ -464,25 +342,21 @@ class KotlinCodeStubber:
         return type_str.startswith('Array<') or type_str.endswith('Array')
     
     def _generate_kotlin_stub_body(self, func_info):
-        """Generate appropriate stub body for Kotlin function - WITHOUT braces (tree-sitter includes them)"""
+        """Generate appropriate stub body for Kotlin function"""
         return_type = func_info['return_type']
         func_name = func_info['name']
-        is_suspend = func_info['is_suspend']
         
-        # Create indented stub body WITHOUT opening/closing braces
-        # Tree-sitter's function_body node already includes the braces
+        # Create indented stub body
         stub_lines = []
-        stub_lines.append(" {")  # Opening brace
+        stub_lines.append(" {")
         stub_lines.append(f"        // TODO: Implement {func_name}")
         
-        # FIXED: Better nullable type detection
-        is_nullable = '?' in return_type and return_type.rstrip().endswith('?')
-        # Remove trailing ? and whitespace to get base type
-        base_type = return_type.rstrip().rstrip('?').strip()
+        # Determine if this is a nullable type
+        is_nullable = return_type.endswith('?')
+        base_type = return_type.rstrip('?').strip()
         
         # Add appropriate return statement
-        if return_type == 'Unit' or return_type == '' or base_type == 'Unit':
-            # Unit functions don't need return
+        if return_type == 'Unit' or return_type == '':
             stub_lines.append("        // Function implementation goes here")
         elif base_type in ['Int', 'Long', 'Short', 'Byte']:
             if is_nullable:
@@ -504,13 +378,22 @@ class KotlinCodeStubber:
                 stub_lines.append("        return null")
             else:
                 stub_lines.append("        return \"\"")
+        elif self._is_array_type_kotlin(base_type):
+            # Handle Kotlin arrays
+            if is_nullable:
+                stub_lines.append("        return null")
+            elif func_name == 'newArray':
+                stub_lines.append("        return arrayOfNulls(size)")
+            else:
+                stub_lines.append("        return emptyArray()")
         elif is_nullable:
-            # Nullable types - return null (safe default)
+            # Nullable types - return null
             stub_lines.append("        return null")
         else:
-            # Non-nullable reference types - use error() which compiles correctly
+            # Non-nullable reference types - try to construct or throw
+            # Use error() which throws IllegalStateException - this compiles and is idiomatic Kotlin
             stub_lines.append(f"        error(\"Not yet implemented: {func_name}\")")
         
-        stub_lines.append("    }")  # Closing brace
+        stub_lines.append("    }")
         
         return '\n'.join(stub_lines)

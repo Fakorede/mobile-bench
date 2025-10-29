@@ -549,6 +549,22 @@ echo "Container prepared for test execution in {workdir}"
                 perm_command = f"chmod -R 755 {container_path}"
                 self.exec_command(instance_id, perm_command, workdir="/", timeout=60)
                 
+                # If copying workspace, ensure Gradle wrapper is executable
+                if "workspace" in container_path.lower():
+                    gradle_setup = f"""
+cd {container_path} &&
+if [ -f gradlew ]; then
+    chmod +x gradlew &&
+    echo 'Made gradlew executable'
+fi &&
+if [ -f gradle/wrapper/gradle-wrapper.jar ]; then
+    echo 'Gradle wrapper JAR found'
+else
+    echo 'WARNING: gradle-wrapper.jar not found!'
+fi
+"""
+                    self.exec_command(instance_id, gradle_setup, workdir="/", timeout=60)
+                
                 return True
             else:
                 logger.error(f"Failed to copy to container: {result.stderr}")

@@ -8,6 +8,7 @@ docker==7.1.0
 fastcore
 ghapi
 GitPython
+javalang>=0.13.0
 python-dotenv
 pyyaml
 requests

@@ -39,25 +39,22 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Try hybrid stubber first
-HYBRID_STUBBER_AVAILABLE = False
+# Import parser module for AST-based stubbing
+# import sys
+# sys.path.append(str(Path(__file__).parent.parent / "parser"))
 try:
-    from parser.ast_code_manipulator_hybrid import HybridCodeStubber
-    HYBRID_STUBBER_AVAILABLE = True
+    from tree_sitter import Language, Parser
+    from parser.ast_code_manipulator import JavaCodeStubber, KotlinCodeStubber
+    AST_AVAILABLE = True
+    
+    # Debug info for troubleshooting
+    import tree_sitter
+    ts_version = getattr(tree_sitter, '__version__', 'unknown')
+    logger.info(f"tree_sitter version: {ts_version}, Language: {Language}")
+    
 except ImportError as e:
-    HYBRID_STUBBER_AVAILABLE = False
-
-# Fallback to tree-sitter
-AST_AVAILABLE = False
-if not HYBRID_STUBBER_AVAILABLE:
-    try:
-        from tree_sitter import Language, Parser
-        from parser.ast_code_manipulator import JavaCodeStubber, KotlinCodeStubber
-        AST_AVAILABLE = True
-    except ImportError:
-        AST_AVAILABLE = False
-
-STUBBING_AVAILABLE = HYBRID_STUBBER_AVAILABLE or AST_AVAILABLE
+    logger.warning(f"AST parsing dependencies not available: {e}")
+    AST_AVAILABLE = False
 
 
 @dataclass
@@ -76,7 +73,6 @@ class ValidationResult:
     build_result: Optional['BuildResult'] = None
     retry_build_result: Optional['BuildResult'] = None
     stub_generation_result: Optional['StubGenerationResult'] = None
-    stubbing_method: str = ""  # 'hybrid', 'tree-sitter', or 'none'
     
     # Test execution phase
     test_patch_applied: bool = False
@@ -224,10 +220,10 @@ class AndroidBenchValidator:
         self.testing = None
         
         # Initialize AST stubbers if available
-        self.hybrid_stubber = None
-        self.java_stubber = None  # fallback
-        self.kotlin_stubber = None  # fallback
-        self._initialize_stubbers()  # new unified method
+        self.java_stubber = None
+        self.kotlin_stubber = None
+        if AST_AVAILABLE:
+            self._initialize_ast_stubbers()
     
     def _setup_wordpress_project(self, instance_id: str, workspace_path: str = "/workspace") -> bool:
         """Setup WordPress-specific configuration files in the specified workspace."""
@@ -296,40 +292,32 @@ echo "WordPress setup in {workspace_name} completed successfully"
             logger.error(f"Error setting up WordPress project in {workspace_name} for {instance_id}: {e}")
             return False
     
-    def _initialize_stubbers(self):
+    def _initialize_ast_stubbers(self):
         """Initialize AST stubbers for Java and Kotlin."""
-        if HYBRID_STUBBER_AVAILABLE:
-            try:
-                self.hybrid_stubber = HybridCodeStubber()
-                logger.info("✓ Hybrid stubber initialized")
-                return
-            except Exception as e:
-                logger.error(f"Failed to initialize hybrid: {e}")
-        if AST_AVAILABLE:
-            try:
-                # Check if language libraries exist
-                parser_dir = Path(__file__).parent.parent / "validation" / "parser"
-                java_so = parser_dir / "build" / "java-language.so"
-                kotlin_so = parser_dir / "build" / "kotlin-language.so"
+        try:
+            # Check if language libraries exist
+            parser_dir = Path(__file__).parent.parent / "validation" / "parser"
+            java_so = parser_dir / "build" / "java-language.so"
+            kotlin_so = parser_dir / "build" / "kotlin-language.so"
+            
+            if java_so.exists():
+                java_language = Language(str(java_so), 'java')
+                self.java_stubber = JavaCodeStubber(java_language)
+                logger.info("Java AST stubber initialized")
+            else:
+                logger.warning(f"Java language library not found at {java_so}")
                 
-                if java_so.exists():
-                    java_language = Language(str(java_so), 'java')
-                    self.java_stubber = JavaCodeStubber(java_language)
-                    logger.info("Java AST stubber initialized")
-                else:
-                    logger.warning(f"Java language library not found at {java_so}")
-                    
-                if kotlin_so.exists():
-                    kotlin_language = Language(str(kotlin_so), 'kotlin')
-                    self.kotlin_stubber = KotlinCodeStubber(kotlin_language)
-                    logger.info("Kotlin AST stubber initialized")
-                else:
-                    logger.warning(f"Kotlin language library not found at {kotlin_so}")
-                    
-            except Exception as e:
-                logger.warning(f"Failed to initialize AST stubbers: {e}")
-                self.java_stubber = None
-                self.kotlin_stubber = None
+            if kotlin_so.exists():
+                kotlin_language = Language(str(kotlin_so), 'kotlin')
+                self.kotlin_stubber = KotlinCodeStubber(kotlin_language)
+                logger.info("Kotlin AST stubber initialized")
+            else:
+                logger.warning(f"Kotlin language library not found at {kotlin_so}")
+                
+        except Exception as e:
+            logger.warning(f"Failed to initialize AST stubbers: {e}")
+            self.java_stubber = None
+            self.kotlin_stubber = None
     
     def _extract_modified_files_from_patch(self, patch_content: str) -> Dict[str, List[str]]:
         """
@@ -461,21 +449,21 @@ echo "WordPress setup in {workspace_name} completed successfully"
                 logger.warning(f"Could not read file content for {file_path} in {instance_id}: {file_content}")
                 return
             
+            # Determine file type and apply appropriate stubbing
+            is_java = file_path.endswith('.java')
+            is_kotlin = file_path.endswith('.kt')
+            
             stubbed_content = None
-
-            # Try hybrid first
-            if self.hybrid_stubber:
-                stubbed_content = self.hybrid_stubber.stub_file(file_path, file_content)
-                stubbing_method = "hybrid"
-            # Fallback to tree-sitter
-            elif file_path.endswith('.java') and self.java_stubber:
+            
+            if is_java and self.java_stubber:
                 # For selective stubbing, we need to modify the JavaCodeStubber
                 # For now, stub all methods in the file
                 stubbed_content = self.java_stubber.stub_java_methods(file_content)
-                stubbing_method = "tree-sitter"
-            elif file_path.endswith('.kt') and self.kotlin_stubber:
+                
+            elif is_kotlin and self.kotlin_stubber:
+                # For selective stubbing, we need to modify the KotlinCodeStubber 
+                # For now, stub all functions in the file
                 stubbed_content = self.kotlin_stubber.stub_kotlin_functions(file_content)
-                stubbing_method = "tree-sitter"
                 
             else:
                 logger.warning(f"No stubber available for file type: {file_path}")
@@ -798,25 +786,14 @@ echo "WordPress setup in {workspace_name} completed successfully"
             
             try:
                 # Apply solution patch and generate stubs for modified methods
-                # Check for ANY available stubber (hybrid OR tree-sitter)
-                has_stubber = (
-                    (hasattr(self, 'hybrid_stubber') and self.hybrid_stubber) or 
-                    (AST_AVAILABLE and (self.java_stubber or self.kotlin_stubber))
-                )
-
-                if has_stubber:
+                if AST_AVAILABLE and (self.java_stubber or self.kotlin_stubber):
                     stub_success = self._apply_solution_patch_and_stub_methods(
                         instance_id, 
                         instance['patch']  # Using correct key from JSONL data
                     )
                     
                     if stub_success:
-                        # Determine which stubbing method was used
-                        if hasattr(self, 'hybrid_stubber') and self.hybrid_stubber:
-                            stubbing_method = "hybrid (JavaParser + kotlinc)"
-                        else:
-                            stubbing_method = "tree-sitter"
-                        logger.info(f"Successfully applied {stubbing_method} method stubbing for {instance_id}")
+                        logger.info(f"Successfully applied AST-based method stubbing for {instance_id}")
                     else:
                         logger.warning(f"AST-based stubbing failed for {instance_id}, continuing without stubs")
                         # Revert to clean state by checking out base commit again

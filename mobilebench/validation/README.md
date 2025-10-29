@@ -88,14 +88,61 @@ python validator.py ../../data/tasks/NeoStumbler-task-instances.jsonl \
   --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/NeoStumbler
 
 TUSKY
-python validator.py ../../data/tasks/Tusky-task-instances.jsonl \
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Tusky-task-instances.jsonl \
   --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Tusky
 
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/nextcloud-android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/nextcloud-android
 
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/nextcloud-talk-android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/nextcloud-talk
 
 
 WORDPRESS
 
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-Android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/WordPress-20706 \
+  --instance-ids 20706
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-Android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/WordPress-5 \
+  --exclude-instance-ids \
+  20094 20103 20130 20153 20194 20361 20480 20552 20564 20566 \
+  20589 20606 20611 20658 20745 20747 20756 20757 20779 20781 \
+  20791 20817 20839 20842 20860 20861 20925 20940 19603 19662 \
+  19708 19773 19577 19589 19574 19818 19790 19590 19656 19730 \
+  19760 19676 19745 19805 19537 19507 19498 19491 19485 19469 \
+  19429 19424 19387 19363 19360 19332 19283 19222 19205 19183 \
+  19178 19091 18967 18959 18877
+
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-Android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/WordPress-6a \
+  --instance-ids \
+16765 18340 18928 18960 18962 18986 19059 19099 19112 19115 19125 19135 \
+19175 19183 19222 19253 19262 19281 19303 19367 19387 19408 19416 19425 19447 \
+19462 19466 19482 19507 19509 19510 19513 19524 19527 19547 19555 19565 19566 \
+19570 19585 19593 19597 19602 19637 19676 19679 19715 19721 19741 19745 19760 \
+19771 19801 19804 19805 19810 19834 19856 19860 19940 19974 19996 20057 20074
+
+
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-Android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/WordPress-6b \
+  --instance-ids \
+20077 20090 20125 20137 20186 20216 20242 20243 20251 20477 20513 20526 20543 \
+20571 20572 20586 20596 20600 20603 20607 20608 20611 20656 20675 20684 20706 \
+20728 20729 20732 20750 20763 20769 20790 20801 20802 20844 20846 20872 20891 \
+20895 20939 20947 21457 21466 21599 21707
+
+
+
+
+I'm tired of this back and forth, What's a better sure proof approach of generating method stubs. I've wasted too much time on this.
+```markdown
+I'm tired of this back and forth and unending compilation errors, What's a better sure proof approach of generating method stubs. I've wasted too much time on this
+```
 
 python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-Android-task-instances.jsonl \
   --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/WordPress-1 \
@@ -182,9 +229,9 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-And
 Build configuration file gradle.properties doesn't exist, follow README instructions
 
 
-$ docker exec -it android-bench-wordpress-mobile--wordpress-android-20747 bash
+$ docker exec -it android-cache-tuskyapp__Tusky-4993 bash
 
-$ docker exec -it -w / android-bench-wordpress-mobile--wordpress-android-20747 /bin/bash
+$ docker exec -it -w / android-cache-tuskyapp__Tusky-4993 /bin/bash
 
 
 cd /workspace_post

@@ -475,40 +475,67 @@ class KotlinCodeStubber:
         stub_lines.append(" {")  # Opening brace
         stub_lines.append(f"        // TODO: Implement {func_name}")
         
-        # FIXED: Better nullable type detection
+        # FIXED: Better nullable type detection - handle complex types like List<String?>?, Flow<Data>?
         is_nullable = '?' in return_type and return_type.rstrip().endswith('?')
         # Remove trailing ? and whitespace to get base type
         base_type = return_type.rstrip().rstrip('?').strip()
         
+        # Extract the core type without generics for primitive checks
+        core_type = base_type.split('<')[0].split('.')[- 1].strip()
+        
         # Add appropriate return statement
-        if return_type == 'Unit' or return_type == '' or base_type == 'Unit':
+        if return_type == 'Unit' or return_type == '' or core_type == 'Unit':
             # Unit functions don't need return
             stub_lines.append("        // Function implementation goes here")
-        elif base_type in ['Int', 'Long', 'Short', 'Byte']:
+        elif core_type in ['Int', 'Long', 'Short', 'Byte']:
             if is_nullable:
                 stub_lines.append("        return null")
             else:
                 stub_lines.append("        return 0")
-        elif base_type in ['Float', 'Double']:
+        elif core_type in ['Float', 'Double']:
             if is_nullable:
                 stub_lines.append("        return null")
             else:
                 stub_lines.append("        return 0.0")
-        elif base_type == 'Boolean':
+        elif core_type == 'Boolean':
             if is_nullable:
                 stub_lines.append("        return null")
             else:
                 stub_lines.append("        return false")
-        elif base_type == 'String':
+        elif core_type == 'String':
             if is_nullable:
                 stub_lines.append("        return null")
             else:
                 stub_lines.append("        return \"\"")
+        elif core_type in ['List', 'MutableList', 'ArrayList']:
+            if is_nullable:
+                stub_lines.append("        return null")
+            else:
+                stub_lines.append("        return emptyList()")
+        elif core_type in ['Set', 'MutableSet', 'HashSet']:
+            if is_nullable:
+                stub_lines.append("        return null")
+            else:
+                stub_lines.append("        return emptySet()")
+        elif core_type in ['Map', 'MutableMap', 'HashMap']:
+            if is_nullable:
+                stub_lines.append("        return null")
+            else:
+                stub_lines.append("        return emptyMap()")
+        elif self._is_array_type_kotlin(base_type):
+            # Handle Kotlin arrays
+            if is_nullable:
+                stub_lines.append("        return null")
+            elif func_name == 'newArray':
+                stub_lines.append("        return arrayOfNulls(size)")
+            else:
+                stub_lines.append("        return emptyArray()")
         elif is_nullable:
             # Nullable types - return null (safe default)
             stub_lines.append("        return null")
         else:
             # Non-nullable reference types - use error() which compiles correctly
+            # This throws IllegalStateException at runtime, which is acceptable for stubs
             stub_lines.append(f"        error(\"Not yet implemented: {func_name}\")")
         
         stub_lines.append("    }")  # Closing brace

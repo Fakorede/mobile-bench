@@ -12,6 +12,17 @@ source venv/bin/activate
 # install deps
 pip install -r requirements.txt
 
+# install kotlin compiler
+# Install SDKMAN
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# Install Kotlin
+sdk install kotlin
+
+# Verify
+kotlinc -version
+
 ```
 
 
