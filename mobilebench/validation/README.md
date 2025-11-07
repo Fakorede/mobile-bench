@@ -80,7 +80,17 @@ python mobilebench/validation/validator.py data/tasks/AntennaPod-task-instances.
 
 --instance-ids 5644 5679 5751 5872 5886 6057 6147 6153 6210 6266 6358 6420 6529 6530 6573 6659 6739 6808
 
-python validator.py ../../data/tasks/AntennaPod-task-instances.jsonl --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/AntennaPod-SSG-batch --instance-ids 7060 7815 7581 7537 6739 7215 6529 6530 7098 6147 6057 5872 5644 6808 6659 6573 6358 6266 6210 6153 5886 5751
+
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/AntennaPod-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/AntennaPod-2 \
+  --exclude-instance-ids \
+7815 7730 7713 7581 7537 7215 7192 7176 7159 7103 7098 7096 7060 7011 6852 6808 6739 6659 6652 6573 6530 6529 6434 6420 6403 6400 6384 6358 6333 6328 6286 6276 6266 6236 6210 6153 6147 6095 6057 6041 6029 6001 5886 5872 5835 5751 5726 5679 5644 5530 7954 8022\
+5509 5518 3745 3839 3968 3970 4058 4110 4174 4175 4260 4287 4306 4314 4563 4625 4634 5108 5294 5359 5469
+
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/AntennaPod-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/AntennaPod-5326 --instance-ids 5326
 
 
 NEOSTUMBLER
@@ -127,14 +137,51 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-And
 19771 19801 19804 19805 19810 19834 19856 19860 19940 19974 19996 20057 20074
 
 
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-Android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/WordPress-6ai \
+  --instance-ids \
+
 
 python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-Android-task-instances.jsonl \
   --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/WordPress-6b \
   --instance-ids \
+20586 20596 20600 20603 20607 20608 20611 20656 20675 20684 20706 \
+20728 20729 20732 20750 20763 20769 20790 20801 20802 20844 20846 \
+20872 20891 20895 20939 20947 21457 21466 21599 21707
+
+
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-Android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/WordPress-6bi \
+  --instance-ids \
 20077 20090 20125 20137 20186 20216 20242 20243 20251 20477 20513 20526 20543 \
-20571 20572 20586 20596 20600 20603 20607 20608 20611 20656 20675 20684 20706 \
-20728 20729 20732 20750 20763 20769 20790 20801 20802 20844 20846 20872 20891 \
-20895 20939 20947 21457 21466 21599 21707
+20571 20572
+
+
+
+ELEMENT-x-ANDROID
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/element-x-android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/ElementXAndroid-1 \
+  --instance-ids \
+5622 5566 5498 5388 5354 5320 5305 5291 5161 5160 4960 4845 4752 4707 4699 4686 4683 4653 4635 4553 \
+ --clone-submodules false
+
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/element-x-android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/ElementXAndroid-2 \
+  --instance-ids \
+4463 4376 4365 4312 4301 4209 4205 4198 4195 4161 4103 4065 4056 4026 3953 3943 3918 3916 3906 3864 3829 3819 3816 3803 3755 3750 3744 3718 3694 3686 3685 3633 3592 3561 3535 3527 3429 3428 3413 3395 3389 3381 3376 3334 3322 3320 3298 3295 3199 \
+3127 3118 3101 3064 3058 3057 3053 3049 3022 3019 3012 2984 2979 2978 2928 2901 2883 2879 2849 2847 2820 2817 2816 2811 2802 2768 2767 2749 2748 2745 2739 2731 2687 2686 2674 2660 2657 2653 2639 2620 2618 2609 2596 2595 2594 2588 2570 2565 2552 2545 2543 \
+  --clone-submodules false
+
+
+python validator.py /home/researchuser/moshood/mobile-bench/data/tasks/element-x-android-task-instances.jsonl \
+  --output-dir /home/researchuser/moshood/mobile-bench/data/validated-tasks/ElementXAndroid-3 \
+  --instance-ids \
+2481 2449 2448 2437 2421 2415 2384 2374 2361 2354 2349 2342 2320 2312 2302 2295 2293 2290 2283 2278 2265 2252 2244 2231 2225 2221 2212 2202 2199 2197 2194 2166 2164 2128 2122 2115 2112 2111 2080 2078 2077 2075 2074 2063 2061 2058 2050 2040 2039 2035 2028 2025 2021 2013 2001 1997 1992 1981 1972 1969 1965 1961 1955 1941 1911 1888 1887 1846 1844 1843 1834 1799 1781 1774 1773 1771 1770 1767 1759 1751 1709 1648 1631 1549 1498 1447 1400 1392 1385 1329 1314 1286 1283 1271 1253 1252 1246 1237 1223 1219 \
+  --clone-submodules false
+
 
 
 

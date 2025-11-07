@@ -204,12 +204,16 @@ class AndroidBenchValidator:
 
     def __init__(self, output_dir: str = "android_validation_results", 
                  docker_context: str = None,
-                 forced_java_version: str = None):
+                 forced_java_version: str = None,
+                 clone_submodules: bool = True):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True, parents=True)
         
         # Store forced Java version for config override
         self.forced_java_version = forced_java_version
+        
+        # Store clone_submodules preference
+        self.clone_submodules = clone_submodules
         
         # Create debug directory for AST analysis
         self.debug_dir = self.output_dir / "ast_debug"
@@ -738,14 +742,48 @@ echo "WordPress setup in {workspace_name} completed successfully"
                 return result
             result.repo_cloned = True
             
-            # Step 2: Parse build configuration
+            # Step 2: Checkout base commit FIRST (before parsing config!)
+            # CRITICAL: Must checkout correct commit before reading gradle-wrapper.properties
+            logger.info(f"Checking out base commit {instance['base_commit']} before parsing config")
+            
+            # Clean repository state and force checkout to handle files that exist on
+            # default branch but not on the target commit
+            clean_cmds = [
+                ["git", "reset", "--hard", "HEAD"],
+                ["git", "clean", "-fdx"],  # Remove ALL untracked files
+                ["git", "checkout", "-f", instance['base_commit']]  # Force checkout
+            ]
+            
+            try:
+                for cmd in clean_cmds:
+                    result_git = subprocess.run(
+                        cmd, 
+                        cwd=repo_path, 
+                        capture_output=True, 
+                        text=True, 
+                        timeout=120
+                    )
+                    if result_git.returncode != 0:
+                        logger.error(f"Command {' '.join(cmd)} failed: {result_git.stderr}")
+                        result.error_message = f"Failed to checkout base commit: {result_git.stderr}"
+                        return result
+                    logger.debug(f"Executed: {' '.join(cmd)}")
+                
+                logger.info(f"Successfully checked out {instance['base_commit']}")
+            except Exception as e:
+                logger.error(f"Exception during checkout: {e}")
+                result.error_message = f"Failed to checkout base commit: {e}"
+                return result
+            result.base_commit_checked_out = True
+            
+            # Step 3: Parse build configuration (AFTER checkout!)
             self.config_parser = AndroidConfig(repo_path, forced_java_version=self.forced_java_version)
             build_config = self.config_parser.parse_build_config()
             result.config_parsed = True
             
             logger.info(f"Build configuration: {build_config}")
             
-            # Step 3: Create and start container
+            # Step 4: Create and start container
             if not self.containers.create_container(instance_id, build_config, repo_path):
                 result.error_message = "Failed to create container"
                 return result
@@ -755,7 +793,7 @@ echo "WordPress setup in {workspace_name} completed successfully"
                 result.error_message = "Failed to start container"
                 return result
 
-            # Step 3.5: Copy repository to container at /workspace
+            # Step 4.5: Copy repository to container at /workspace
             if not self.containers.copy_to_container(instance_id, repo_path, "/workspace"):
                 result.error_message = "Failed to copy repository to container"
                 return result
@@ -763,12 +801,6 @@ echo "WordPress setup in {workspace_name} completed successfully"
 
             # Initialize testing module
             self.testing = AndroidTestingParallel(self.containers, self.config_parser)
-            
-            # Step 4: Checkout base commit
-            if not self.repository.checkout_base_commit(instance_id, instance['base_commit']):
-                result.error_message = "Failed to checkout base commit"
-                return result
-            result.base_commit_checked_out = True
             
             # Step 4.5: Setup WordPress-specific configuration if this is a WordPress project
             repo_name = instance.get('repo', '').lower()
@@ -1151,8 +1183,15 @@ echo "WordPress setup in {workspace_name} completed successfully"
                 except Exception:
                     pass
             
-            # Clone repository
-            clone_cmd = ["git", "clone", "--recursive", "--depth", "1000", clone_url, temp_dir]
+            # Clone repository (full clone to ensure we have all commits)
+            # Use --recursive flag only if clone_submodules is enabled
+            if self.clone_submodules:
+                clone_cmd = ["git", "clone", "--recursive", clone_url, temp_dir]
+                logger.info(f"Cloning with submodules enabled")
+            else:
+                clone_cmd = ["git", "clone", clone_url, temp_dir]
+                logger.info(f"Cloning without submodules (--clone-submodules=false)")
+            
             result = subprocess.run(clone_cmd, capture_output=True, text=True, timeout=600)
             
             if result.returncode != 0:
@@ -1193,8 +1232,15 @@ echo "WordPress setup in {workspace_name} completed successfully"
             
             logger.info(f"Cloning fresh {repo} to {temp_dir} for post-solution tests")
             
-            # Clone repository
-            clone_cmd = ["git", "clone", "--recursive", "--depth", "1000", clone_url, temp_dir]
+            # Clone repository (full clone to ensure we have all commits)
+            # Use --recursive flag only if clone_submodules is enabled
+            if self.clone_submodules:
+                clone_cmd = ["git", "clone", "--recursive", clone_url, temp_dir]
+                logger.info(f"Cloning with submodules enabled")
+            else:
+                clone_cmd = ["git", "clone", clone_url, temp_dir]
+                logger.info(f"Cloning without submodules (--clone-submodules=false)")
+            
             result = subprocess.run(clone_cmd, capture_output=True, text=True, timeout=600)
             
             if result.returncode != 0:

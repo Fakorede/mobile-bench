@@ -18,8 +18,8 @@ class AndroidConfig:
     
     # Based on mingc/android-build-box:latest available versions
     SUPPORTED_JAVA_VERSIONS = ['8', '11', '17', '21']
-    SUPPORTED_GRADLE_VERSIONS = ['6.9', '7.0', '7.1', '7.2', '7.3', '7.4', '7.5', '7.6', '8.0', '8.1']
-    SUPPORTED_SDK_VERSIONS = range(21, 35)  # API 21-35
+    SUPPORTED_GRADLE_VERSIONS = ['6.5', '6.9', '7.0', '7.1', '7.2', '7.3', '7.4', '7.5', '7.6', '8.0', '8.1']
+    SUPPORTED_SDK_VERSIONS = range(16, 36)  # API 16-35 (expanded to support older projects)
     DEFAULT_BUILD_TOOLS = '35.0.0'
     
     def __init__(self, project_path: str, forced_java_version: str = None):
@@ -28,12 +28,13 @@ class AndroidConfig:
         self.config = self._get_default_config()
         
     def _get_default_config(self) -> Dict[str, str]:
-        """Return default configuration based on mingc/android-build-box."""
+        """Return default configuration based on mingc/android-build-box.
+        These are FALLBACK values only - actual values should be detected from project."""
         return {
-            'java_version': '17',
-            'gradle_version': '8.6',
-            'compile_sdk': '35',
-            'target_sdk': '35',
+            'java_version': '8',  # Safe default - will be adjusted based on Gradle/AGP requirements
+            'gradle_version': '7.4',  # Conservative default
+            'compile_sdk': '30',  # Conservative default
+            'target_sdk': '30',
             'min_sdk': '21',
             'build_tools': self.DEFAULT_BUILD_TOOLS,
             'ndk_version': None,
@@ -93,6 +94,8 @@ class AndroidConfig:
             content = wrapper_file.read_text(encoding='utf-8')
             
             # Extract gradle version from distributionUrl
+            # CRITICAL: Use the ACTUAL detected version for Java compatibility check
+            # even if we map it to a different supported version for execution
             patterns = [
                 r'gradle-(\d+\.\d+(?:\.\d+)?)-',
                 r'distributionUrl=.*gradle-(\d+\.\d+(?:\.\d+)?)-'
@@ -101,20 +104,22 @@ class AndroidConfig:
             for pattern in patterns:
                 match = re.search(pattern, content)
                 if match:
-                    version = match.group(1)
-                    if version in self.SUPPORTED_GRADLE_VERSIONS:
-                        self.config['gradle_version'] = version
-                        logger.info(f"Found Gradle version: {version}")
+                    detected_version = match.group(1)
+                    logger.info(f"Detected Gradle version from wrapper: {detected_version}")
+                    
+                    # Determine which version to use for execution
+                    if detected_version in self.SUPPORTED_GRADLE_VERSIONS:
+                        execution_version = detected_version
+                        logger.info(f"Using detected Gradle version: {execution_version}")
                     else:
                         # Find closest supported version
-                        closest = self._find_closest_version(version, self.SUPPORTED_GRADLE_VERSIONS)
-                        self.config['gradle_version'] = closest
-                        logger.warning(f"Gradle {version} not supported, using {closest}")
+                        execution_version = self._find_closest_version(detected_version, self.SUPPORTED_GRADLE_VERSIONS)
+                        logger.warning(f"Gradle {detected_version} not in supported list, will use closest: {execution_version}")
                     
-                    # CRITICAL: Ensure Java version is compatible with Gradle version
-                    # Gradle 8.5+ requires Java 17+ but supports Java 21
-                    # Gradle 7.x requires Java 11-17 (NOT Java 21!)
-                    self._ensure_java_gradle_compatibility(version)
+                    self.config['gradle_version'] = execution_version
+                    
+                    # CRITICAL: Use the ACTUAL detected version for Java compatibility
+                    self._ensure_java_gradle_compatibility(detected_version)
                     break
                     
         except Exception as e:
@@ -161,15 +166,16 @@ class AndroidConfig:
             
             # First check AGP version which determines minimum Java requirement
             agp_version = self._detect_agp_version(content)
+            agp_min_java = None
             if agp_version:
-                required_java = self._get_java_version_for_agp(agp_version)
-                if required_java:
-                    self.config['java_version'] = required_java
-                    logger.info(f"AGP {agp_version} requires Java {required_java}")
+                agp_min_java = self._get_java_version_for_agp(agp_version)
+                if agp_min_java:
+                    logger.info(f"AGP {agp_version} requires minimum Java {agp_min_java}")
             else:
                 logger.warning("No AGP version detected in project build file")
             
-            # Extract Java version from various patterns (but AGP takes precedence)
+            # Extract Java version from various patterns
+            # Use the detected value unless it conflicts with AGP minimum
             java_patterns = [
                 # Java toolchain (modern Gradle/Android)
                 r'java\s*\{[^}]*toolchain\.languageVersion\s*=\s*JavaLanguageVersion\.of\((\d+)\)',
@@ -188,33 +194,42 @@ class AndroidConfig:
                 r'javaVersion\s*[=:]\s*["\'](\d+)["\']'
             ]
             
-            # Only override AGP decision if explicitly specified and higher
             java_version_found = False
             for i, pattern in enumerate(java_patterns):
                 match = re.search(pattern, content, re.DOTALL)
                 if match:
-                    java_version = match.group(1)
+                    detected_java = match.group(1)
                     java_version_found = True
-                    logger.info(f"Found Java version {java_version} using pattern {i+1}: {pattern}")
+                    logger.info(f"Detected Java version {detected_java} from build file using pattern {i+1}")
                     
-                    if java_version in self.SUPPORTED_JAVA_VERSIONS:
-                        # Only use if higher than AGP requirement
-                        if not agp_version or int(java_version) >= int(self.config['java_version']):
-                            old_version = self.config['java_version']
-                            self.config['java_version'] = java_version
-                            logger.info(f"Updated Java version from {old_version} to {java_version}")
+                    # Map to supported version if needed
+                    if detected_java in self.SUPPORTED_JAVA_VERSIONS:
+                        mapped_java = detected_java
                     else:
-                        # Map to supported version
-                        mapped_version = self._map_java_version(java_version)
-                        if not agp_version or int(mapped_version) >= int(self.config['java_version']):
-                            old_version = self.config['java_version']
-                            self.config['java_version'] = mapped_version
-                            logger.warning(f"Java {java_version} mapped to {mapped_version} (was {old_version})")
+                        mapped_java = self._map_java_version(detected_java)
+                        logger.warning(f"Java {detected_java} not in supported list, mapped to {mapped_java}")
+                    
+                    # Use detected value, but respect AGP minimum if we found one
+                    if agp_min_java:
+                        if int(mapped_java) < int(agp_min_java):
+                            logger.warning(f"Detected Java {mapped_java} is below AGP minimum {agp_min_java}, using {agp_min_java}")
+                            self.config['java_version'] = agp_min_java
+                        else:
+                            logger.info(f"Using detected Java {mapped_java} (meets AGP minimum {agp_min_java})")
+                            self.config['java_version'] = mapped_java
+                    else:
+                        logger.info(f"Using detected Java {mapped_java}")
+                        self.config['java_version'] = mapped_java
                     break
             
-            if not java_version_found:
+            # If no Java version detected but AGP requires a minimum, use that minimum
+            if not java_version_found and agp_min_java:
+                logger.info(f"No Java version detected in build file, using AGP minimum: {agp_min_java}")
+                self.config['java_version'] = agp_min_java
+            elif not java_version_found:
                 logger.warning(f"No Java version patterns matched in {gradle_file_found}")
                 logger.debug(f"File content preview (first 1000 chars): {content[:1000]}")
+                # Keep default value (Java 8)
                     
         except Exception as e:
             logger.error(f"Error parsing project build.gradle: {e}")
@@ -272,22 +287,23 @@ class AndroidConfig:
         return None
     
     def _get_java_version_for_agp(self, agp_version: str) -> Optional[str]:
-        """Get required Java version for Android Gradle Plugin version."""
+        """Get MINIMUM required Java version for Android Gradle Plugin version.
+        Returns the minimum - actual version may be higher if detected from build files."""
         try:
             version_parts = [int(x) for x in agp_version.split('.')]
             major = version_parts[0]
             minor = version_parts[1] if len(version_parts) > 1 else 0
             
-            # AGP version to Java version mapping
+            # AGP version to MINIMUM Java version mapping
             # Based on official Android Gradle Plugin requirements
             if major >= 8 or (major == 7 and minor >= 4):
-                # AGP 7.4+ requires Java 17
+                # AGP 7.4+ requires minimum Java 17
                 return '17'
             elif major >= 7 or (major == 4 and minor >= 2):
-                # AGP 4.2+ to 7.3 requires Java 11
+                # AGP 4.2+ to 7.3 requires minimum Java 11
                 return '11'
             else:
-                # Older AGP versions can use Java 8
+                # Older AGP versions require minimum Java 8
                 return '8'
                 
         except Exception as e:
@@ -297,32 +313,60 @@ class AndroidConfig:
     def _ensure_java_gradle_compatibility(self, gradle_version: str):
         """
         Ensure Java version is compatible with Gradle version.
+        Only adjusts if there's an incompatibility - doesn't force specific versions.
         
-        Gradle version compatibility:
+        Gradle version compatibility (official requirements):
         - Gradle 8.8+: Java 17-21
         - Gradle 8.5-8.7: Java 17-20  
         - Gradle 8.0-8.4: Java 17-19
         - Gradle 7.6: Java 8-19
         - Gradle 7.0-7.5: Java 8-18
+        - Gradle 6.9: Java 8-15
+        - Gradle 6.0-6.8: Java 8-14
         
-        CRITICAL: Gradle 7.x does NOT support Java 21!
+        CRITICAL: Only enforce maximum/minimum bounds, let project config determine actual version!
         """
         try:
             gradle_parts = [int(x) for x in gradle_version.split('.')]
             gradle_major = gradle_parts[0]
             gradle_minor = gradle_parts[1] if len(gradle_parts) > 1 else 0
             
-            current_java = int(self.config.get('java_version', '17'))
+            current_java = int(self.config.get('java_version', '8'))
             
-            # Gradle 7.x with Java 21 = INCOMPATIBLE!
-            if gradle_major == 7 and current_java >= 21:
-                logger.warning(f"Gradle {gradle_version} does NOT support Java 21! Downgrading to Java 17")
-                self.config['java_version'] = '17'
+            # Gradle 6.x: Java 8-15 (does NOT support Java 17+!)
+            if gradle_major == 6:
+                if current_java > 15:
+                    logger.warning(f"Gradle {gradle_version} max Java 15, current is {current_java}. Capping at 11")
+                    self.config['java_version'] = '11'  # Safe max for Gradle 6.x
+                # Otherwise keep detected version (8, 11, etc.)
             
-            # Gradle 8.0-8.4 with Java 21 = INCOMPATIBLE!
-            elif gradle_major == 8 and gradle_minor < 5 and current_java >= 21:
-                logger.warning(f"Gradle {gradle_version} does NOT support Java 21! Downgrading to Java 17")
-                self.config['java_version'] = '17'
+            # Gradle 7.x: Java 8-19 (does NOT support Java 21!)
+            elif gradle_major == 7:
+                if current_java >= 21:
+                    logger.warning(f"Gradle {gradle_version} max Java 19, current is {current_java}. Capping at 17")
+                    self.config['java_version'] = '17'
+                # Otherwise keep detected version
+            
+            # Gradle 8.0-8.4: Java 17-19 (requires minimum Java 17!)
+            elif gradle_major == 8 and gradle_minor < 5:
+                if current_java >= 21:
+                    logger.warning(f"Gradle {gradle_version} max Java 19, current is {current_java}. Capping at 17")
+                    self.config['java_version'] = '17'
+                elif current_java < 17:
+                    logger.warning(f"Gradle {gradle_version} requires min Java 17, current is {current_java}. Upgrading to 17")
+                    self.config['java_version'] = '17'
+            
+            # Gradle 8.5+: Java 17+ (no upper limit in our supported range)
+            elif gradle_major == 8 and gradle_minor >= 5:
+                if current_java < 17:
+                    logger.warning(f"Gradle {gradle_version} requires min Java 17, current is {current_java}. Upgrading to 17")
+                    self.config['java_version'] = '17'
+            
+            # Gradle 5.x and below: Java 8-11
+            elif gradle_major <= 5:
+                if current_java > 11:
+                    logger.warning(f"Gradle {gradle_version} max Java 11, current is {current_java}. Capping at 11")
+                    self.config['java_version'] = '11'
                 
         except Exception as e:
             logger.error(f"Error checking Gradle-Java compatibility: {e}")
@@ -464,20 +508,32 @@ class AndroidConfig:
                     logger.error(f"Error determining test variant from {build_file}: {e}")
     
     def _validate_config(self):
-        """Validate and adjust configuration for mingc/android-build-box compatibility."""
-        # Ensure Java version is supported
+        """Validate and adjust configuration for mingc/android-build-box compatibility.
+        Only adjusts when values are outside supported ranges - doesn't force upgrades."""
+        # Ensure Java version is supported - if not, map to nearest
         if self.config['java_version'] not in self.SUPPORTED_JAVA_VERSIONS:
-            self.config['java_version'] = '17'  # Default safe choice
+            old_version = self.config['java_version']
+            self.config['java_version'] = self._map_java_version(old_version)
+            logger.warning(f"Java version {old_version} not in supported list, mapped to {self.config['java_version']}")
             
-        # Ensure Gradle version is supported
+        # Ensure Gradle version is supported - if not, find closest
         if self.config['gradle_version'] not in self.SUPPORTED_GRADLE_VERSIONS:
-            self.config['gradle_version'] = '8.6'  # Default safe choice
+            old_version = self.config['gradle_version']
+            self.config['gradle_version'] = self._find_closest_version(
+                old_version, 
+                self.SUPPORTED_GRADLE_VERSIONS
+            )
+            logger.warning(f"Gradle version {old_version} not in supported list, using closest: {self.config['gradle_version']}")
             
-        # Ensure SDK versions are in range
+        # Ensure SDK versions are in range (but don't force upgrades)
         for sdk_key in ['compile_sdk', 'target_sdk', 'min_sdk']:
             sdk_val = int(self.config[sdk_key])
             if sdk_val not in self.SUPPORTED_SDK_VERSIONS:
-                self.config[sdk_key] = '35'  # Default safe choice
+                # Clamp to supported range instead of forcing to max
+                clamped = max(min(sdk_val, max(self.SUPPORTED_SDK_VERSIONS)), 
+                             min(self.SUPPORTED_SDK_VERSIONS))
+                logger.warning(f"{sdk_key} {sdk_val} not in supported range ({min(self.SUPPORTED_SDK_VERSIONS)}-{max(self.SUPPORTED_SDK_VERSIONS)}), clamping to {clamped}")
+                self.config[sdk_key] = str(clamped)
     
     def _find_closest_version(self, target: str, available: List[str]) -> str:
         """Find the closest available version to target."""

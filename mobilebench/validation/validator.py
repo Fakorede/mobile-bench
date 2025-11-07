@@ -33,8 +33,9 @@ class ResumeableValidator(AndroidBenchValidator):
     """Enhanced validator with resume and incremental saving capabilities."""
     
     def __init__(self, output_dir: str, docker_context: Optional[str] = None, 
-                 keep_containers: bool = False, forced_java_version: str = None):
-        super().__init__(output_dir, docker_context, forced_java_version)
+                 keep_containers: bool = False, forced_java_version: str = None,
+                 clone_submodules: bool = True):
+        super().__init__(output_dir, docker_context, forced_java_version, clone_submodules)
         self.progress_file = Path(self.output_dir) / "validation_progress.json"
         self.checkpoint_file = Path(self.output_dir) / "validation_checkpoint.json"
         self.statistics_file = Path(self.output_dir) / "incremental_statistics.json"
@@ -587,8 +588,11 @@ INSTANCE_ID_PATTERNS = {
     'Tusky': 'tuskyapp__Tusky-',
     'nextcloud-android': 'nextcloud__android-',
     'nextcloud-talk': 'nextcloud__talk-android-',
+    'element-x-android': 'element-hq__element-x-android-',
     # Add more patterns as needed
 }
+
+
 
 def normalize_instance_ids(instance_ids: list, patterns: dict = None, dataset_context: str = None) -> set:
     """
@@ -689,6 +693,8 @@ Examples:
                        help="Force restart from beginning, ignoring previous progress")
     parser.add_argument("--java-version", choices=['8', '11', '17', '21'],
                        help="Force specific Java version (8, 11, 17, or 21) - overrides auto-detection")
+    parser.add_argument("--clone-submodules", type=lambda x: x.lower() == 'true', default=True,
+                       help="Clone git submodules (default: true). Set to false to skip submodules")
     
     args = parser.parse_args()
     
@@ -704,12 +710,17 @@ Examples:
     if args.java_version:
         logger.info(f"🔧 Forced Java version: {args.java_version} (will override auto-detection)")
     
+    # Log clone submodules setting
+    if not args.clone_submodules:
+        logger.info(f"⚠️  Git submodules will NOT be cloned (--clone-submodules false)")
+    
     # Create enhanced validator
     validator = ResumeableValidator(
         args.output_dir, 
         args.docker_context,
         args.keep_containers,
-        args.java_version
+        args.java_version,
+        args.clone_submodules
     )
     
     # Clear previous progress if force restart requested
