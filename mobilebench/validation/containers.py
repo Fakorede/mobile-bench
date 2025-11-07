@@ -575,7 +575,7 @@ fi
             return False
     
     def cleanup_container(self, instance_id: str, keep_persistent: bool = True, preserve_for_debug: bool = False):
-        """Cleanup container."""
+        """Cleanup container and associated volumes."""
         if instance_id not in self.containers:
             return
         
@@ -599,13 +599,104 @@ fi
                 except Exception as e:
                     logger.warning(f"Error cleaning build artifacts: {e}")
         else:
-            # Fully remove container
-            logger.info(f"Removing container {container_name}")
+            # Fully remove container and associated volumes
+            logger.info(f"Removing container {container_name} and cleaning up volumes")
+            
+            # First, clean build caches inside container to reduce volume size
+            try:
+                self._clean_build_caches(instance_id)
+            except Exception as e:
+                logger.warning(f"Error cleaning build caches before removal: {e}")
+            
             self._remove_container(container_name)
+            
+            # Clean up instance-specific volumes to free disk space
+            self._cleanup_instance_volumes(instance_id)
         
         # Remove from tracking
         if instance_id in self.containers:
             del self.containers[instance_id]
+    
+    def _cleanup_instance_volumes(self, instance_id: str):
+        """Clean up volumes associated with a specific instance."""
+        try:
+            docker_cmd = self._get_docker_cmd_prefix()
+            
+            # Remove instance-specific volumes
+            volume_names = [
+                f"gradle-cache-{instance_id}",
+                f"android-cache-{instance_id}"
+            ]
+            
+            for volume_name in volume_names:
+                # Check if volume exists
+                result = subprocess.run(
+                    docker_cmd + ["volume", "inspect", volume_name],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    # Volume exists, remove it
+                    remove_result = subprocess.run(
+                        docker_cmd + ["volume", "rm", volume_name],
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                    
+                    if remove_result.returncode == 0:
+                        logger.info(f"Removed volume: {volume_name}")
+                    else:
+                        logger.warning(f"Failed to remove volume {volume_name}: {remove_result.stderr}")
+                        
+        except Exception as e:
+            logger.warning(f"Error cleaning up volumes for instance {instance_id}: {e}")
+    
+    def _clean_build_caches(self, instance_id: str):
+        """Clean build caches inside container before removal to reduce disk usage."""
+        logger.info(f"Cleaning build caches for instance {instance_id}")
+        
+        cleanup_script = """
+echo "=== Cleaning build caches ===" &&
+
+# Stop gradle daemons
+cd /workspace 2>/dev/null && ./gradlew --stop 2>/dev/null || true &&
+cd /workspace_post 2>/dev/null && ./gradlew --stop 2>/dev/null || true &&
+
+# Clean build directories
+rm -rf /workspace/build /workspace/app/build /workspace/*/build /workspace/*/*/build 2>/dev/null || true &&
+rm -rf /workspace_post/build /workspace_post/app/build /workspace_post/*/build /workspace_post/*/*/build 2>/dev/null || true &&
+
+# Clean gradle caches
+rm -rf /tmp/.gradle/caches/build-cache-* 2>/dev/null || true &&
+rm -rf /tmp/.gradle/caches/*/generated* 2>/dev/null || true &&
+rm -rf /tmp/.gradle/caches/transforms-* 2>/dev/null || true &&
+rm -rf /tmp/.gradle/daemon 2>/dev/null || true &&
+rm -rf /tmp/.gradle/wrapper/dists 2>/dev/null || true &&
+
+# Clean Android build cache
+rm -rf /root/.android/build-cache 2>/dev/null || true &&
+
+echo "Build caches cleaned"
+"""
+        
+        try:
+            exit_code, output = self.exec_command(
+                instance_id,
+                cleanup_script,
+                workdir="/",
+                timeout=120
+            )
+            
+            if exit_code == 0:
+                logger.info(f"Successfully cleaned build caches for {instance_id}")
+            else:
+                logger.warning(f"Build cache cleanup had warnings: {output}")
+                
+        except Exception as e:
+            logger.warning(f"Failed to clean build caches: {e}")
     
     def cleanup_all(self, keep_persistent: bool = False):
         """Cleanup all containers."""
