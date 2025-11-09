@@ -1857,9 +1857,11 @@ def extract_oracle_files(containers_manager, instance_id: str, solution_patch: s
     
     try:
         # Extract file paths from solution patch
+        # Use word boundary \b to ensure we match .java and .kt files exactly,
+        # not files like build.gradle.kts or settings.gradle.kts
         file_patterns = [
-            r'\+\+\+ b/(.+\.(?:java|kt))',
-            r'diff --git a/.+ b/(.+\.(?:java|kt))'
+            r'\+\+\+ b/(.+\.(?:java|kt))\b',
+            r'diff --git a/.+ b/(.+\.(?:java|kt))\b'
         ]
         
         modified_files = set()

@@ -300,6 +300,41 @@ echo "WordPress setup in {workspace_name} completed successfully"
             logger.error(f"Error setting up WordPress project in {workspace_name} for {instance_id}: {e}")
             return False
     
+    def _setup_commons_app_project(self, instance_id: str, workspace_path: str = "/workspace") -> bool:
+        """Setup Wikimedia Commons app-specific configuration files in the specified workspace."""
+        try:
+            workspace_name = "main workspace" if workspace_path == "/workspace" else "clean workspace"
+            logger.info(f"Setting up Wikimedia Commons app configuration in {workspace_name} for {instance_id}")
+            
+            # Setup command to create local.properties if it doesn't exist
+            setup_command = f"""
+# Wikimedia Commons app-specific setup in {workspace_name}
+echo "=== Setting up Wikimedia Commons app project configuration in {workspace_name} ===" &&
+
+# Create local.properties with Android SDK path if it doesn't exist
+if [ ! -f "{workspace_path}/local.properties" ]; then
+    echo "sdk.dir=/opt/android-sdk/" > {workspace_path}/local.properties &&
+    echo "Created local.properties with SDK path in {workspace_name}"
+else
+    echo "local.properties already exists in {workspace_name}, skipping creation"
+fi &&
+
+echo "Wikimedia Commons app setup in {workspace_name} completed successfully"
+"""
+            
+            exit_code, output = self.containers.exec_command(instance_id, setup_command)
+            
+            if exit_code == 0:
+                logger.info(f"Wikimedia Commons app setup in {workspace_name} completed successfully for {instance_id}")
+                return True
+            else:
+                logger.error(f"Wikimedia Commons app setup in {workspace_name} failed for {instance_id}: {output}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error setting up Wikimedia Commons app project in {workspace_name} for {instance_id}: {e}")
+            return False
+    
     def _initialize_stubbers(self):
         """Initialize AST stubbers for Java and Kotlin."""
         if HYBRID_STUBBER_AVAILABLE:
@@ -809,6 +844,12 @@ echo "WordPress setup in {workspace_name} completed successfully"
                 if not self._setup_wordpress_project(instance_id, "/workspace"):
                     logger.warning(f"WordPress setup failed for {instance_id}, continuing anyway")
             
+            # Step 4.6: Setup Wikimedia Commons app-specific configuration if this is a commons-app project
+            if 'commons-app' in instance_id.lower() or 'apps-android-commons' in repo_name:
+                logger.info(f"Detected Wikimedia Commons app project: {repo_name}")
+                if not self._setup_commons_app_project(instance_id, "/workspace"):
+                    logger.warning(f"Wikimedia Commons app setup failed for {instance_id}, continuing anyway")
+            
             # Step 5: Apply test patch
             test_patch_success, test_patch_output = self.repository.apply_patch(
                 instance_id, instance['test_patch'], "test_patch"
@@ -855,10 +896,12 @@ echo "WordPress setup in {workspace_name} completed successfully"
                         self.repository.checkout_base_commit(instance_id, instance['base_commit'])
                         # Reapply only the test patch
                         self.repository.apply_patch(instance_id, instance['test_patch'], "test_patch")
-                        # Re-setup WordPress configuration after revert
+                        # Re-setup project configuration after revert
                         repo_name = instance.get('repo', '').lower()
                         if 'wordpress' in repo_name:
                             self._setup_wordpress_project(instance_id, "/workspace")
+                        if 'commons-app' in instance_id.lower() or 'apps-android-commons' in repo_name:
+                            self._setup_commons_app_project(instance_id, "/workspace")
                 else:
                     logger.warning(f"AST stubbing not available for {instance_id}, skipping method stubbing")
                     
@@ -869,10 +912,12 @@ echo "WordPress setup in {workspace_name} completed successfully"
                     self.repository.checkout_base_commit(instance_id, instance['base_commit'])
                     # Reapply only the test patch
                     self.repository.apply_patch(instance_id, instance['test_patch'], "test_patch")
-                    # Re-setup WordPress configuration after revert
+                    # Re-setup project configuration after revert
                     repo_name = instance.get('repo', '').lower()
                     if 'wordpress' in repo_name:
                         self._setup_wordpress_project(instance_id, "/workspace")
+                    if 'commons-app' in instance_id.lower() or 'apps-android-commons' in repo_name:
+                        self._setup_commons_app_project(instance_id, "/workspace")
                     logger.info(f"Reverted to test-patch-only state for {instance_id}")
                 except Exception as revert_error:
                     logger.error(f"Failed to revert to clean state for {instance_id}: {revert_error}")
@@ -936,6 +981,12 @@ echo "WordPress setup in {workspace_name} completed successfully"
                     logger.info(f"Setting up WordPress configuration in clean workspace for {instance_id}")
                     if not self._setup_wordpress_project(instance_id, "/workspace_post"):
                         logger.warning(f"WordPress setup in clean workspace failed for {instance_id}, continuing anyway")
+                
+                # Setup Wikimedia Commons app-specific configuration in clean workspace if this is a commons-app project
+                if 'commons-app' in instance_id.lower() or 'apps-android-commons' in repo_name:
+                    logger.info(f"Setting up Wikimedia Commons app configuration in clean workspace for {instance_id}")
+                    if not self._setup_commons_app_project(instance_id, "/workspace_post"):
+                        logger.warning(f"Wikimedia Commons app setup in clean workspace failed for {instance_id}, continuing anyway")
                 
             finally:
                 # Clean up host copy of fresh repository

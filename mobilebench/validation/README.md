@@ -160,12 +160,19 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/WordPress-And
 
 
 ELEMENT-x-ANDROID
+===================
 
 python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/element-x-android-task-instances.jsonl \
   --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/ElementXAndroid-1 \
   --instance-ids \
 5622 5566 5498 5388 5354 5320 5305 5291 5161 5160 4960 4845 4752 4707 4699 4686 4683 4653 4635 4553 \
  --clone-submodules false
+
+ python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/element-x-android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/ElementXAndroid-1i \
+  --instance-ids 4707 4752 5160 4845 5291 \
+  --clone-submodules false
+
 
 
 python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/element-x-android-task-instances.jsonl \
@@ -176,13 +183,87 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/elemen
   --clone-submodules false
 
 
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/element-x-android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/ElementXAndroid-2i \
+  --instance-ids \
+2978 2928 2901 2883 2879 2849 2847 2820 2817 2816 2811 2802 2768 2767 2749 2748 2745 2739 2731 2687 2686 2674 2660 2657 2653 2050 \
+--clone-submodules false
+
+
+
+
 python validator.py /home/researchuser/moshood/mobile-bench/data/tasks/element-x-android-task-instances.jsonl \
   --output-dir /home/researchuser/moshood/mobile-bench/data/validated-tasks/ElementXAndroid-3 \
   --instance-ids \
 2481 2449 2448 2437 2421 2415 2384 2374 2361 2354 2349 2342 2320 2312 2302 2295 2293 2290 2283 2278 2265 2252 2244 2231 2225 2221 2212 2202 2199 2197 2194 2166 2164 2128 2122 2115 2112 2111 2080 2078 2077 2075 2074 2063 2061 2058 2050 2040 2039 2035 2028 2025 2021 2013 2001 1997 1992 1981 1972 1969 1965 1961 1955 1941 1911 1888 1887 1846 1844 1843 1834 1799 1781 1774 1773 1771 1770 1767 1759 1751 1709 1648 1631 1549 1498 1447 1400 1392 1385 1329 1314 1286 1283 1271 1253 1252 1246 1237 1223 1219 \
   --clone-submodules false
 
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/element-x-android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/ElementXAndroid-4 \
+  --instance-ids \
+1211 1177 1175 1149 1138 1127 1093 1091 1088 1069 1058 1055 1041 \
+--clone-submodules false
 
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/element-x-android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/ElementXAndroid-5 \
+  --instance-ids \
+991 986 957 952 947 939 920 905 898 895 887 867 861 847 826 824 823 802 801 781 774 773 771 755 752 742 726 724 718 713 707 \
+--clone-submodules false
+
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/element-x-android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/ElementXAndroid-6 \
+  --instance-ids \
+696 678 665 648 642 635 632 631 626 614 596 568 555 553 545 530 526 478 461 441 439 438 408 403 394 380 379 376 355 348 320 297 223 180 174 98 66 23 21 \
+--clone-submodules false
+
+
+
+WIKIMEDIA COMMONS APP
+=======================
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/apps-android-commons-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Wikimedia-Commons-1 \
+  --instance-ids \
+  6540 6529 6513 6499 6429 6324 6302 6295 6209 6169 6167 6164 6130 6124 6070 6057 6047 6041 6035 6006 \
+  5947 5875 5851 5833 5795 5752 5744 5741 5731 5706 5685 5672 5665 5636 5631 5618 5601 5570 5562 5560 \
+  5553 5510 5503 5500 5494 5492 5489 5464 5451 5443 5433 5424 5420 5415 5403 5394 5369 5354 5331 5325 \
+  5292 5249 5206 5193 5188 5184 5177 5170 5164 5156 5149 5145 5141 5119 5093 5085 5063 5049 5028 4996 \
+  4974 4960 4956 4955 4951 4943 4938 4933 4929 4928 4916 4914 4909 4907 4897 4881 4880 4866 4862 4857
+
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/apps-android-commons-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Wikimedia-Commons-2 \
+  --instance-ids \
+  4852 4851 4845 4841 4834 4833 4825 4817 4816 4803 4799 4789 4755 4744 4725 4724 4714 4678 4672 4668 \
+  4667 4551 4537 4534 4531 4515 4505 4494 4489 4462 4423 4374 4361 4308 4298 4292 4285 4256 4054 3990 \
+  3961 3953 3934 3922 3913 3905 3897 3891 3887 3885 3881 3878 3872 3869 3860 3851 3848 3846 3844 3842 \
+  3838 3824 3821 3819 3815 3814 3794 3786 3783 3779 3774 3770 3758 3741 3736 3735 3728 3707 3696 3672 \
+  3671 3656 3650 3625 3588 3578 3574 3569 3566 3553 3527 3499 3495 3491 3483 3475 3447 3350 3326 3324
+
+
+
+
+
+
+
+
+
+ISSUES
+Failed to apply test patch: [Errno 28] No space left on device
+
+Command git checkout -f 9359d8979fb35765a0694e17717647acf32b4338 failed: fatal: reference is not a tree: 9359d8979fb35765a0694e17717647acf32b4338
+
+No valid unit test modules found for element-hq__element-x-android-4653 in TEST-PRE-SOLUTION phase
+
+TODO
+- [] If no unit tests found in the pre-solution phase, then skip the post-solution test phase. Also log no tests found in the log files.
+
+- [] Log the language used by each instance.
+
+- [] Ability to run post-tests w/o pre-tests.
+
+- [] Clone each repo in our own private repo.
 
 
 

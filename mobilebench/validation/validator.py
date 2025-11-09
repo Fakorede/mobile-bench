@@ -587,8 +587,9 @@ INSTANCE_ID_PATTERNS = {
     'wordPress': 'wordpress-mobile__WordPress-Android-',
     'Tusky': 'tuskyapp__Tusky-',
     'nextcloud-android': 'nextcloud__android-',
-    'nextcloud-talk': 'nextcloud__talk-android-',
+    'talk-android': 'nextcloud__talk-android-',
     'element-x-android': 'element-hq__element-x-android-',
+    'apps-android-commons': 'commons-app__apps-android-commons-',
     # Add more patterns as needed
 }
 

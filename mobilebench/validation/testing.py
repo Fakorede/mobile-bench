@@ -157,6 +157,15 @@ class AndroidTestingParallel:
                         "testWordpressVanillaDebugUnitTest"
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for Wordpress flavor - using WordpressVanilla variant")
+                elif "commons-app" in str(instance_id).lower() or "apps-android-commons" in str(instance_id).lower():
+                    # Wikimedia Commons app uses beta/prod flavors with debug/release build types
+                    module_tasks = [
+                        "testBetaDebugUnitTest",
+                        "testBetaReleaseUnitTest",
+                        "testProdDebugUnitTest",
+                        "testProdReleaseUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for Wikimedia Commons - using beta/prod flavor variants")
                 elif "thunderbird" in str(instance_id).lower() and module in [":mail:protocols:imap", ":mail:protocols:smtp", ":feature:autodiscovery:service", ":feature:autodiscovery:autoconfig", ":app:html-cleaner", ":backend:imap"]:
                     # Thunderbird protocol modules use test command
                     module_tasks = [

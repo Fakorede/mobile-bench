@@ -21,3 +21,6 @@ parsers/*
 validation_results/*
 vinaik/*
 repos/*
+**/start_here.md
+tokens.txt
+logs/*

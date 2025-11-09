@@ -723,9 +723,11 @@ timeout 20 ./gradlew {module}:tasks --group=verification --console=plain 2>/dev/
         import re
         
         # Patterns to match file paths in patch
+        # Use word boundary \b to ensure we match .java and .kt files exactly,
+        # not files like build.gradle.kts or settings.gradle.kts
         file_patterns = [
-            r'\+\+\+ b/(.+\.(?:java|kt))',
-            r'diff --git a/.+ b/(.+\.(?:java|kt))'
+            r'\+\+\+ b/(.+\.(?:java|kt))\b',
+            r'diff --git a/.+ b/(.+\.(?:java|kt))\b'
         ]
         
         test_files = set()

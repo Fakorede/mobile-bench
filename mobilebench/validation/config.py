@@ -566,11 +566,13 @@ class AndroidConfig:
             return test_tasks
         
         # Extract file paths from patch
+        # Use word boundary \b to ensure we match .java and .kt files exactly,
+        # not files like build.gradle.kts
         file_patterns = [
-            r'\+\+\+ b/(.+\.java)',
-            r'\+\+\+ b/(.+\.kt)',
-            r'diff --git a/.+ b/(.+\.java)',
-            r'diff --git a/.+ b/(.+\.kt)'
+            r'\+\+\+ b/(.+\.java)\b',
+            r'\+\+\+ b/(.+\.kt)\b',
+            r'diff --git a/.+ b/(.+\.java)\b',
+            r'diff --git a/.+ b/(.+\.kt)\b'
         ]
         
         test_files = set()
@@ -759,9 +761,11 @@ class AndroidConfig:
     def _extract_test_files_from_patch(self, test_patch: str) -> List[str]:
         """Extract test file paths from patch content."""
         # Pattern to match file paths in patch
+        # Use word boundary \b to ensure we match .java and .kt files exactly,
+        # not files like build.gradle.kts or settings.gradle.kts
         file_patterns = [
-            r'\+\+\+ b/(.+\.(?:java|kt))',  # Files being modified/added
-            r'diff --git a/.+ b/(.+\.(?:java|kt))'  # Git diff format
+            r'\+\+\+ b/(.+\.(?:java|kt))\b',  # Files being modified/added
+            r'diff --git a/.+ b/(.+\.(?:java|kt))\b'  # Git diff format
         ]
         
         test_files = set()
