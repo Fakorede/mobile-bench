@@ -135,15 +135,23 @@ class AndroidConfig:
         try:
             content = gradle_props.read_text(encoding='utf-8')
             
-            # Extract JVM args
-            jvm_pattern = r'org\.gradle\.jvmargs\s*=\s*(.+)'
-            match = re.search(jvm_pattern, content)
-            if match:
-                jvm_args = match.group(1).strip()
-                # Clean up the args
-                jvm_args = re.sub(r'["\']', '', jvm_args)
-                self.config['jvm_args'] = jvm_args
-                logger.info(f"Found JVM args: {jvm_args}")
+            # Extract JVM args (skip commented lines)
+            jvm_pattern = r'^\s*org\.gradle\.jvmargs\s*=\s*(.+)'
+            for line in content.splitlines():
+                # Skip commented lines
+                if line.strip().startswith('#'):
+                    continue
+                match = re.match(jvm_pattern, line)
+                if match:
+                    jvm_args = match.group(1).strip()
+                    # Clean up the args
+                    jvm_args = re.sub(r'["\']', '', jvm_args)
+                    # Remove obsolete JVM options that are incompatible with Java 8+
+                    jvm_args = re.sub(r'-XX:MaxPermSize=\S+\s*', '', jvm_args)
+                    jvm_args = jvm_args.strip()
+                    self.config['jvm_args'] = jvm_args
+                    logger.info(f"Found JVM args: {jvm_args}")
+                    break
                 
         except Exception as e:
             logger.error(f"Error parsing gradle.properties: {e}")
