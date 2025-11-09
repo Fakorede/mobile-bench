@@ -8,6 +8,7 @@ import subprocess
 import logging
 import os
 import time
+import re
 from typing import Dict, Optional, Tuple
 from pathlib import Path
 
@@ -427,9 +428,26 @@ cd {workdir}
             logger.error(f"Failed to execute command in {container_name}: {e}")
             return 1, str(e)
     
+    def _filter_jvm_args_for_java_version(self, jvm_args: str, java_version: str) -> str:
+        """Filter JVM arguments to ensure compatibility with the specified Java version."""
+        # Java 8 doesn't support --add-opens, --add-exports, and other Java 9+ options
+        if java_version == '8':
+            # Remove Java 9+ specific options
+            jvm_args = re.sub(r'--add-opens\s+\S+', '', jvm_args)
+            jvm_args = re.sub(r'--add-exports\s+\S+', '', jvm_args)
+            jvm_args = re.sub(r'--add-reads\s+\S+', '', jvm_args)
+            jvm_args = re.sub(r'--add-modules\s+\S+', '', jvm_args)
+            jvm_args = ' '.join(jvm_args.split())  # Clean up extra whitespace
+        
+        return jvm_args
+    
     def _build_environment_vars(self, config: Dict[str, str]) -> Dict[str, str]:
         """Build environment variables based on configuration."""
         java_version = config.get('java_version', '17')
+        jvm_args = config.get('jvm_args', '-Xmx4096m')
+        
+        # Filter JVM args based on Java version compatibility
+        jvm_args = self._filter_jvm_args_for_java_version(jvm_args, java_version)
         
         env_vars = {
             'JAVA_VERSION': java_version,
@@ -437,7 +455,7 @@ cd {workdir}
             'ANDROID_HOME': '/opt/android-sdk',
             'ANDROID_SDK_ROOT': '/opt/android-sdk',
             'ANDROID_SDK_HOME': '/opt/android-sdk',
-            'GRADLE_OPTS': config.get('jvm_args', '-Xmx4096m'),
+            'GRADLE_OPTS': jvm_args,
             'PATH': f'/usr/lib/jvm/java-{java_version}-openjdk-amd64/bin:/opt/gradle/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:/opt/android-sdk/tools/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
         }
         

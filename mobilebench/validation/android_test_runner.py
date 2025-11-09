@@ -589,10 +589,18 @@ rm -rf /tmp/.gradle/daemon/ || true &&
 
 echo "=== Configuring Gradle ===" &&
 mkdir -p /tmp/.gradle &&
+
+# Set JVM args based on Java version (--add-opens only works with Java 9+)
+if [ "{java_version}" = "8" ]; then
+    GRADLE_JVM_ARGS='-Xmx2g -XX:MaxMetaspaceSize=256m -XX:+UseG1GC'
+else
+    GRADLE_JVM_ARGS='-Xmx2g -XX:MaxMetaspaceSize=256m -XX:+UseG1GC --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.prefs/java.util.prefs=ALL-UNNAMED --add-opens java.base/java.nio.charset=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED'
+fi
+
 echo 'org.gradle.daemon=false' > /tmp/.gradle/gradle.properties &&
 echo 'org.gradle.parallel=false' >> /tmp/.gradle/gradle.properties &&
 echo 'org.gradle.configureondemand=false' >> /tmp/.gradle/gradle.properties &&
-echo 'org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=256m -XX:+UseG1GC --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.prefs/java.util.prefs=ALL-UNNAMED --add-opens java.base/java.nio.charset=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED' >> /tmp/.gradle/gradle.properties &&
+echo "org.gradle.jvmargs=$GRADLE_JVM_ARGS" >> /tmp/.gradle/gradle.properties &&
 echo 'org.gradle.workers.max=2' >> /tmp/.gradle/gradle.properties &&
 echo 'android.enableJetifier=true' >> /tmp/.gradle/gradle.properties &&
 echo 'android.useAndroidX=true' >> /tmp/.gradle/gradle.properties &&

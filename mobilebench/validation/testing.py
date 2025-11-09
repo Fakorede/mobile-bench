@@ -534,12 +534,20 @@ mkdir -p /tmp/.gradle
 
 # Configure Gradle for module-specific execution
 echo "=== Configuring Gradle for module-specific execution ===" &&
-cat > /tmp/.gradle/gradle.properties << 'EOF'
+
+# Set JVM args based on Java version (--add-opens only works with Java 9+)
+if [ "{java_version}" = "8" ]; then
+    GRADLE_JVM_ARGS="-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC"
+else
+    GRADLE_JVM_ARGS="-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.prefs/java.util.prefs=ALL-UNNAMED --add-opens java.base/java.nio.charset=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED"
+fi
+
+cat > /tmp/.gradle/gradle.properties << EOF
 org.gradle.daemon=false
 org.gradle.parallel=true
 org.gradle.workers.max=4
 org.gradle.configureondemand=true
-org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.prefs/java.util.prefs=ALL-UNNAMED --add-opens java.base/java.nio.charset=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED
+org.gradle.jvmargs=$GRADLE_JVM_ARGS
 android.enableJetifier=true
 android.useAndroidX=true
 EOF
@@ -776,12 +784,20 @@ rm -rf build/ app/build/ */build/ .gradle/ /tmp/.gradle/caches/ /tmp/.gradle/dae
 
 # Configure Gradle for parallel execution
 echo "=== Configuring Gradle for parallel execution ===" &&
-cat > /tmp/.gradle/gradle.properties << 'EOF'
+
+# Set JVM args based on Java version (--add-opens only works with Java 9+)
+if [ "{java_version}" = "8" ]; then
+    GRADLE_JVM_ARGS="-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC"
+else
+    GRADLE_JVM_ARGS="-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.prefs/java.util.prefs=ALL-UNNAMED --add-opens java.base/java.nio.charset=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED"
+fi
+
+cat > /tmp/.gradle/gradle.properties << EOF
 org.gradle.daemon=false
 org.gradle.parallel=true
 org.gradle.workers.max=4
 org.gradle.configureondemand=false
-org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.prefs/java.util.prefs=ALL-UNNAMED --add-opens java.base/java.nio.charset=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED
+org.gradle.jvmargs=$GRADLE_JVM_ARGS
 android.enableJetifier=true
 android.useAndroidX=true
 EOF
