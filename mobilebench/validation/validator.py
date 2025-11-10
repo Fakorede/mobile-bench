@@ -590,6 +590,7 @@ INSTANCE_ID_PATTERNS = {
     'talk-android': 'nextcloud__talk-android-',
     'element-x-android': 'element-hq__element-x-android-',
     'apps-android-commons': 'commons-app__apps-android-commons-',
+    'NewPipe': 'TeamNewPipe__NewPipe-',
     # Add more patterns as needed
 }
 

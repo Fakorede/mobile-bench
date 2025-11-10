@@ -242,6 +242,14 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/apps-a
   3671 3656 3650 3625 3588 3578 3574 3569 3566 3553 3527 3499 3495 3491 3483 3475 3447 3350 3326 3324
 
 
+NEWPIPE
+=========
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks_fdroid/NewPipe-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/NewPipe \
+  --instance-ids \
+12575 12569 12435 12404 12325 12065 11745 11712 10494 10470 10283 10165 10062 9937 9869 9755 9711 9706 9523 9182 \
+8242 8231 8221 8153 7975 7858 7725 7670 7516 7491 7349 7063 6919 6851 6712 6432 6319 6053 5927 5871 5456 5415 5246 \
+5208 5148 4333 3478 3307 3294 3278 3267 \ --max-instances 1
 
 
 
@@ -257,6 +265,8 @@ Command git checkout -f 9359d8979fb35765a0694e17717647acf32b4338 failed: fatal: 
 No valid unit test modules found for element-hq__element-x-android-4653 in TEST-PRE-SOLUTION phase
 
 TODO
+- [] maybe ./gradlew build --refresh-dependencies might help? try with failing instances with missing dependencies
+
 - [] If no unit tests found in the pre-solution phase, then skip the post-solution test phase. Also log no tests found in the log files.
 
 - [] Log the language used by each instance.
