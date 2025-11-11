@@ -591,6 +591,7 @@ INSTANCE_ID_PATTERNS = {
     'element-x-android': 'element-hq__element-x-android-',
     'apps-android-commons': 'commons-app__apps-android-commons-',
     'NewPipe': 'TeamNewPipe__NewPipe-',
+    'Leon': 'leon-cleaning-services__leon-',
     # Add more patterns as needed
 }
 
