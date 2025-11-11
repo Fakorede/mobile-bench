@@ -208,6 +208,15 @@ class AndroidTestingParallel:
                         "testFullDebugUnitTest"
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for NeoStumbler - using testFullDebugUnitTest variant")
+                elif "openhab" in str(instance_id).lower():
+                    # OpenHAB modules use foss/full flavors with beta/stable sub-flavors and debug/release build types
+                    module_tasks = [
+                        "testFossBetaDebugUnitTest",
+                        "testFossStableDebugUnitTest",
+                        "testFullBetaDebugUnitTest",
+                        "testFullStableDebugUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for OpenHAB - using foss/full flavors with beta/stable variants")
                 else:
                     # Default fallback for other modules
                     module_tasks = ["testDebugUnitTest"]
@@ -409,6 +418,14 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
                     if 'testFullDebugUnitTest' in available_variants_for_module:
                         unit_variant = 'testFullDebugUnitTest'
                         logger.info(f"Selected testFullDebugUnitTest for {module} (NeoStumbler rule)")
+                elif "openhab" in str(instance_id).lower():
+                    # OpenHAB modules should use testFossBetaDebugUnitTest (preferring foss over full, beta over stable)
+                    if 'testFossBetaDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testFossBetaDebugUnitTest'
+                        logger.info(f"Selected testFossBetaDebugUnitTest for {module} (OpenHAB rule)")
+                    elif 'testFossStableDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testFossStableDebugUnitTest'
+                        logger.info(f"Selected testFossStableDebugUnitTest for {module} (OpenHAB fallback)")
                 else:
                     # Default modules use testDebugUnitTest
                     if 'testDebugUnitTest' in available_variants_for_module:

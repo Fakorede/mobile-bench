@@ -312,6 +312,15 @@ fi
                         "testReleaseUnitTest"
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for simple variants - using debug/release variants")
+                elif "openhab" in str(instance_id).lower():
+                    # OpenHAB modules use foss/full flavors with beta/stable sub-flavors and debug/release build types
+                    module_tasks = [
+                        "testFossBetaDebugUnitTest",
+                        "testFossStableDebugUnitTest",
+                        "testFullBetaDebugUnitTest",
+                        "testFullStableDebugUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for OpenHAB - using foss/full flavors with beta/stable variants")
                 else:
                     # Default fallback for other modules
                     module_tasks = ["testDebugUnitTest"]
@@ -460,6 +469,14 @@ timeout 20 ./gradlew {module}:tasks --group=verification --console=plain 2>/dev/
                     if 'testDebugUnitTest' in available_variants:
                         unit_variant = 'testDebugUnitTest'
                         logger.info(f"Selected testDebugUnitTest for {module} (feature/legacy module rule)")
+                elif "openhab" in str(instance_id).lower():
+                    # OpenHAB modules should use testFossBetaDebugUnitTest (preferring foss over full, beta over stable)
+                    if 'testFossBetaDebugUnitTest' in available_variants:
+                        unit_variant = 'testFossBetaDebugUnitTest'
+                        logger.info(f"Selected testFossBetaDebugUnitTest for {module} (OpenHAB rule)")
+                    elif 'testFossStableDebugUnitTest' in available_variants:
+                        unit_variant = 'testFossStableDebugUnitTest'
+                        logger.info(f"Selected testFossStableDebugUnitTest for {module} (OpenHAB fallback)")
                 else:
                     # Default modules use testDebugUnitTest
                     if 'testDebugUnitTest' in available_variants:

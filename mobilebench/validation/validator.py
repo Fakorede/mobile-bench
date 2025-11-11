@@ -592,6 +592,7 @@ INSTANCE_ID_PATTERNS = {
     'apps-android-commons': 'commons-app__apps-android-commons-',
     'NewPipe': 'TeamNewPipe__NewPipe-',
     'Leon': 'leon-cleaning-services__leon-',
+    'OpenHab': 'openhab__openhab-android-',
     # Add more patterns as needed
 }
 

@@ -264,6 +264,13 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/leon-task-ins
   --instance-ids \
 601 582 507 492 491 489 488 463 461 380 344 340 290 289 286 285 284 283 245 244 243 242 241 240 239 235 203 202 197 195 194 191 180 179 178 175 167 163 156 146 137 135 128 127 126 124 94 74 65 64 62 23
 
+OPENHAB
+========
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/openhab-android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/OpenHab \
+  --instance-ids \
+3836 3770 3734 3554 3546 3520 3346 3297 3123 3021 2959 2925 2766 2753 2735 2494 2454 2082 1978 1900 1872 1843 1815 1796 1791 1784 1769
 
 
 
@@ -286,7 +293,7 @@ TODO
 
 - [] Clone each repo in our own private repo.
 
-
+- [] Can you add a flag with the ability to disable applying solution patch, along with parsing aand stubbing in the pre-solution test phase
 
 I'm tired of this back and forth, What's a better sure proof approach of generating method stubs. I've wasted too much time on this.
 ```markdown
