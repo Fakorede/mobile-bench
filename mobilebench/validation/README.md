@@ -279,6 +279,15 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/medTimer-task
   --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/MedTimer \
   --instance-ids 876 857 832 810 800 785 757 754 672 584 133 125 118 117 115 109 108 107 105 103 76 70 54 44 29
 
+AEGIS
+======
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Aegis-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Aegis \
+  --instance-ids 1641 1588 1535 1506 1479 1424 1322 1249 1236 1227 1178 1096 1039 1032 1027 1006 981 908 604 536 271
+
+
+
 
 
 ISSUES

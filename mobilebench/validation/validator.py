@@ -594,6 +594,7 @@ INSTANCE_ID_PATTERNS = {
     'Leon': 'leon-cleaning-services__leon-',
     'OpenHab': 'openhab__openhab-android-',
     'MedTimer': 'Futsch1__medTimer-',
+    'Aegis': 'beemdevelopment__Aegis-',
     # Add more patterns as needed
 }
 
