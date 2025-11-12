@@ -273,6 +273,12 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/openhab-andro
 3836 3770 3734 3554 3546 3520 3346 3297 3123 3021 2959 2925 2766 2753 2735 2494 2454 2082 1978 1900 1872 1843 1815 1796 1791 1784 1769
 
 
+MEDTIMER
+=========
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/medTimer-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/MedTimer \
+  --instance-ids 876 857 832 810 800 785 757 754 672 584 133 125 118 117 115 109 108 107 105 103 76 70 54 44 29
+
 
 
 ISSUES

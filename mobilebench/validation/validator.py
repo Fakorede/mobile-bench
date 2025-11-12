@@ -593,6 +593,7 @@ INSTANCE_ID_PATTERNS = {
     'NewPipe': 'TeamNewPipe__NewPipe-',
     'Leon': 'leon-cleaning-services__leon-',
     'OpenHab': 'openhab__openhab-android-',
+    'MedTimer': 'Futsch1__medTimer-',
     # Add more patterns as needed
 }
 
