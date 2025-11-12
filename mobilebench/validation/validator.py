@@ -595,6 +595,11 @@ INSTANCE_ID_PATTERNS = {
     'OpenHab': 'openhab__openhab-android-',
     'MedTimer': 'Futsch1__medTimer-',
     'Aegis': 'beemdevelopment__Aegis-',
+    'StreetComplete': 'streetcomplete__StreetComplete-',
+    'OsmAnd': 'osmandapp__OsmAnd-',
+    'EventFahrplan': 'EventFahrplan__EventFahrplan-',
+    'sdmaid': 'd4rken-org__sdmaid-se-',
+    'Geto': 'JackEblan__Geto-',
     # Add more patterns as needed
 }
 

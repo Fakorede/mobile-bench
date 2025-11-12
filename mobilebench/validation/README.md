@@ -273,18 +273,56 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/openhab-andro
 3836 3770 3734 3554 3546 3520 3346 3297 3123 3021 2959 2925 2766 2753 2735 2494 2454 2082 1978 1900 1872 1843 1815 1796 1791 1784 1769
 
 
-MEDTIMER
+11-MEDTIMER
 =========
 python validator.py /home/researchuser/dev/mobile-bench/data/tasks/medTimer-task-instances.jsonl \
   --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/MedTimer \
   --instance-ids 876 857 832 810 800 785 757 754 672 584 133 125 118 117 115 109 108 107 105 103 76 70 54 44 29
 
-AEGIS
+12-AEGIS
 ======
 
 python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Aegis-task-instances.jsonl \
   --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Aegis \
   --instance-ids 1641 1588 1535 1506 1479 1424 1322 1249 1236 1227 1178 1096 1039 1032 1027 1006 981 908 604 536 271
+
+
+13-StreetComplete
+================
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/StreetComplete-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/StreetComplete \
+  --instance-ids 6533 6403 6375 6367 6313 6303 6290 6152 6140 6114 6091 6075 6020 5984 5980 5976 5970 5931 5855 5818 5726 5719 5693 5686 5483 5474 5473 5471 5463 5461 5433 5388 5383 5373 5335 5273 5073 5071 5060 5003 4988 4971 4947 4868 4798 4768 4657 4642 4569 4552 4472 4471 4440 4339 4329 4312 4202 4147 4105 3949 3907 3841 3735 3719 3709 3692 3682 3617 3515 3509 3480 3390 3373 3370 3210 3206 3193 2999 2986 2914 2894 2873 2821 2748 2678 2667 2665 2580 2501 2417 2377 2335 2269 2122 2121 2060
+
+
+14-Osmand (not ran yet - complex test config)
+=======
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Osmand-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Osmand \
+  --instance-ids 23352 23107 22329 20646 20589 20386 19794 19288 19189 18739 18108 18063 17761 17732 17477 17360 14979 14930 14902 14733 14664 14656 14651 14647 14630 14605 14525 14335 14277 14026 13886 13469 13395 13387 13317 13247 13222 13159 12993 12877 12757 12754 12731 12713 12647 12609 12607 12531 12387 12363 12241 12137 11894 11867 11815 11648 11643 11533 11504 11484
+
+
+15-EventFahrplan
+==============
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/EventFahrplan-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/EventFahrplan \
+  --instance-ids 770 769 761 734 725 681 678 675 652 635 623 619 617 614 606 597 561 550 543 516 494 372 370 347 341 289 286 263 245
+
+
+16-SDMAID
+========
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/sdmaid-se-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Sdmaid \
+  --instance-ids 1996 1897 1822 1732 1583 1464 1386 1355 1195 1110 1059 1004 961 895 889 860 842 725 570 551 521 333 309 283 273 171 97
+
+
+17-Geto
+========
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Geto-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Geto \
+  --instance-ids 317 297 295 284 282 273 259 245 234 224 220 217 209 206 204 199 192 182 167 148
+
 
 
 
