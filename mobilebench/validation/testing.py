@@ -224,6 +224,13 @@ class AndroidTestingParallel:
                         "testStableDebugUnitTest"
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for YacGuide - using dev/stable flavors with debug variants")
+                elif "and-bible" in str(instance_id).lower() or "andbible" in str(instance_id).lower():
+                    # AndBible modules use standard flavor with github/googleplay sub-flavors and debug/release build types
+                    module_tasks = [
+                        "testStandardGithubDebugUnitTest",
+                        "testStandardGoogleplayDebugUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for AndBible - using standard flavor with github/googleplay variants")
                 else:
                     # Default fallback for other modules
                     module_tasks = ["testDebugUnitTest"]
@@ -441,6 +448,14 @@ timeout 30 ./gradlew projects --quiet 2>/dev/null || echo "Failed to get project
                     elif 'testStableDebugUnitTest' in available_variants_for_module:
                         unit_variant = 'testStableDebugUnitTest'
                         logger.info(f"Selected testStableDebugUnitTest for {module} (YacGuide fallback)")
+                elif "and-bible" in str(instance_id).lower() or "andbible" in str(instance_id).lower():
+                    # AndBible modules should use testStandardGithubDebugUnitTest (preferring github over googleplay)
+                    if 'testStandardGithubDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testStandardGithubDebugUnitTest'
+                        logger.info(f"Selected testStandardGithubDebugUnitTest for {module} (AndBible rule)")
+                    elif 'testStandardGoogleplayDebugUnitTest' in available_variants_for_module:
+                        unit_variant = 'testStandardGoogleplayDebugUnitTest'
+                        logger.info(f"Selected testStandardGoogleplayDebugUnitTest for {module} (AndBible fallback)")
                 else:
                     # Default modules use testDebugUnitTest
                     if 'testDebugUnitTest' in available_variants_for_module:

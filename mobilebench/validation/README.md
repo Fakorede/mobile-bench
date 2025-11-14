@@ -345,9 +345,11 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Android-Passw
   --instance-ids 3069 2216 2196 2016 2015 2012 2000 1766 1741 1584 1417 1192 986 969 949 764 707
 
 
-
-
-
+21-And-Bible
+==============
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/and-bible-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/And-Bible \
+  --instance-ids 3512 3491 3483 3475 3473 3445 3411 3354 2584 2470 2467 2411 2266 1308 653 544 538
 
 
 

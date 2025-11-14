@@ -335,6 +335,45 @@ echo "Wikimedia Commons app setup in {workspace_name} completed successfully"
             logger.error(f"Error setting up Wikimedia Commons app project in {workspace_name} for {instance_id}: {e}")
             return False
     
+    def _setup_andbible_project(self, instance_id: str, workspace_path: str = "/workspace") -> bool:
+        """Setup AndBible-specific configuration files in the specified workspace."""
+        try:
+            workspace_name = "main workspace" if workspace_path == "/workspace" else "clean workspace"
+            logger.info(f"Setting up AndBible configuration in {workspace_name} for {instance_id}")
+            
+            # Setup command to create local.properties in project root and app module
+            setup_command = f"""
+# AndBible-specific setup in {workspace_name}
+echo "=== Setting up AndBible project configuration in {workspace_name} ===" &&
+
+# Create local.properties in project root with Android SDK path
+echo "sdk.dir=/opt/android-sdk/" > {workspace_path}/local.properties &&
+echo "Created local.properties in project root in {workspace_name}" &&
+
+# Create local.properties in app module if it exists
+if [ -d "{workspace_path}/app" ]; then
+    echo "sdk.dir=/opt/android-sdk/" > {workspace_path}/app/local.properties &&
+    echo "Created local.properties in app module in {workspace_name}"
+else
+    echo "Warning: app module directory not found in {workspace_name}"
+fi &&
+
+echo "AndBible setup in {workspace_name} completed successfully"
+"""
+            
+            exit_code, output = self.containers.exec_command(instance_id, setup_command)
+            
+            if exit_code == 0:
+                logger.info(f"AndBible setup in {workspace_name} completed successfully for {instance_id}")
+                return True
+            else:
+                logger.error(f"AndBible setup in {workspace_name} failed for {instance_id}: {output}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error setting up AndBible project in {workspace_name} for {instance_id}: {e}")
+            return False
+    
     def _initialize_stubbers(self):
         """Initialize AST stubbers for Java and Kotlin."""
         if HYBRID_STUBBER_AVAILABLE:
@@ -850,6 +889,12 @@ echo "Wikimedia Commons app setup in {workspace_name} completed successfully"
                 if not self._setup_commons_app_project(instance_id, "/workspace"):
                     logger.warning(f"Wikimedia Commons app setup failed for {instance_id}, continuing anyway")
             
+            # Step 4.7: Setup AndBible-specific configuration if this is an AndBible project
+            if 'and-bible' in instance_id.lower() or 'and-bible' in repo_name:
+                logger.info(f"Detected AndBible project: {repo_name}")
+                if not self._setup_andbible_project(instance_id, "/workspace"):
+                    logger.warning(f"AndBible setup failed for {instance_id}, continuing anyway")
+            
             # Step 5: Apply test patch
             test_patch_success, test_patch_output = self.repository.apply_patch(
                 instance_id, instance['test_patch'], "test_patch"
@@ -902,6 +947,8 @@ echo "Wikimedia Commons app setup in {workspace_name} completed successfully"
                             self._setup_wordpress_project(instance_id, "/workspace")
                         if 'commons-app' in instance_id.lower() or 'apps-android-commons' in repo_name:
                             self._setup_commons_app_project(instance_id, "/workspace")
+                        if 'and-bible' in instance_id.lower() or 'and-bible' in repo_name:
+                            self._setup_andbible_project(instance_id, "/workspace")
                 else:
                     logger.warning(f"AST stubbing not available for {instance_id}, skipping method stubbing")
                     
@@ -918,6 +965,8 @@ echo "Wikimedia Commons app setup in {workspace_name} completed successfully"
                         self._setup_wordpress_project(instance_id, "/workspace")
                     if 'commons-app' in instance_id.lower() or 'apps-android-commons' in repo_name:
                         self._setup_commons_app_project(instance_id, "/workspace")
+                    if 'and-bible' in instance_id.lower() or 'and-bible' in repo_name:
+                        self._setup_andbible_project(instance_id, "/workspace")
                     logger.info(f"Reverted to test-patch-only state for {instance_id}")
                 except Exception as revert_error:
                     logger.error(f"Failed to revert to clean state for {instance_id}: {revert_error}")
@@ -987,6 +1036,12 @@ echo "Wikimedia Commons app setup in {workspace_name} completed successfully"
                     logger.info(f"Setting up Wikimedia Commons app configuration in clean workspace for {instance_id}")
                     if not self._setup_commons_app_project(instance_id, "/workspace_post"):
                         logger.warning(f"Wikimedia Commons app setup in clean workspace failed for {instance_id}, continuing anyway")
+                
+                # Setup AndBible-specific configuration in clean workspace if this is an AndBible project
+                if 'and-bible' in instance_id.lower() or 'and-bible' in repo_name:
+                    logger.info(f"Setting up AndBible configuration in clean workspace for {instance_id}")
+                    if not self._setup_andbible_project(instance_id, "/workspace_post"):
+                        logger.warning(f"AndBible setup in clean workspace failed for {instance_id}, continuing anyway")
                 
             finally:
                 # Clean up host copy of fresh repository

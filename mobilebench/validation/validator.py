@@ -602,6 +602,7 @@ INSTANCE_ID_PATTERNS = {
     'Geto': 'JackEblan__Geto-',
     'YacGuide': 'YacGroup__yacguide-',
     'android-password-store': 'android-password-store__Android-Password-Store-',
+    'and-bible': 'AndBible__and-bible-',
     # Add more patterns as needed
 }
 
