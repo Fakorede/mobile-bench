@@ -600,6 +600,8 @@ INSTANCE_ID_PATTERNS = {
     'EventFahrplan': 'EventFahrplan__EventFahrplan-',
     'sdmaid': 'd4rken-org__sdmaid-se-',
     'Geto': 'JackEblan__Geto-',
+    'YacGuide': 'YacGroup__yacguide-',
+    'android-password-store': 'android-password-store__Android-Password-Store-',
     # Add more patterns as needed
 }
 

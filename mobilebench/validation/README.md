@@ -324,11 +324,40 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Geto-task-ins
   --instance-ids 317 297 295 284 282 273 259 245 234 224 220 217 209 206 204 199 192 182 167 148
 
 
+18-
+========
+
+
+
+19-YacGuide
+============
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/yacguide-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/YacGuide \
+  --instance-ids 477 471 454 442 438 401 387 384 379 373 368 360 355 336 330 318 98
+
+
+20-Android-Password-Store
+============================
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Android-Password-Store-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Android-Password-Store \
+  --instance-ids 3069 2216 2196 2016 2015 2012 2000 1766 1741 1584 1417 1192 986 969 949 764 707
+
+
+
+
+
+
+
+
 
 
 
 
 ISSUES
+If the terminal returns Permission denied or Command not found on Mac/Linux, run `chmod +x ./gradlew` first.
+
 Failed to apply test patch: [Errno 28] No space left on device
 
 Command git checkout -f 9359d8979fb35765a0694e17717647acf32b4338 failed: fatal: reference is not a tree: 9359d8979fb35765a0694e17717647acf32b4338

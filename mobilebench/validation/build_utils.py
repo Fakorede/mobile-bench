@@ -321,6 +321,13 @@ fi
                         "testFullStableDebugUnitTest"
                     ]
                     logger.info(f"[{instance_id}]: Module {module} configured for OpenHAB - using foss/full flavors with beta/stable variants")
+                elif "yacguide" in str(instance_id).lower():
+                    # YacGuide modules use dev/stable flavors with debug/release build types
+                    module_tasks = [
+                        "testDevDebugUnitTest",
+                        "testStableDebugUnitTest"
+                    ]
+                    logger.info(f"[{instance_id}]: Module {module} configured for YacGuide - using dev/stable flavors with debug variants")
                 else:
                     # Default fallback for other modules
                     module_tasks = ["testDebugUnitTest"]
@@ -477,6 +484,14 @@ timeout 20 ./gradlew {module}:tasks --group=verification --console=plain 2>/dev/
                     elif 'testFossStableDebugUnitTest' in available_variants:
                         unit_variant = 'testFossStableDebugUnitTest'
                         logger.info(f"Selected testFossStableDebugUnitTest for {module} (OpenHAB fallback)")
+                elif "yacguide" in str(instance_id).lower():
+                    # YacGuide modules should use testDevDebugUnitTest (preferring dev over stable)
+                    if 'testDevDebugUnitTest' in available_variants:
+                        unit_variant = 'testDevDebugUnitTest'
+                        logger.info(f"Selected testDevDebugUnitTest for {module} (YacGuide rule)")
+                    elif 'testStableDebugUnitTest' in available_variants:
+                        unit_variant = 'testStableDebugUnitTest'
+                        logger.info(f"Selected testStableDebugUnitTest for {module} (YacGuide fallback)")
                 else:
                     # Default modules use testDebugUnitTest
                     if 'testDebugUnitTest' in available_variants:
