@@ -604,6 +604,7 @@ INSTANCE_ID_PATTERNS = {
     'android-password-store': 'android-password-store__Android-Password-Store-',
     'and-bible': 'AndBible__and-bible-',
     'jerboa': 'LemmyNet__jerboa-',
+    'Meshtastic': 'meshtastic__Meshtastic-Android-',
     # Add more patterns as needed
 }
 

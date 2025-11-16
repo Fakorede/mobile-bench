@@ -352,10 +352,18 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/and-bible-tas
   --instance-ids 3512 3491 3483 3475 3473 3445 3411 3354 2584 2470 2467 2411 2266 1308 653 544 538
 
 
+22-Jerboa
+===========
 python validator.py /home/researchuser/dev/mobile-bench/data/tasks/jerboa-task-instances.jsonl \
   --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Jerboa \
   --instance-ids 1941 1922 1632 1445 1422 1410 1287 1240 1214 1145 1048 899 805 802 737
 
+
+23-Meshtastic
+===============
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Meshtastic-Android-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Meshtastic \
+  --instance-ids 3500 3352 2546 2385 1794 1578 1426 1421 1177 1151 1098 651 623 239
 
 
 
