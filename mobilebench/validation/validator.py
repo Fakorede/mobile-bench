@@ -603,6 +603,7 @@ INSTANCE_ID_PATTERNS = {
     'YacGuide': 'YacGroup__yacguide-',
     'android-password-store': 'android-password-store__Android-Password-Store-',
     'and-bible': 'AndBible__and-bible-',
+    'jerboa': 'LemmyNet__jerboa-',
     # Add more patterns as needed
 }
 
