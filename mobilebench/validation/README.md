@@ -365,6 +365,13 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Meshtastic-An
   --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Meshtastic \
   --instance-ids 3500 3352 2546 2385 1794 1578 1426 1421 1177 1151 1098 651 623 239
 
+24-lexica
+==========
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/lexica-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Lexica \
+  --instance-ids 381 375 368 362 300 258 247 222 209 196 189 142 137 129
+
+
 
 
 

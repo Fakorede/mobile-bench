@@ -605,6 +605,7 @@ INSTANCE_ID_PATTERNS = {
     'and-bible': 'AndBible__and-bible-',
     'jerboa': 'LemmyNet__jerboa-',
     'Meshtastic': 'meshtastic__Meshtastic-Android-',
+    'Lexica': 'lexica__lexica-',
     # Add more patterns as needed
 }
 
