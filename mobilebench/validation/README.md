@@ -371,6 +371,48 @@ python validator.py /home/researchuser/dev/mobile-bench/data/tasks/lexica-task-i
   --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Lexica \
   --instance-ids 381 375 368 362 300 258 247 222 209 196 189 142 137 129
 
+openfood
+===========
+testOffFdroidDebugUnitTest
+testOffFdroidReleaseUnitTest
+
+
+notes-android
+===============
+testDevDebugUnitTest - Run unit tests for the devDebug build.
+testDevReleaseUnitTest
+
+
+27-Nekome
+=========
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Nekome-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Nekome \
+  --instance-ids 1164 1023 490 454 430 416 367 365 336 178
+
+SimpMusic
+==========
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/SimpMusic-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/SimpMusic \
+  --instance-ids 1374 1180 1129 982 936 935 205 149 113 48 
+
+Voice
+======
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/Voice-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Voice \
+  --instance-ids 3134 3112 3045 2867 2865 2261 1939 1872 1839 1465 
+
+jellyfin-androidtv
+===================
+
+python validator.py /home/researchuser/dev/mobile-bench/data/tasks/jellyfin-androidtv-task-instances.jsonl \
+  --output-dir /home/researchuser/dev/mobile-bench/data/validated-tasks/Jellyfin \
+  --instance-ids 4995 4942 4862 4470 4172 3425 1622 1547 542 533 
+
+
+https://github.com/privacybydesign/irmamobile => flutter repo
 
 
 

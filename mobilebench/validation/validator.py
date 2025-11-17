@@ -606,6 +606,10 @@ INSTANCE_ID_PATTERNS = {
     'jerboa': 'LemmyNet__jerboa-',
     'Meshtastic': 'meshtastic__Meshtastic-Android-',
     'Lexica': 'lexica__lexica-',
+    'Nekome': 'Chesire__Nekome-',
+    'SimpMusic': 'maxrave-dev__SimpMusic-',
+    'Voice': 'PaulWoitaschek__Voice-',
+    'Jellyfin': 'jellyfin__jellyfin-androidtv-',
     # Add more patterns as needed
 }
 
