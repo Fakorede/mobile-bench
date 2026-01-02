@@ -4,6 +4,7 @@ asyncio
 chardet
 # concurrent-futures
 # dataclasses
+dataclasses-json>=0.6.0
 docker==7.1.0
 fastcore
 ghapi
@@ -14,6 +15,7 @@ pyyaml
 requests
 tenacity
 tiktoken
+toml>=0.10.2
 transformers
 tree-sitter==0.20.4
 typing-extensions
