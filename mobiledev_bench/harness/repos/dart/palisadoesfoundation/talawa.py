@@ -20,7 +20,7 @@ class TalawaImageBase(Image):
         return self._config
 
     def dependency(self) -> Union[str, "Image"]:
-        return "ghcr.io/cirruslabs/flutter:stable"
+        return "ghcr.io/cirruslabs/flutter:latest"
 
     def image_tag(self) -> str:
         return "base"
@@ -122,7 +122,13 @@ git reset --hard
 bash /home/check_git_changes.sh
 git checkout {pr.base.sha}
 bash /home/check_git_changes.sh
-flutter pub get
+
+# Try to get dependencies, if it fails due to version conflicts, try upgrading
+if ! flutter pub get; then
+    echo "flutter pub get failed, attempting flutter pub upgrade --major-versions"
+    flutter pub upgrade --major-versions
+fi
+
 flutter test || true
 """.format(pr=self.pr),
             ),

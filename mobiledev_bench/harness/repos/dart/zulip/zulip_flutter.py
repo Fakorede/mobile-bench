@@ -7,6 +7,7 @@ from mobiledev_bench.harness.test_result import TestResult
 
 
 class ZulipFlutterImageBase(Image):
+    """Base image with Flutter latest (3.38.5) for newer PRs"""
     def __init__(self, pr: PullRequest, config: Config):
         self._pr = pr
         self._config = config
@@ -20,7 +21,7 @@ class ZulipFlutterImageBase(Image):
         return self._config
 
     def dependency(self) -> Union[str, "Image"]:
-        return "ghcr.io/cirruslabs/flutter:stable"
+        return "ghcr.io/cirruslabs/flutter:latest"
 
     def image_tag(self) -> str:
         return "base"
@@ -49,6 +50,171 @@ WORKDIR /home/
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 
+# Install SQLite (required by zulip-flutter test suite)
+RUN apt-get update && apt-get install -y libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+
+{code}
+
+{self.clear_env}
+
+"""
+
+
+class ZulipFlutterImageBaseFlutter322(Image):
+    """Base image with Flutter 3.22.3 for PRs requiring Flutter 3.21+ pre-releases"""
+    def __init__(self, pr: PullRequest, config: Config):
+        self._pr = pr
+        self._config = config
+
+    @property
+    def pr(self) -> PullRequest:
+        return self._pr
+
+    @property
+    def config(self) -> Config:
+        return self._config
+
+    def dependency(self) -> Union[str, "Image"]:
+        return "ghcr.io/cirruslabs/flutter:3.22.3"
+
+    def image_tag(self) -> str:
+        return "base-flutter-3.22"
+
+    def workdir(self) -> str:
+        return "base-flutter-3.22"
+
+    def files(self) -> list[File]:
+        return []
+
+    def dockerfile(self) -> str:
+        image_name = self.dependency()
+        if isinstance(image_name, Image):
+            image_name = image_name.image_full_name()
+
+        if self.config.need_clone:
+            code = f"RUN git clone https://github.com/{self.pr.org}/{self.pr.repo}.git /home/{self.pr.repo}"
+        else:
+            code = f"COPY {self.pr.repo} /home/{self.pr.repo}"
+
+        return f"""FROM {image_name}
+USER root
+{self.global_env}
+
+WORKDIR /home/
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
+# Install SQLite (required by zulip-flutter test suite)
+RUN apt-get update && apt-get install -y libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+
+{code}
+
+{self.clear_env}
+
+"""
+
+
+class ZulipFlutterImageBaseFlutter319(Image):
+    """Base image with Flutter 3.19.6 for PRs requiring Flutter 3.16+ pre-releases with Dart 3.3+"""
+    def __init__(self, pr: PullRequest, config: Config):
+        self._pr = pr
+        self._config = config
+
+    @property
+    def pr(self) -> PullRequest:
+        return self._pr
+
+    @property
+    def config(self) -> Config:
+        return self._config
+
+    def dependency(self) -> Union[str, "Image"]:
+        return "ghcr.io/cirruslabs/flutter:3.19.6"
+
+    def image_tag(self) -> str:
+        return "base-flutter-3.19"
+
+    def workdir(self) -> str:
+        return "base-flutter-3.19"
+
+    def files(self) -> list[File]:
+        return []
+
+    def dockerfile(self) -> str:
+        image_name = self.dependency()
+        if isinstance(image_name, Image):
+            image_name = image_name.image_full_name()
+
+        if self.config.need_clone:
+            code = f"RUN git clone https://github.com/{self.pr.org}/{self.pr.repo}.git /home/{self.pr.repo}"
+        else:
+            code = f"COPY {self.pr.repo} /home/{self.pr.repo}"
+
+        return f"""FROM {image_name}
+USER root
+{self.global_env}
+
+WORKDIR /home/
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
+# Install SQLite (required by zulip-flutter test suite)
+RUN apt-get update && apt-get install -y libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+
+{code}
+
+{self.clear_env}
+
+"""
+
+
+class ZulipFlutterImageBaseFlutter340Pre(Image):
+    """Base image with Flutter 3.40.0-0.2.pre for PRs requiring Flutter 3.38+ pre-releases with Dart 3.11+"""
+    def __init__(self, pr: PullRequest, config: Config):
+        self._pr = pr
+        self._config = config
+
+    @property
+    def pr(self) -> PullRequest:
+        return self._pr
+
+    @property
+    def config(self) -> Config:
+        return self._config
+
+    def dependency(self) -> Union[str, "Image"]:
+        return "ghcr.io/cirruslabs/flutter:3.40.0-0.2.pre"
+
+    def image_tag(self) -> str:
+        return "base-flutter-3.40-pre"
+
+    def workdir(self) -> str:
+        return "base-flutter-3.40-pre"
+
+    def files(self) -> list[File]:
+        return []
+
+    def dockerfile(self) -> str:
+        image_name = self.dependency()
+        if isinstance(image_name, Image):
+            image_name = image_name.image_full_name()
+
+        if self.config.need_clone:
+            code = f"RUN git clone https://github.com/{self.pr.org}/{self.pr.repo}.git /home/{self.pr.repo}"
+        else:
+            code = f"COPY {self.pr.repo} /home/{self.pr.repo}"
+
+        return f"""FROM {image_name}
+USER root
+{self.global_env}
+
+WORKDIR /home/
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
+# Install SQLite (required by zulip-flutter test suite)
+RUN apt-get update && apt-get install -y libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+
 {code}
 
 {self.clear_env}
@@ -70,7 +236,24 @@ class ZulipFlutterImageDefault(Image):
         return self._config
 
     def dependency(self) -> Image | None:
-        return ZulipFlutterImageBase(self.pr, self._config)
+        # Map PRs to Flutter versions based on pubspec.yaml constraints
+        # PR-304: flutter '>=3.16.0-11.0.pre.88' (pre-release from 3.19 cycle, needs Dart 3.3+) -> Flutter 3.19.6
+        # PR-534: flutter '>=3.16.0-11.0.pre.88' (same as PR-304) -> Flutter 3.19.6
+        # PR-589: flutter '>=3.21.0-12.0.pre.26' (pre-release from 3.22 cycle) -> Flutter 3.22.3
+        # PR-1879, PR-1911, PR-1915, PR-1952: Require Flutter 3.40.0-0.2.pre (Dart 3.11+)
+
+        if self.pr.number == 304 or self.pr.number == 534:
+            # PRs requiring Flutter 3.16+ pre-releases that need Dart 3.3+
+            return ZulipFlutterImageBaseFlutter319(self.pr, self._config)
+        elif self.pr.number == 589:
+            # PRs requiring Flutter 3.21+ pre-releases
+            return ZulipFlutterImageBaseFlutter322(self.pr, self._config)
+        elif self.pr.number in [1879, 1911, 1915, 1952]:
+            # PRs requiring Flutter 3.40.0-0.2.pre with Dart 3.11+
+            return ZulipFlutterImageBaseFlutter340Pre(self.pr, self._config)
+        else:
+            # Default to latest Flutter for all other PRs
+            return ZulipFlutterImageBase(self.pr, self._config)
 
     def image_tag(self) -> str:
         return f"pr-{self.pr.number}"

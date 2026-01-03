@@ -93,7 +93,7 @@ class Image:
         return f"{self.image_name()}:{self.image_tag()}"
 
     def image_prefix(self) -> str:
-        return "mbdevbench"
+        return "mobiledevbench"
 
     def image_name(self) -> str:
         return (
