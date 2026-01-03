@@ -139,9 +139,9 @@ flutter test || true
 set -e
 
 cd /home/{pr.repo}
-flutter test
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "flutter test"),
             ),
             File(
                 ".",
@@ -151,9 +151,9 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch
-flutter test
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "flutter test"),
             ),
             File(
                 ".",
@@ -163,9 +163,9 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch /home/fix.patch
-flutter test
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "flutter test"),
             ),
         ]
 

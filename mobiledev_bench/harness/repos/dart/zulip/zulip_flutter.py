@@ -237,13 +237,8 @@ class ZulipFlutterImageDefault(Image):
 
     def dependency(self) -> Image | None:
         # Map PRs to Flutter versions based on pubspec.yaml constraints
-        # PR-304: flutter '>=3.16.0-11.0.pre.88' (pre-release from 3.19 cycle, needs Dart 3.3+) -> Flutter 3.19.6
-        # PR-534: flutter '>=3.16.0-11.0.pre.88' (same as PR-304) -> Flutter 3.19.6
-        # PR-589: flutter '>=3.21.0-12.0.pre.26' (pre-release from 3.22 cycle) -> Flutter 3.22.3
-        # PR-1879, PR-1911, PR-1915, PR-1952: Require Flutter 3.40.0-0.2.pre (Dart 3.11+)
-
-        if self.pr.number == 304 or self.pr.number == 534:
-            # PRs requiring Flutter 3.16+ pre-releases that need Dart 3.3+
+        if self.pr.number == 304:
+            # PR requiring Flutter 3.16+ pre-releases that need Dart 3.3+
             return ZulipFlutterImageBaseFlutter319(self.pr, self._config)
         elif self.pr.number == 589:
             # PRs requiring Flutter 3.21+ pre-releases
@@ -252,7 +247,6 @@ class ZulipFlutterImageDefault(Image):
             # PRs requiring Flutter 3.40.0-0.2.pre with Dart 3.11+
             return ZulipFlutterImageBaseFlutter340Pre(self.pr, self._config)
         else:
-            # Default to latest Flutter for all other PRs
             return ZulipFlutterImageBase(self.pr, self._config)
 
     def image_tag(self) -> str:
@@ -305,7 +299,13 @@ git reset --hard
 bash /home/check_git_changes.sh
 git checkout {pr.base.sha}
 bash /home/check_git_changes.sh
-flutter pub get
+
+# Try to get dependencies, if it fails due to version conflicts, try upgrading
+if ! flutter pub get; then
+    echo "flutter pub get failed, attempting flutter pub upgrade --major-versions"
+    flutter pub upgrade --major-versions
+fi
+
 flutter test || true
 """.format(pr=self.pr),
             ),
@@ -316,9 +316,9 @@ flutter test || true
 set -e
 
 cd /home/{pr.repo}
-flutter test
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "flutter test"),
             ),
             File(
                 ".",
@@ -328,9 +328,9 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch
-flutter test
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "flutter test"),
             ),
             File(
                 ".",
@@ -340,9 +340,9 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch /home/fix.patch
-flutter test
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "flutter test"),
             ),
         ]
 
