@@ -68,6 +68,7 @@ class Dataset(PullRequest):
             resolved_issues=pr.resolved_issues,
             fix_patch=pr.fix_patch,
             test_patch=pr.test_patch,
+            test_command=pr.test_command,
             fixed_tests=report.fixed_tests,
             p2p_tests=report.p2p_tests,
             f2p_tests=report.f2p_tests,

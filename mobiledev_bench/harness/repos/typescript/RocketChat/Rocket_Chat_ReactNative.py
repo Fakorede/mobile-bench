@@ -25,9 +25,7 @@ class ImageDefault(Image):
         return "node:20"
 
     def image_prefix(self) -> str:
-        org = self.pr.org.replace("-", "_").replace("/", "_")
-        repo = self.pr.repo.replace("-", "_").replace(".", "_")
-        return f"mobiledevbench/{org}_mb_{repo}"
+        return "mobiledevbench"
 
     def image_tag(self) -> str:
         return f"pr-{self.pr.number}"
@@ -37,6 +35,8 @@ class ImageDefault(Image):
 
     def files(self) -> list[File]:
         repo_name = self.pr.repo
+        test_cmd = self.pr.test_command if self.pr.test_command else "NODE_OPTIONS='--experimental-vm-modules --max-old-space-size=4096' npx --no-install jest --verbose"
+
         return [
             File(
                 ".",
@@ -51,55 +51,44 @@ class ImageDefault(Image):
             File(
                 ".",
                 "prepare.sh",
-                """ls -la
+                f"""ls -la
 ###ACTION_DELIMITER###
 npm install -g yarn
 ###ACTION_DELIMITER###
 yarn install
 ###ACTION_DELIMITER###
-yarn add --dev jest
-###ACTION_DELIMITER###
-echo -e '#!/bin/bash\nyarn test --verbose' > test_commands.sh && chmod +x test_commands.sh
+echo -e '#!/bin/bash\\n{test_cmd}' > test_commands.sh && chmod +x test_commands.sh
 ###ACTION_DELIMITER###
 bash test_commands.sh""",
             ),
             File(
                 ".",
                 "run.sh",
-                """#!/bin/bash
-cd /home/[[REPO_NAME]]
-#!/bin/bash
-yarn test --verbose
+                f"""#!/bin/bash
+cd /home/{repo_name}
+{test_cmd}
 
-""".replace("[[REPO_NAME]]", repo_name),
+""",
             ),
             File(
                 ".",
                 "test-run.sh",
-                """#!/bin/bash
-cd /home/[[REPO_NAME]]
-if ! git -C /home/[[REPO_NAME]] apply --whitespace=nowarn /home/test.patch; then
-    echo "Error: git apply failed" >&2
-    exit 1
-fi
-#!/bin/bash
-yarn test --verbose
+                f"""#!/bin/bash
+cd /home/{repo_name}
+git -C /home/{repo_name} apply --reject --whitespace=fix --exclude='*.lock' /home/test.patch || true
+{test_cmd}
 
-""".replace("[[REPO_NAME]]", repo_name),
+""",
             ),
             File(
                 ".",
                 "fix-run.sh",
-                """#!/bin/bash
-cd /home/[[REPO_NAME]]
-if ! git -C /home/[[REPO_NAME]] apply --whitespace=nowarn  /home/test.patch /home/fix.patch; then
-    echo "Error: git apply failed" >&2
-    exit 1
-fi
-#!/bin/bash
-yarn test --verbose
+                f"""#!/bin/bash
+cd /home/{repo_name}
+git -C /home/{repo_name} apply --reject --whitespace=fix --exclude='*.lock' /home/test.patch /home/fix.patch || true
+{test_cmd}
 
-""".replace("[[REPO_NAME]]", repo_name),
+""",
             ),
         ]
 
@@ -132,9 +121,8 @@ WORKDIR /home/{pr.repo}
 RUN git reset --hard
 RUN git checkout {pr.base.sha}
 
-# Install dependencies and ensure jest is available
+# Install dependencies
 RUN yarn install
-RUN yarn add --dev jest || true
 """
         dockerfile_content += f"""
 {copy_commands}
@@ -182,30 +170,37 @@ class ROCKET_CHAT_REACTNATIVE(Instance):
 
         # Extract passed tests using regex
         passed_pattern = re.compile(
-            r"^\s*(?:\[\s*\d+\s*\]\s*)?(?:[✓√]|PASS|PASSED)\s+(.+?)(?:\s*\(\d+\.?\d* (?:ms|s)\))?\s*$",
+            r"^\s*(?:\[\s*\d+\s*\]\s*)?(?:[✓√]|PASS|PASSED)\s+(.+?)(?:\s*\(\d+\.?\d*\s*(?:ms|s)\))?\s*$",
             re.IGNORECASE | re.MULTILINE,
         )
         for match in passed_pattern.finditer(log):
             test_name = match.group(1).strip()
+            # Remove timing suffix if present
+            test_name = re.sub(r'\s*\(\d+\.?\d*\s*(?:ms|s)\)\s*$', '', test_name).strip()
             passed_tests.add(test_name)
 
         # Extract failed tests using regex
         failed_pattern = re.compile(
-            r"^\s*(?:\[\s*\d+\s*\]\s*)?(?:[✕x]|FAIL|FAILED)\s+(.+?)(?:\s*\(\d+\.?\d* (?:ms|s)\))?\s*$|^\s*at Object\.<anonymous>\s*\((.+?):\d+:\d+\)\s*$",
+            r"^\s*(?:\[\s*\d+\s*\]\s*)?(?:[✕x]|FAIL|FAILED)\s+(.+?)(?:\s*\(\d+\.?\d*\s*(?:ms|s)\))?\s*$|^\s*at Object\.<anonymous>\s*\((.+?):\d+:\d+\)\s*$",
             re.IGNORECASE | re.MULTILINE,
         )
         for match in failed_pattern.finditer(log):
             test_name = match.group(1) or match.group(2)
             if test_name:
-                failed_tests.add(test_name.strip())
+                test_name = test_name.strip()
+                # Remove timing suffix if present
+                test_name = re.sub(r'\s*\(\d+\.?\d*\s*(?:ms|s)\)\s*$', '', test_name).strip()
+                failed_tests.add(test_name)
 
         # Extract skipped tests using regex
         skipped_pattern = re.compile(
-            r"^\s*(?:\[\s*\d+\s*\]\s*)?(?:SKIP|SKIPPED|○)\s+(.+?)(?:\s*\(\d+\.?\d* (?:ms|s)\))?\s*$",
+            r"^\s*(?:\[\s*\d+\s*\]\s*)?(?:SKIP|SKIPPED|○)\s+(.+?)(?:\s*\(\d+\.?\d*\s*(?:ms|s)\))?\s*$",
             re.IGNORECASE | re.MULTILINE,
         )
         for match in skipped_pattern.finditer(log):
             test_name = match.group(1).strip()
+            # Remove timing suffix if present
+            test_name = re.sub(r'\s*\(\d+\.?\d*\s*(?:ms|s)\)\s*$', '', test_name).strip()
             skipped_tests.add(test_name)
 
         return TestResult(
