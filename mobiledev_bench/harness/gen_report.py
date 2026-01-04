@@ -156,6 +156,9 @@ class CliArgs:
             self._check_dataset_files()
         elif self.mode == "summary":
             self._check_output_dir()
+        elif self.mode == "regen":
+            self._check_output_dir()
+            self._check_raw_dataset_files()
 
     def _check_mode(self):
         valid_modes = {"dataset", "evaluation", "summary", "regen"}

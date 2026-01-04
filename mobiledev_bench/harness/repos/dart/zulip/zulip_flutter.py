@@ -407,17 +407,22 @@ class ZulipFlutter(Instance):
         failed_tests = set()
         skipped_tests = set()
 
-        # Flutter test output patterns
-        passed_res = [
-            re.compile(r"^\d+:\d+ \+\d+: (.+)$"),  # 00:01 +1: test name
-            re.compile(r"^✓ (.+)$"),  # ✓ test name
-            re.compile(r"^\s*\+\d+: (.+)$"),  # +1: test name
+        # Flutter test output format explanation:
+        # Lines show cumulative counters: "00:02 +13 -1: test name"
+        # +13 = total passed so far, -1 = total failed so far
+        # A test with [E] suffix indicates a failure
+        # A test without [E] that appears in the log indicates a pass
+
+        # Pattern for test lines (passed or failed)
+        test_line_pattern = re.compile(r"^\d+:\d+ \+\d+( -\d+)?: (.+)$")
+
+        # Additional patterns for alternative output formats
+        passed_alt_res = [
+            re.compile(r"^✓ (.+)$"),  # ✓ test name (verbose mode)
         ]
 
-        failed_res = [
-            re.compile(r"^\d+:\d+ \+\d+ -\d+: (.+)$"),  # 00:01 +1 -1: test name
-            re.compile(r"^✗ (.+)$"),  # ✗ test name
-            re.compile(r"^\s*\+\d+ -\d+: (.+)$"),  # +1 -1: test name
+        failed_alt_res = [
+            re.compile(r"^✗ (.+)$"),  # ✗ test name (verbose mode)
         ]
 
         skipped_res = [
@@ -426,22 +431,57 @@ class ZulipFlutter(Instance):
         ]
 
         for line in test_log.splitlines():
-            for passed_re in passed_res:
+            # Check for test line with standard format
+            m = test_line_pattern.match(line)
+            if m:
+                test_name = m.group(2)
+                # Skip summary lines
+                if test_name in ["Some tests failed.", "All tests passed!"]:
+                    continue
+
+                # Check if this is a failure (marked with [E])
+                if test_name.endswith(" [E]"):
+                    test_name = test_name[:-4]  # Remove [E] suffix
+                    # Count failed loading lines (compilation errors, missing files)
+                    if test_name.startswith("loading "):
+                        failed_tests.add(test_name)
+                        if test_name in passed_tests:
+                            passed_tests.remove(test_name)
+                    else:
+                        failed_tests.add(test_name)
+                        if test_name in passed_tests:
+                            passed_tests.remove(test_name)
+                else:
+                    # Skip successful loading lines (not actual test executions)
+                    if test_name.startswith("loading "):
+                        continue
+                    # It's a pass (appears in log without [E])
+                    if test_name not in failed_tests:
+                        passed_tests.add(test_name)
+                continue
+
+            # Check alternative pass formats
+            for passed_re in passed_alt_res:
                 m = passed_re.match(line)
                 if m and m.group(1) not in failed_tests:
                     passed_tests.add(m.group(1))
+                    break
 
-            for failed_re in failed_res:
+            # Check alternative fail formats
+            for failed_re in failed_alt_res:
                 m = failed_re.match(line)
                 if m:
                     failed_tests.add(m.group(1))
                     if m.group(1) in passed_tests:
                         passed_tests.remove(m.group(1))
+                    break
 
+            # Check skip formats
             for skipped_re in skipped_res:
                 m = skipped_re.match(line)
                 if m:
                     skipped_tests.add(m.group(1))
+                    break
 
         return TestResult(
             passed_count=len(passed_tests),
