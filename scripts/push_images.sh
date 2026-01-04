@@ -7,6 +7,27 @@ REGISTRY="ghcr.io"
 
 GITHUB_ORG_LOWER=$(echo "$GITHUB_ORG" | tr '[:upper:]' '[:lower:]')
 
+# Check if authenticated with ghcr.io
+if ! grep -q "ghcr.io" ~/.docker/config.json 2>/dev/null; then
+    echo "Error: Not authenticated with $REGISTRY"
+    echo ""
+    echo "Please authenticate using one of these methods:"
+    echo ""
+    echo "1. Set GITHUB_TOKEN environment variable:"
+    echo "   export GITHUB_TOKEN=your_token_here"
+    echo "   echo \$GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin"
+    echo ""
+    echo "2. Login manually:"
+    echo "   echo YOUR_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin"
+    echo ""
+    echo "Your token needs 'write:packages' permission."
+    echo "Create one at: https://github.com/settings/tokens"
+    exit 1
+fi
+
+echo "Authenticated with $REGISTRY"
+echo ""
+
 # Get all mobiledevbench images
 images=$(docker images --filter=reference="mobiledevbench/*" --format "{{.Repository}}:{{.Tag}}" | sort -u)
 
