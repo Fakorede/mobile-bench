@@ -53,4 +53,23 @@ mobiledevbench/zulip_mb_zulip-flutter:base-flutter-3.22
 mobiledevbench/zulip_mb_zulip-flutter:base-flutter-3.40-pre
 mobiledevbench/zulip_mb_zulip-flutter:base-flutter-3.19
 mobiledevbench/zulip_mb_zulip-flutter:base
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2477
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2220
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2350
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2230
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2308
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2322
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2469
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2462
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2321
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2466
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2412
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2216
+mobiledevbench/palisadoesfoundation_mb_talawa:pr-2481
+mobiledevbench/palisadoesfoundation_mb_talawa:base
+mobiledevbench/rocketchat_mb_rocket.chat.reactnative:pr-3696
+mobiledevbench/rocketchat_mb_rocket.chat.reactnative:pr-2728
+mobiledevbench/rocketchat_mb_rocket.chat.reactnative:pr-2567
+mobiledevbench/rocketchat_mb_rocket.chat.reactnative:pr-2394
+mobiledevbench/rocketchat_mb_rocket.chat.reactnative:pr-2462
 

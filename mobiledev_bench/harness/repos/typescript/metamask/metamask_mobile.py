@@ -84,6 +84,7 @@ class MetamaskMobileImageDefault(Image):
 
     def files(self) -> list[File]:
         repo_name = self.pr.repo
+        test_cmd = self.pr.test_command if self.pr.test_command else "yarn test --verbose"
         return [
             File(
                 ".",
@@ -104,10 +105,9 @@ set -e
 cd /home/{pr.repo}
 git reset --hard
 git checkout {pr.base.sha}
-npm install -g yarn
 yarn install
-yarn test --verbose || true
-""".format(pr=self.pr),
+{test_cmd} || true
+""".format(pr=self.pr, test_cmd=test_cmd),
             ),
             File(
                 ".",
@@ -116,9 +116,9 @@ yarn test --verbose || true
 set -e
 
 cd /home/{pr.repo}
-yarn test --verbose
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=test_cmd),
             ),
             File(
                 ".",
@@ -127,13 +127,13 @@ yarn test --verbose
 set -e
 
 cd /home/{pr.repo}
-if ! git apply --whitespace=nowarn /home/test.patch; then
+if ! git apply --reject --whitespace=fix --exclude='*.lock' --exclude='*.lockb' --exclude='yarn.lock' --exclude='package-lock.json' /home/test.patch; then
     echo "Error: git apply failed" >&2
     exit 1
 fi
-yarn test --verbose
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=test_cmd),
             ),
             File(
                 ".",
@@ -142,13 +142,13 @@ yarn test --verbose
 set -e
 
 cd /home/{pr.repo}
-if ! git apply --whitespace=nowarn /home/test.patch /home/fix.patch; then
+if ! git apply --reject --whitespace=fix --exclude='*.lock' --exclude='*.lockb' --exclude='yarn.lock' --exclude='package-lock.json' /home/test.patch /home/fix.patch; then
     echo "Error: git apply failed" >&2
     exit 1
 fi
-yarn test --verbose
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=test_cmd),
             ),
         ]
 
