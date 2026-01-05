@@ -9,6 +9,7 @@ from mobiledev_bench.harness.test_result import TestResult
 
 
 class MetamaskMobileImageBase(Image):
+    """Base image with Node.js 20 for newer PRs"""
     def __init__(self, pr: PullRequest, config: Config):
         self._pr = pr
         self._config = config
@@ -60,6 +61,120 @@ RUN apt-get update && apt-get install -y git
 """
 
 
+class MetamaskMobileImageBaseNode14(Image):
+    """Base image with Node.js 14 for older PRs requiring Node 14"""
+    def __init__(self, pr: PullRequest, config: Config):
+        self._pr = pr
+        self._config = config
+
+    @property
+    def pr(self) -> PullRequest:
+        return self._pr
+
+    @property
+    def config(self) -> Config:
+        return self._config
+
+    def dependency(self) -> str:
+        return "node:14"
+
+    def image_tag(self) -> str:
+        return "base-node-14"
+
+    def workdir(self) -> str:
+        return "base-node-14"
+
+    def files(self) -> list[File]:
+        return []
+
+    def dockerfile(self) -> str:
+        image_name = self.dependency()
+        if isinstance(image_name, Image):
+            image_name = image_name.image_full_name()
+
+        if self.config.need_clone:
+            code = f"RUN git clone https://github.com/{self.pr.org}/{self.pr.repo}.git /home/{self.pr.repo}"
+        else:
+            code = f"COPY {self.pr.repo} /home/{self.pr.repo}"
+
+        return f"""FROM {image_name}
+USER root
+{self.global_env}
+
+WORKDIR /home/
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
+# Update to use Debian archive repositories (Buster is EOL)
+RUN sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g' /etc/apt/sources.list && \\
+    sed -i 's|http://security.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list && \\
+    sed -i '/stretch-updates/d' /etc/apt/sources.list && \\
+    apt-get update && apt-get install -y git
+
+{code}
+
+{self.clear_env}
+
+"""
+
+
+class MetamaskMobileImageBaseNode16(Image):
+    """Base image with Node.js 16 for PRs requiring Node 16"""
+    def __init__(self, pr: PullRequest, config: Config):
+        self._pr = pr
+        self._config = config
+
+    @property
+    def pr(self) -> PullRequest:
+        return self._pr
+
+    @property
+    def config(self) -> Config:
+        return self._config
+
+    def dependency(self) -> str:
+        return "node:16"
+
+    def image_tag(self) -> str:
+        return "base-node-16"
+
+    def workdir(self) -> str:
+        return "base-node-16"
+
+    def files(self) -> list[File]:
+        return []
+
+    def dockerfile(self) -> str:
+        image_name = self.dependency()
+        if isinstance(image_name, Image):
+            image_name = image_name.image_full_name()
+
+        if self.config.need_clone:
+            code = f"RUN git clone https://github.com/{self.pr.org}/{self.pr.repo}.git /home/{self.pr.repo}"
+        else:
+            code = f"COPY {self.pr.repo} /home/{self.pr.repo}"
+
+        return f"""FROM {image_name}
+USER root
+{self.global_env}
+
+WORKDIR /home/
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
+# Update to use Debian archive repositories (Buster is EOL)
+RUN sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g' /etc/apt/sources.list && \\
+    sed -i 's|http://security.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list && \\
+    sed -i '/stretch-updates/d' /etc/apt/sources.list && \\
+    apt-get update && apt-get install -y git
+
+{code}
+
+{self.clear_env}
+
+"""
+
+
 class MetamaskMobileImageDefault(Image):
     def __init__(self, pr: PullRequest, config: Config):
         self._pr = pr
@@ -74,7 +189,16 @@ class MetamaskMobileImageDefault(Image):
         return self._config
 
     def dependency(self) -> Image | None:
-        return MetamaskMobileImageBase(self.pr, self._config)
+        # Map PRs to Node.js versions based on engine requirements
+        # PRs requiring Node.js 14
+        if self.pr.number in [3458, 3538, 3783, 3790, 3792, 3902, 3910, 3942, 4089, 5034, 5777, 5886]:
+            return MetamaskMobileImageBaseNode14(self.pr, self._config)
+        # PRs requiring Node.js 16
+        elif self.pr.number in [6079, 6358, 6486, 7035, 7056, 7205, 7276]:
+            return MetamaskMobileImageBaseNode16(self.pr, self._config)
+        # Default to Node.js 20 for newer PRs
+        else:
+            return MetamaskMobileImageBase(self.pr, self._config)
 
     def image_tag(self) -> str:
         return f"pr-{self.pr.number}"
