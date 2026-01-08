@@ -21,7 +21,7 @@ class GetoImageBase(Image):
         return self._config
 
     def dependency(self) -> Union[str, "Image"]:
-        return "saschpe/android-sdk:34-jdk21.0.6_7"
+        return "mingc/android-build-box:1.29.0"
 
     def image_tag(self) -> str:
         return "base"
@@ -123,8 +123,9 @@ git reset --hard
 bash /home/check_git_changes.sh
 git checkout {pr.base.sha}
 bash /home/check_git_changes.sh
-./gradlew clean test --max-workers 8 --continue || true
-""".format(pr=self.pr),
+chmod +x gradlew
+{test_cmd} || true
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
             ),
             File(
                 ".",
@@ -133,9 +134,10 @@ bash /home/check_git_changes.sh
 set -e
 
 cd /home/{pr.repo}
-./gradlew clean test --max-workers 8 --continue
+chmod +x gradlew
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
             ),
             File(
                 ".",
@@ -145,9 +147,10 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch
-./gradlew clean test --max-workers 8 --continue
+chmod +x gradlew
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
             ),
             File(
                 ".",
@@ -157,9 +160,10 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch /home/fix.patch
-./gradlew clean test --max-workers 8 --continue
+chmod +x gradlew
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
             ),
         ]
 
@@ -228,7 +232,7 @@ git apply --whitespace=nowarn /home/test.patch /home/fix.patch
 """
 
 
-@Instance.register("JackEblan", "geto")
+@Instance.register("JackEblan", "Geto")
 class Geto(Instance):
     def __init__(self, pr: PullRequest, config: Config, *args, **kwargs):
         super().__init__()

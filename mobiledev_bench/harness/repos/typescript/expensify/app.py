@@ -51,7 +51,60 @@ WORKDIR /home/
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 
-RUN apt-get update && apt-get install -y git
+RUN apt-get update && apt-get install -y git jq
+
+{code}
+
+{self.clear_env}
+
+"""
+
+
+class ExpensifyAppImageBaseNode22(Image):
+    """Base image with Node.js 22 for PRs with node:stream module resolution issues"""
+    def __init__(self, pr: PullRequest, config: Config):
+        self._pr = pr
+        self._config = config
+
+    @property
+    def pr(self) -> PullRequest:
+        return self._pr
+
+    @property
+    def config(self) -> Config:
+        return self._config
+
+    def dependency(self) -> str:
+        return "node:22"
+
+    def image_tag(self) -> str:
+        return "base-node-22"
+
+    def workdir(self) -> str:
+        return "base-node-22"
+
+    def files(self) -> list[File]:
+        return []
+
+    def dockerfile(self) -> str:
+        image_name = self.dependency()
+        if isinstance(image_name, Image):
+            image_name = image_name.image_full_name()
+
+        if self.config.need_clone:
+            code = f"RUN git clone https://github.com/{self.pr.org}/{self.pr.repo}.git /home/{self.pr.repo}"
+        else:
+            code = f"COPY {self.pr.repo} /home/{self.pr.repo}"
+
+        return f"""FROM {image_name}
+USER root
+{self.global_env}
+
+WORKDIR /home/
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
+RUN apt-get update && apt-get install -y git jq
 
 {code}
 
@@ -73,8 +126,13 @@ class ExpensifyAppImageDefault(Image):
     def config(self) -> Config:
         return self._config
 
-    def dependency(self) -> Image | None:
-        return ExpensifyAppImageBase(self.pr, self._config)
+    def dependency(self) -> str | Image:
+        # PRs requiring Node.js 22 for node:stream module resolution
+        if self.pr.number in [4408, 4700, 4825]:
+            return ExpensifyAppImageBaseNode22(self.pr, self._config)
+        # Default to Node.js 20 for other PRs
+        else:
+            return ExpensifyAppImageBase(self.pr, self._config)
 
     def image_tag(self) -> str:
         return f"pr-{self.pr.number}"
@@ -108,6 +166,15 @@ git reset --hard
 git checkout {pr.base.sha}
 git config --global url."https://github.com/".insteadOf git://github.com/
 yarn install --ignore-engines
+
+# Fix for node:stream error - downgrade @actions/core to avoid node: protocol imports
+# @actions/core@1.11+ uses undici@5.29+ which requires node:stream that Jest 26 can't resolve
+if [ "{pr.number}" = "4408" ] || [ "{pr.number}" = "4700" ] || [ "{pr.number}" = "4825" ]; then
+    echo "Downgrading @actions/core to fix node:stream error..."
+    # Downgrade to @actions/core 1.10.0 which doesn't have the node:stream dependency issue
+    yarn add @actions/core@1.10.0 --ignore-engines || npm install @actions/core@1.10.0 --legacy-peer-deps
+fi
+
 {test_cmd} || true
 """.format(pr=self.pr, test_cmd=test_cmd),
             ),
@@ -129,10 +196,21 @@ cd /home/{pr.repo}
 set -e
 
 cd /home/{pr.repo}
-if ! git apply --whitespace=nowarn /home/test.patch; then
+
+# Multi-strategy patch application
+if git apply --binary --verbose /home/test.patch 2>&1; then
+    echo "Patch applied successfully"
+elif git apply --binary --verbose --3way /home/test.patch 2>&1; then
+    echo "Patch applied with 3-way merge"
+elif git apply --binary --verbose --exclude='*.lock' --exclude='*.png' --exclude='*.jpg' --exclude='*.jpeg' --exclude='*.gif' --exclude='*.svg' /home/test.patch 2>&1; then
+    echo "Patch applied excluding binary files and lock files"
+elif git apply --binary --verbose --reject --whitespace=fix /home/test.patch 2>&1; then
+    echo "Patch applied with rejects"
+else
     echo "Error: git apply failed" >&2
     exit 1
 fi
+
 {test_cmd}
 
 """.format(pr=self.pr, test_cmd=test_cmd),
@@ -144,10 +222,35 @@ fi
 set -e
 
 cd /home/{pr.repo}
-if ! git apply --whitespace=nowarn /home/test.patch /home/fix.patch; then
-    echo "Error: git apply failed" >&2
+
+# Multi-strategy patch application for test patch
+if git apply --binary --verbose /home/test.patch 2>&1; then
+    echo "Test patch applied successfully"
+elif git apply --binary --verbose --3way /home/test.patch 2>&1; then
+    echo "Test patch applied with 3-way merge"
+elif git apply --binary --verbose --exclude='*.lock' --exclude='*.png' --exclude='*.jpg' --exclude='*.jpeg' --exclude='*.gif' --exclude='*.svg' /home/test.patch 2>&1; then
+    echo "Test patch applied excluding binary files and lock files"
+elif git apply --binary --verbose --reject --whitespace=fix /home/test.patch 2>&1; then
+    echo "Test patch applied with rejects"
+else
+    echo "Error: test patch apply failed" >&2
     exit 1
 fi
+
+# Multi-strategy patch application for fix patch
+if git apply --binary --verbose /home/fix.patch 2>&1; then
+    echo "Fix patch applied successfully"
+elif git apply --binary --verbose --3way /home/fix.patch 2>&1; then
+    echo "Fix patch applied with 3-way merge"
+elif git apply --binary --verbose --exclude='*.lock' --exclude='*.png' --exclude='*.jpg' --exclude='*.jpeg' --exclude='*.gif' --exclude='*.svg' /home/fix.patch 2>&1; then
+    echo "Fix patch applied excluding binary files and lock files"
+elif git apply --binary --verbose --reject --whitespace=fix /home/fix.patch 2>&1; then
+    echo "Fix patch applied with rejects"
+else
+    echo "Error: fix patch apply failed" >&2
+    exit 1
+fi
+
 {test_cmd}
 
 """.format(pr=self.pr, test_cmd=test_cmd),

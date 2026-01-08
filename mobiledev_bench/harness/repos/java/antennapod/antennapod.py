@@ -123,6 +123,7 @@ git reset --hard
 bash /home/check_git_changes.sh
 git checkout {pr.base.sha}
 bash /home/check_git_changes.sh
+chmod +x gradlew
 {test_cmd} || true
 """.format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
             ),
@@ -133,6 +134,7 @@ bash /home/check_git_changes.sh
 set -e
 
 cd /home/{pr.repo}
+chmod +x gradlew
 {test_cmd}
 
 """.format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
@@ -145,6 +147,7 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch
+chmod +x gradlew
 {test_cmd}
 
 """.format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
@@ -157,6 +160,7 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch /home/fix.patch
+chmod +x gradlew
 {test_cmd}
 
 """.format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),

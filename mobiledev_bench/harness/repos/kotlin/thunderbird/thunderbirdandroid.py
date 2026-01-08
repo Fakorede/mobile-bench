@@ -21,7 +21,7 @@ class thunderbirdandroidImageBase(Image):
         return self._config
 
     def dependency(self) -> Union[str, "Image"]:
-        return "saschpe/android-sdk:34-jdk21.0.6_7"
+        return "mingc/android-build-box:1.29.0"
 
     def image_tag(self) -> str:
         return "base"
@@ -71,7 +71,7 @@ class thunderbirdandroidImageBaseJDK17(Image):
         return self._config
 
     def dependency(self) -> Union[str, "Image"]:
-        return "saschpe/android-sdk:32-jdk17.0.8_7"
+        return "mingc/android-build-box:1.29.0"
 
     def image_tag(self) -> str:
         return "base-JDK-17"
@@ -175,6 +175,7 @@ git reset --hard
 bash /home/check_git_changes.sh
 git checkout {pr.base.sha}
 bash /home/check_git_changes.sh
+chmod +x gradlew
 ./gradlew clean test --max-workers 8 --continue || true
 """.format(pr=self.pr),
             ),
@@ -185,6 +186,7 @@ bash /home/check_git_changes.sh
 set -e
 
 cd /home/{pr.repo}
+chmod +x gradlew
 ./gradlew clean test --max-workers 8 --continue
 
 """.format(pr=self.pr),
@@ -197,6 +199,7 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch
+chmod +x gradlew
 ./gradlew clean test --max-workers 8 --continue
 
 """.format(pr=self.pr),
@@ -209,6 +212,7 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch /home/fix.patch
+chmod +x gradlew
 ./gradlew clean test --max-workers 8 --continue
 
 """.format(pr=self.pr),
