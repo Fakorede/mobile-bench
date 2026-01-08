@@ -21,7 +21,7 @@ class AntennaPodImageBase(Image):
         return self._config
 
     def dependency(self) -> Union[str, "Image"]:
-        return "saschpe/android-sdk:30-jdk17"
+        return "mingc/android-build-box:1.29.0"
 
     def image_tag(self) -> str:
         return "base"
@@ -228,7 +228,7 @@ git apply --whitespace=nowarn /home/test.patch /home/fix.patch
 """
 
 
-@Instance.register("antennapod", "antennapod")
+@Instance.register("AntennaPod", "AntennaPod")
 class AntennaPod(Instance):
     def __init__(self, pr: PullRequest, config: Config, *args, **kwargs):
         super().__init__()
