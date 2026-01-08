@@ -21,7 +21,7 @@ class AntennaPodImageBase(Image):
         return self._config
 
     def dependency(self) -> Union[str, "Image"]:
-        return "saschpe/android-sdk:34-jdk21.0.6_7"
+        return "saschpe/android-sdk:30-jdk17"
 
     def image_tag(self) -> str:
         return "base"
@@ -123,8 +123,8 @@ git reset --hard
 bash /home/check_git_changes.sh
 git checkout {pr.base.sha}
 bash /home/check_git_changes.sh
-./gradlew clean test --max-workers 8 --continue || true
-""".format(pr=self.pr),
+{test_cmd} || true
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
             ),
             File(
                 ".",
@@ -133,9 +133,9 @@ bash /home/check_git_changes.sh
 set -e
 
 cd /home/{pr.repo}
-./gradlew clean test --max-workers 8 --continue
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
             ),
             File(
                 ".",
@@ -145,9 +145,9 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch
-./gradlew clean test --max-workers 8 --continue
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
             ),
             File(
                 ".",
@@ -157,9 +157,9 @@ set -e
 
 cd /home/{pr.repo}
 git apply --whitespace=nowarn /home/test.patch /home/fix.patch
-./gradlew clean test --max-workers 8 --continue
+{test_cmd}
 
-""".format(pr=self.pr),
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
             ),
         ]
 
