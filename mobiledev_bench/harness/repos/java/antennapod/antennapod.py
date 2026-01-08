@@ -30,7 +30,69 @@ class AntennaPodImageBase(Image):
         return "base"
 
     def files(self) -> list[File]:
-        return []
+        return [
+            File(
+                ".",
+                "detect_jdk.sh",
+                """#!/bin/bash
+# Detect required JDK version from Gradle configuration files
+set -e
+
+REPO_DIR="$1"
+BASE_SHA="$2"
+
+cd "$REPO_DIR"
+git checkout "$BASE_SHA" 2>/dev/null || {
+    echo "Error: Failed to checkout commit $BASE_SHA" >&2
+    echo "17"
+    exit 0
+}
+
+echo "Detecting required JDK version from commit $BASE_SHA..." >&2
+
+# Parse Java version from common.gradle
+JAVA_VERSION=$(grep -oP 'sourceCompatibility\\s+JavaVersion\\.VERSION_\\K\\d+' common.gradle 2>/dev/null || echo "")
+
+# Parse AGP version from build.gradle
+AGP_VERSION=$(grep -oP 'agpVersion\\s*=\\s*"\\K[^"]+' build.gradle 2>/dev/null || echo "")
+
+echo "Detected Java version: $JAVA_VERSION, AGP version: $AGP_VERSION" >&2
+
+# Determine required JDK based on AGP version requirements
+if [ -n "$AGP_VERSION" ]; then
+    AGP_MAJOR=$(echo "$AGP_VERSION" | cut -d. -f1)
+
+    if [ "$AGP_MAJOR" -ge 8 ]; then
+        # AGP 8.0+ requires JDK 17
+        REQUIRED_JDK=17
+    elif [ "$AGP_MAJOR" -ge 7 ]; then
+        # AGP 7.0+ requires JDK 11
+        REQUIRED_JDK=11
+    else
+        # Older AGP versions, use detected Java version
+        REQUIRED_JDK="${JAVA_VERSION:-17}"
+    fi
+else
+    # No AGP version found, use detected Java version or default to 17
+    REQUIRED_JDK="${JAVA_VERSION:-17}"
+fi
+
+# Validate JDK is available in base image
+case "$REQUIRED_JDK" in
+    8|11|17|21)
+        echo "$REQUIRED_JDK"
+        ;;
+    *)
+        echo "Warning: Detected JDK $REQUIRED_JDK not in available versions (8,11,17,21), defaulting to 17" >&2
+        echo "17"
+        ;;
+esac
+
+# Reset git state
+git reset --hard HEAD >/dev/null 2>&1
+""",
+            ),
+        ]
 
     def dockerfile(self) -> str:
         image_name = self.dependency()
@@ -42,6 +104,20 @@ class AntennaPodImageBase(Image):
         else:
             code = f"COPY {self.pr.repo} /home/{self.pr.repo}"
 
+        # Copy and use helper script for JDK detection
+        copy_detect_script = "COPY detect_jdk.sh /home/detect_jdk.sh"
+
+        # JDK detection and setup - uses helper script to detect version from PR's base commit
+        jdk_setup = f"""# Detect and configure JDK version from base commit
+RUN chmod +x /home/detect_jdk.sh && \\
+    REQUIRED_JDK=$$(/home/detect_jdk.sh /home/{self.pr.repo} {self.pr.base.sha}) && \\
+    echo "Setting JDK to $$REQUIRED_JDK using jenv" && \\
+    jenv global $$REQUIRED_JDK && \\
+    echo "Verifying JDK configuration:" && \\
+    jenv version && \\
+    java -version
+"""
+
         return f"""FROM {image_name}
 USER root
 {self.global_env}
@@ -51,6 +127,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 
 {code}
+
+{copy_detect_script}
+
+{jdk_setup}
 
 {self.clear_env}
 
