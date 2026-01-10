@@ -110,11 +110,9 @@ git reset --hard HEAD >/dev/null 2>&1
         # JDK detection and setup - uses helper script to detect version from PR's base commit
         jdk_setup = f"""# Detect and configure JDK version from base commit
 RUN chmod +x /home/detect_jdk.sh && \\
-    REQUIRED_JDK=$$(/home/detect_jdk.sh /home/{self.pr.repo} {self.pr.base.sha}) && \\
-    echo "Setting JDK to $$REQUIRED_JDK using jenv" && \\
-    jenv global $$REQUIRED_JDK && \\
+    /home/detect_jdk.sh /home/{self.pr.repo} {self.pr.base.sha} > /opt/jenv/version && \\
+    echo "Set JDK version to: $$(cat /opt/jenv/version)" && \\
     echo "Verifying JDK configuration:" && \\
-    jenv version && \\
     java -version
 """
 
@@ -204,8 +202,8 @@ bash /home/check_git_changes.sh
 git checkout {pr.base.sha}
 bash /home/check_git_changes.sh
 chmod +x gradlew
-{test_cmd} || true
-""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
+{test_cmd} --no-daemon --stacktrace --continue --parallel || true
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test"),
             ),
             File(
                 ".",
@@ -215,9 +213,24 @@ set -e
 
 cd /home/{pr.repo}
 chmod +x gradlew
-{test_cmd}
 
-""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
+echo "=== Running tests ==="
+{test_cmd} --no-daemon --stacktrace --continue --parallel || true
+
+echo "=== Collecting test results ==="
+find . -name "TEST-*.xml" -type f 2>/dev/null | head -30 | while read file; do
+    echo "=== XML FILE: $file ==="
+    cat "$file" 2>/dev/null || echo "Could not read $file"
+    echo "=== END XML FILE ==="
+done
+
+find . -path "*/test-results/*" -name "*.xml" -type f 2>/dev/null | head -30 | while read file; do
+    echo "=== TEST RESULT: $file ==="
+    cat "$file" 2>/dev/null || echo "Could not read $file"
+    echo "=== END TEST RESULT ==="
+done
+
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test"),
             ),
             File(
                 ".",
@@ -226,11 +239,42 @@ chmod +x gradlew
 set -e
 
 cd /home/{pr.repo}
-git apply --whitespace=nowarn /home/test.patch
-chmod +x gradlew
-{test_cmd}
 
-""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
+# Apply test patch with multiple strategies
+echo "=== Applying test patch ==="
+if git apply --verbose /home/test.patch 2>&1; then
+    echo "SUCCESS: git apply worked"
+elif git apply --verbose --ignore-space-change --ignore-whitespace /home/test.patch 2>&1; then
+    echo "SUCCESS: git apply with whitespace options worked"
+elif patch --batch --fuzz=3 -p1 < /home/test.patch 2>&1; then
+    echo "SUCCESS: patch with fuzz worked"
+else
+    echo "ERROR: All patch strategies failed"
+    exit 1
+fi
+
+chmod +x gradlew
+
+echo "=== Cleaning build artifacts ==="
+./gradlew clean --no-daemon || true
+
+echo "=== Running test patch tests ==="
+{test_cmd} --no-daemon --stacktrace --continue --parallel || true
+
+echo "=== Collecting test results ==="
+find . -name "TEST-*.xml" -type f 2>/dev/null | head -30 | while read file; do
+    echo "=== XML FILE: $file ==="
+    cat "$file" 2>/dev/null || echo "Could not read $file"
+    echo "=== END XML FILE ==="
+done
+
+find . -path "*/test-results/*" -name "*.xml" -type f 2>/dev/null | head -30 | while read file; do
+    echo "=== TEST RESULT: $file ==="
+    cat "$file" 2>/dev/null || echo "Could not read $file"
+    echo "=== END TEST RESULT ==="
+done
+
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test"),
             ),
             File(
                 ".",
@@ -239,11 +283,55 @@ chmod +x gradlew
 set -e
 
 cd /home/{pr.repo}
-git apply --whitespace=nowarn /home/test.patch /home/fix.patch
-chmod +x gradlew
-{test_cmd}
 
-""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test --max-workers 8 --continue"),
+# Apply test patch with multiple strategies
+echo "=== Applying test patch ==="
+if git apply --verbose /home/test.patch 2>&1; then
+    echo "SUCCESS: git apply worked for test patch"
+elif git apply --verbose --ignore-space-change --ignore-whitespace /home/test.patch 2>&1; then
+    echo "SUCCESS: git apply with whitespace options worked for test patch"
+elif patch --batch --fuzz=3 -p1 < /home/test.patch 2>&1; then
+    echo "SUCCESS: patch with fuzz worked for test patch"
+else
+    echo "ERROR: All patch strategies failed for test patch"
+    exit 1
+fi
+
+# Apply fix patch with multiple strategies
+echo "=== Applying fix patch ==="
+if git apply --verbose /home/fix.patch 2>&1; then
+    echo "SUCCESS: git apply worked for fix patch"
+elif git apply --verbose --ignore-space-change --ignore-whitespace /home/fix.patch 2>&1; then
+    echo "SUCCESS: git apply with whitespace options worked for fix patch"
+elif patch --batch --fuzz=3 -p1 < /home/fix.patch 2>&1; then
+    echo "SUCCESS: patch with fuzz worked for fix patch"
+else
+    echo "ERROR: All patch strategies failed for fix patch"
+    exit 1
+fi
+
+chmod +x gradlew
+
+echo "=== Cleaning build artifacts ==="
+./gradlew clean --no-daemon || true
+
+echo "=== Running fix patch tests ==="
+{test_cmd} --no-daemon --stacktrace --continue --parallel || true
+
+echo "=== Collecting test results ==="
+find . -name "TEST-*.xml" -type f 2>/dev/null | head -30 | while read file; do
+    echo "=== XML FILE: $file ==="
+    cat "$file" 2>/dev/null || echo "Could not read $file"
+    echo "=== END XML FILE ==="
+done
+
+find . -path "*/test-results/*" -name "*.xml" -type f 2>/dev/null | head -30 | while read file; do
+    echo "=== TEST RESULT: $file ==="
+    cat "$file" 2>/dev/null || echo "Could not read $file"
+    echo "=== END TEST RESULT ==="
+done
+
+""".format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test"),
             ),
         ]
 
@@ -345,45 +433,39 @@ class AntennaPod(Instance):
         return "bash /home/fix-run.sh"
 
     def parse_log(self, test_log: str) -> TestResult:
+        """Parse test results from Gradle output including XML test reports."""
         passed_tests = set()
         failed_tests = set()
         skipped_tests = set()
 
-        passed_res = [
-            re.compile(r"^> Task :(\S+)$"),
-            re.compile(r"^> Task :(\S+) UP-TO-DATE$"),
-            re.compile(r"^> Task :(\S+) FROM-CACHE$"),
-            re.compile(r"^(.+ > .+) PASSED$"),
-        ]
+        # Parse XML test result sections from Gradle output
+        xml_sections = re.findall(r'=== XML(?:\s+FILE)?:\s*(.+?)\s*===\s*\n(.*?)\n=== END', test_log, re.DOTALL)
+        xml_sections.extend(re.findall(r'=== TEST RESULT:\s*(.+?)\s*===\s*\n(.*?)\n=== END', test_log, re.DOTALL))
 
-        failed_res = [
-            re.compile(r"^> Task :(\S+) FAILED$"),
-            re.compile(r"^(.+ > .+) FAILED$"),
-        ]
+        for _, xml_content in xml_sections:
+            # Parse <testcase> elements from XML
+            testcase_pattern = r'<testcase[^>]*name="([^"]+)"[^>]*classname="([^"]+)"[^>]*(?:/>|>(.*?)</testcase>)'
+            testcases = re.findall(testcase_pattern, xml_content, re.DOTALL)
 
-        skipped_res = [
-            re.compile(r"^> Task :(\S+) SKIPPED$"),
-            re.compile(r"^> Task :(\S+) NO-SOURCE$"),
-            re.compile(r"^(.+ > .+) SKIPPED$"),
-        ]
+            for match in testcases:
+                test_name = match[0].strip()
+                class_name = match[1].strip()
+                test_content = match[2] if len(match) > 2 else ""
 
-        for line in test_log.splitlines():
-            for passed_re in passed_res:
-                m = passed_re.match(line)
-                if m and m.group(1) not in failed_tests:
-                    passed_tests.add(m.group(1))
+                # Format as ClassName.testMethodName
+                full_test_name = f"{class_name}.{test_name}"
 
-            for failed_re in failed_res:
-                m = failed_re.match(line)
-                if m:
-                    failed_tests.add(m.group(1))
-                    if m.group(1) in passed_tests:
-                        passed_tests.remove(m.group(1))
-
-            for skipped_re in skipped_res:
-                m = skipped_re.match(line)
-                if m:
-                    skipped_tests.add(m.group(1))
+                # Determine test status
+                if test_content:
+                    if '<failure' in test_content or '<error' in test_content:
+                        failed_tests.add(full_test_name)
+                    elif '<skipped' in test_content:
+                        skipped_tests.add(full_test_name)
+                    else:
+                        passed_tests.add(full_test_name)
+                else:
+                    # Self-closing testcase tag means passed
+                    passed_tests.add(full_test_name)
 
         return TestResult(
             passed_count=len(passed_tests),
