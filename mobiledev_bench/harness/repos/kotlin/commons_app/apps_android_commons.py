@@ -184,6 +184,12 @@ git checkout {pr.base.sha}
 bash /home/check_git_changes.sh
 chmod +x gradlew
 
+# Create local.properties file if it doesn't exist (required by apps-android-commons)
+if [ ! -f "local.properties" ]; then
+    echo "sdk.dir=/opt/android-sdk/" > local.properties
+    echo "Created local.properties with SDK path"
+fi
+
 echo "=== Running base tests ==="
 {test_cmd} --no-daemon --stacktrace --continue --parallel || true
 
@@ -209,6 +215,12 @@ set -e
 
 cd /home/{pr.repo}
 chmod +x gradlew
+
+# Create local.properties file if it doesn't exist (required by apps-android-commons)
+if [ ! -f "local.properties" ]; then
+    echo "sdk.dir=/opt/android-sdk/" > local.properties
+    echo "Created local.properties with SDK path"
+fi
 
 echo "=== Running tests ==="
 {test_cmd} --no-daemon --stacktrace --continue --parallel || true
@@ -249,6 +261,12 @@ else
 fi
 
 chmod +x gradlew
+
+# Create local.properties file if it doesn't exist (required by apps-android-commons)
+if [ ! -f "local.properties" ]; then
+    echo "sdk.dir=/opt/android-sdk/" > local.properties
+    echo "Created local.properties with SDK path"
+fi
 
 echo "=== Cleaning build artifacts ==="
 ./gradlew clean --no-daemon || true
@@ -305,6 +323,12 @@ else
 fi
 
 chmod +x gradlew
+
+# Create local.properties file if it doesn't exist (required by apps-android-commons)
+if [ ! -f "local.properties" ]; then
+    echo "sdk.dir=/opt/android-sdk/" > local.properties
+    echo "Created local.properties with SDK path"
+fi
 
 echo "=== Cleaning build artifacts ==="
 ./gradlew clean --no-daemon || true

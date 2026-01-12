@@ -393,7 +393,7 @@ done
 """
 
 
-@Instance.register("TuskyApp", "Tusky")
+@Instance.register("tuskyapp", "Tusky")
 class Tusky(Instance):
     def __init__(self, pr: PullRequest, config: Config, *args, **kwargs):
         super().__init__()
