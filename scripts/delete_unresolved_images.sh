@@ -3,13 +3,12 @@ set -e
 
 # Unresolved PR numbers to delete (for zulip/zulip-flutter)
 UNRESOLVED_PRS=(
-    1657
-    1646
-    1602
+    5205
+    5056
 )
 
 # Repository name pattern in Docker images
-REPO_NAME="mobiledevbench/zulip_mb_zulip-flutter"
+REPO_NAME="mobiledevbench/{org_mb_repo}"
 
 echo "Deleting Docker images for unresolved zulip/zulip-flutter PRs..."
 echo ""
