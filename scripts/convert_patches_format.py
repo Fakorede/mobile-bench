@@ -7,10 +7,21 @@ Input format:
 Output format:
 {"org": "org", "repo": "repo", "number": number, "fix_patch": "diff..."}
 
-python3 
-    /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches.py 
-    /home/researchuser/dev/inri/Magentless/results/mobiledev_bench_dart-claude-sonnet-4.5/all_preds.jsonl 
-    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/converted_patches.jsonl
+python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_dart-qwen3-coder_test/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/qwen_converted_patches.jsonl
+
+python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_typescript-qwen3-coder/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/qwen_converted_patches.jsonl
+
+python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_java-qwen3-coder/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/antennapod/qwen_converted_patches.jsonl
+
+python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_kotlin-qwen3-coder/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_converted_patches.jsonl
 """
 
 import json
@@ -86,7 +97,7 @@ def convert_patch_file(input_file: Path, output_file: Path):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python convert_patches.py <input_file> <output_file>")
+        print("Usage: python convert_patches_format.py <input_file> <output_file>")
         sys.exit(1)
 
     input_file = Path(sys.argv[1])

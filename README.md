@@ -1,13 +1,17 @@
-# android-test-automation
+# mobiledev-bench
 
 ## Setup Instructions
 
 ```shell
+cd mobiledev-bench
+
 # create a venv
 python -m venv venv
 
 # activate the venv
 source venv/bin/activate
+
+pip install -e .
 
 # install deps
 pip install -r requirements.txt
