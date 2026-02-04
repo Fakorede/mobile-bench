@@ -432,8 +432,19 @@ class ElementXAndroid(Instance):
         skipped_tests = set()
 
         # Parse XML test result sections from Gradle output
+        # Only include Debug variant results (testDebugUnitTest) to avoid conflicts
+        # when the same test has different results in Debug vs Release variants
         xml_sections = re.findall(r'=== XML(?:\s+FILE)?:\s*(.+?)\s*===\s*\n(.*?)\n=== END', test_log, re.DOTALL)
         xml_sections.extend(re.findall(r'=== TEST RESULT:\s*(.+?)\s*===\s*\n(.*?)\n=== END', test_log, re.DOTALL))
+
+        # Filter to only Debug variant results and deduplicate by path
+        seen_paths = set()
+        filtered_sections = []
+        for path, content in xml_sections:
+            if 'testDebugUnitTest' in path and path not in seen_paths:
+                seen_paths.add(path)
+                filtered_sections.append((path, content))
+        xml_sections = filtered_sections
 
         for _, xml_content in xml_sections:
             # Parse <testcase> elements from XML
