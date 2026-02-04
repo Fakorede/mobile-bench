@@ -8,20 +8,40 @@ Output format:
 {"org": "org", "repo": "repo", "number": number, "fix_patch": "diff..."}
 
 python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
-    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_dart-qwen3-coder_test/all_preds.jsonl \
-    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/qwen_converted_patches.jsonl
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_dart-gemini-2.5-flash/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/gemini_openrouter_converted_patches.jsonl
 
 python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
-    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_typescript-qwen3-coder/all_preds.jsonl \
-    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/qwen_converted_patches.jsonl
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_java-gemini-2.5-flash/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/antennapod/gemini_openrouter_converted_patches.jsonl
 
 python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
-    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_java-qwen3-coder/all_preds.jsonl \
-    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/antennapod/qwen_converted_patches.jsonl
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_kotlin-gemini-2.5-flash/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gemini_openrouter_converted_patches.jsonl
 
 python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
-    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_kotlin-qwen3-coder/all_preds.jsonl \
-    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_converted_patches.jsonl
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_typescript-gemini-2.5-flash/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/gemini_openrouter_converted_patches.jsonl
+
+
+
+python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_kotlin-gpt-5.2/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_converted_patches.jsonl
+
+python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_typescript-gpt-5.2/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/gpt_converted_patches.jsonl
+
+python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_java-gpt-5.2/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/antennapod/gpt_converted_patches.jsonl
+
+
+python3 /home/researchuser/dev/inri/mobiledev-bench/scripts/convert_patches_format.py \
+    /home/researchuser/dev/inri/mobiledev-bench/magentless/results/mobiledev_bench_dart-gpt-5.2/all_preds.jsonl \
+    /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/gpt_converted_patches.jsonl
+
 """
 
 import json

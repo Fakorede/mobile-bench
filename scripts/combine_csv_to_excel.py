@@ -72,6 +72,59 @@ def extract_repo_name(csv_path: Path) -> str:
     return csv_path.parent.name
 
 
+def parse_extension_string(ext_string: str) -> dict:
+    """
+    Parse extension string in format "ext: count; ext: count" into a dictionary.
+
+    Args:
+        ext_string: String like ".kt: 2; .xml: 1"
+
+    Returns:
+        Dictionary like {'.kt': 2, '.xml': 1}
+    """
+    if pd.isna(ext_string) or not ext_string.strip():
+        return {}
+
+    result = {}
+    parts = ext_string.split(';')
+    for part in parts:
+        part = part.strip()
+        if ':' in part:
+            ext, count = part.split(':', 1)
+            ext = ext.strip()
+            try:
+                count = int(count.strip())
+                result[ext] = count
+            except ValueError:
+                continue
+    return result
+
+
+def aggregate_extensions(df: pd.DataFrame, column_name: str) -> dict:
+    """
+    Aggregate extension counts from a DataFrame column.
+
+    Args:
+        df: DataFrame containing the extension column
+        column_name: Name of column with extension data
+
+    Returns:
+        Dictionary with total counts per extension
+    """
+    from collections import defaultdict
+    totals = defaultdict(int)
+
+    if column_name not in df.columns:
+        return {}
+
+    for ext_string in df[column_name]:
+        ext_dict = parse_extension_string(str(ext_string))
+        for ext, count in ext_dict.items():
+            totals[ext] += count
+
+    return dict(totals)
+
+
 def create_summary_sheet(all_data: dict) -> pd.DataFrame:
     """
     Create a summary sheet with aggregate statistics across all repos.
@@ -94,15 +147,33 @@ def create_summary_sheet(all_data: dict) -> pd.DataFrame:
             'Avg Gold Files': df['gold_file_count'].mean(),
             'Avg Model Files': df['model_file_count'].mean(),
             'Avg Overlap Count': df['overlap_count'].mean(),
-            'Avg Overlap %': df['overlap_percentage'].mean(),
+            'Avg Precision %': df['precision'].mean(),
+            'Avg Recall %': df['recall'].mean(),
+            'Avg F1 %': df['f1'].mean(),
             'Instances with Overlap': (df['overlap_count'] > 0).sum(),
-            'Instances without Overlap': (df['overlap_count'] == 0).sum(),
-            'Max Overlap %': df['overlap_percentage'].max(),
-            'Min Overlap %': df['overlap_percentage'].min()
+            'Instances without Overlap': (df['overlap_count'] == 0).sum()
         }
+
+        # Aggregate extension data
+        gold_exts = aggregate_extensions(df, 'gold_extensions')
+        model_exts = aggregate_extensions(df, 'model_extensions')
+        overlap_exts = aggregate_extensions(df, 'overlap_extensions')
+
+        # Collect all unique extensions across gold, model, and overlap
+        all_exts = set(gold_exts.keys()) | set(model_exts.keys()) | set(overlap_exts.keys())
+
+        # Add extension columns grouped by extension type (Gold/Model/Overlap side-by-side)
+        for ext in sorted(all_exts):
+            summary_row[f'{ext} Gold'] = gold_exts.get(ext, 0)
+            summary_row[f'{ext} Model'] = model_exts.get(ext, 0)
+            summary_row[f'{ext} Overlap'] = overlap_exts.get(ext, 0)
+
         summary_rows.append(summary_row)
 
     summary_df = pd.DataFrame(summary_rows)
+
+    # Fill NaN values with 0 for extension columns
+    summary_df = summary_df.fillna(0)
 
     # Add totals row
     if not summary_df.empty:
@@ -112,12 +183,18 @@ def create_summary_sheet(all_data: dict) -> pd.DataFrame:
             'Avg Gold Files': summary_df['Avg Gold Files'].mean(),
             'Avg Model Files': summary_df['Avg Model Files'].mean(),
             'Avg Overlap Count': summary_df['Avg Overlap Count'].mean(),
-            'Avg Overlap %': summary_df['Avg Overlap %'].mean(),
+            'Avg Precision %': summary_df['Avg Precision %'].mean(),
+            'Avg Recall %': summary_df['Avg Recall %'].mean(),
+            'Avg F1 %': summary_df['Avg F1 %'].mean(),
             'Instances with Overlap': summary_df['Instances with Overlap'].sum(),
-            'Instances without Overlap': summary_df['Instances without Overlap'].sum(),
-            'Max Overlap %': summary_df['Max Overlap %'].max(),
-            'Min Overlap %': summary_df['Min Overlap %'].min()
+            'Instances without Overlap': summary_df['Instances without Overlap'].sum()
         }
+
+        # Sum extension columns for totals row
+        for col in summary_df.columns:
+            if col.endswith(' Gold') or col.endswith(' Model') or col.endswith(' Overlap'):
+                totals[col] = summary_df[col].sum()
+
         summary_df = pd.concat([summary_df, pd.DataFrame([totals])], ignore_index=True)
 
     return summary_df

@@ -117,6 +117,35 @@ ENV TZ=Etc/UTC
 
 
 class WordPressAndroidImageDefault(Image):
+    # WordPress-specific gradle.properties content required for builds
+    WORDPRESS_GRADLE_PROPERTIES = """# WordPress-Android gradle.properties
+org.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError
+org.gradle.parallel=true
+org.gradle.configureondemand=true
+org.gradle.caching=true
+
+android.useAndroidX=true
+android.enableJetifier=false
+android.nonTransitiveRClass=true
+android.nonFinalResIds=false
+
+# WordPress-Android required properties (dummy values for builds)
+wp.oauth.app_id=wordpress
+wp.oauth.app_secret=wordpress
+wp.gcm.id=wordpress
+wp.db_secret=wordpress
+wp.app_license_key=wordpress
+wp.zendesk.app_id=wordpress
+wp.zendesk.domain=https://example.com/
+wp.zendesk.oauth_client_id=wordpress
+wp.docsbotai.id=wordpress
+wp.reset_db_on_downgrade=false
+wp.sentry.dsn=https://00000000000000000000000000000000@sentry.io/00000000
+jp.sentry.dsn=https://00000000000000000000000000000000@sentry.io/00000000
+wp.tenor.api_key=wordpress
+wp.encrypted_logging_key=z0g+oVkqR4kWNUTxJfTozOZQjfXI7W9f6bD0uMJ5VkA=
+"""
+
     def __init__(self, pr: PullRequest, config: Config):
         self._pr = pr
         self._config = config
@@ -140,6 +169,11 @@ class WordPressAndroidImageDefault(Image):
 
     def files(self) -> list[File]:
         return [
+            File(
+                ".",
+                "gradle.properties",
+                self.WORDPRESS_GRADLE_PROPERTIES,
+            ),
             File(
                 ".",
                 "fix.patch",
@@ -184,6 +218,10 @@ git checkout {pr.base.sha}
 bash /home/check_git_changes.sh
 chmod +x gradlew
 
+# Copy WordPress gradle.properties (required for builds)
+cp /home/gradle.properties ./gradle.properties
+echo "=== Copied gradle.properties ==="
+
 echo "=== Running base tests ==="
 {test_cmd} --no-daemon --stacktrace --continue --parallel || true
 
@@ -210,6 +248,10 @@ set -e
 cd /home/{pr.repo}
 chmod +x gradlew
 
+# Copy WordPress gradle.properties (required for builds)
+cp /home/gradle.properties ./gradle.properties
+echo "=== Copied gradle.properties ==="
+
 echo "=== Running tests ==="
 {test_cmd} --no-daemon --stacktrace --continue --parallel || true
 
@@ -234,6 +276,10 @@ done
 set -e
 
 cd /home/{pr.repo}
+
+# Copy WordPress gradle.properties (required for builds)
+cp /home/gradle.properties ./gradle.properties
+echo "=== Copied gradle.properties ==="
 
 # Apply test patch with multiple strategies
 echo "=== Applying test patch ==="
@@ -277,6 +323,10 @@ done
 set -e
 
 cd /home/{pr.repo}
+
+# Copy WordPress gradle.properties (required for builds)
+cp /home/gradle.properties ./gradle.properties
+echo "=== Copied gradle.properties ==="
 
 # Apply test patch with multiple strategies
 echo "=== Applying test patch ==="

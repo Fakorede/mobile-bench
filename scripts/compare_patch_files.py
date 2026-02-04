@@ -5,102 +5,110 @@ Script to compare files modified in gold patches vs model-generated patches.
 Usage:
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/flutter/zulip/builds/zulip__zulip-flutter_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/gpt_patch_comparison_results.csv
 
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/flutter/talawa/builds/PalisadoesFoundation__talawa_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/talawa/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/talawa/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/zulip/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/talawa/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/talawa/gpt_patch_comparison_results.csv
     
 
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/reactnative/rocketchat/builds/RocketChat__Rocket.Chat.ReactNative_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/gpt_patch_comparison_results.csv
 
         
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/reactnative/expensify/builds/Expensify__App_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/expensify/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/expensify/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/expensify/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/expensify/gpt_patch_comparison_results.csv
 
     
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/reactnative/metamask/builds/MetaMask__metamask-mobile_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/metamask/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/metamask/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/rocketchat/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/metamask/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/metamask/gpt_patch_comparison_results.csv
 
 
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/java/antennapod/builds/AntennaPod__AntennaPod_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/antennapod/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/antennapod/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/antennapod/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/antennapod/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/antennapod/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/antennapod/gpt_patch_comparison_results.csv
 
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/kotlin/geto/builds/JackEblan__Geto_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/geto/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/geto/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/geto/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/geto/gpt_patch_comparison_results.csv
 
         
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/kotlin/jerboa/builds/LemmyNet__jerboa_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_patch_comparison_results.csv
         
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/kotlin/commons-app/builds/commons-app__apps-android-commons_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/commons-app/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/commons-app/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/commons-app/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/commons-app/gpt_patch_comparison_results.csv
         
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/kotlin/medtimer/builds/Futsch1__medTimer_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/medtimer/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/medtimer/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/medtimer/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/medtimer/gpt_patch_comparison_results.csv
         
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/kotlin/tusky/builds/tuskyapp__Tusky_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/tusky/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/tusky/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/tusky/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/tusky/gpt_patch_comparison_results.csv
         
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/kotlin/voice/builds/PaulWoitaschek__Voice_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/voice/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/voice/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/voice/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/voice/gpt_patch_comparison_results.csv
         
 
     python3 scripts/compare_patch_files.py \
         --dataset_file  /home/researchuser/dev/inri/mobiledev-bench/data/results/kotlin/openhab/builds/openhab__openhab-android_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/openhab/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/openhab/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/openhab/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/openhab/gpt_patch_comparison_results.csv
 
 
 
     python3 scripts/compare_patch_files.py \
         --dataset_file /home/researchuser/dev/inri/mobiledev-bench/data/results/kotlin/streetcomplete/builds/streetcomplete__StreetComplete_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/streetcomplete/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/streetcomplete/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/streetcomplete/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/streetcomplete/gpt_patch_comparison_results.csv
 
         
     python3 scripts/compare_patch_files.py \
         --dataset_file  /home/researchuser/dev/inri/mobiledev-bench/data/results/kotlin/neostumbler/builds/mjaakko__NeoStumbler_dataset.jsonl \
-        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/qwen_converted_patches.jsonl \
-        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/neostumbler/qwen_patch_comparison_results.json \
-        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/neostumbler/qwen_patch_comparison_results.csv
+        --patch_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/jerboa/gpt_converted_patches.jsonl \
+        --output_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/neostumbler/gpt_patch_comparison_results.json \
+        --csv_file /home/researchuser/dev/inri/mobiledev-bench/data/evaluation/neostumbler/gpt_patch_comparison_results.csv
+
+
+Step 2: combine csv files to excel (sonnet, gpt, qwen, gemini)
+python3 scripts/combine_csv_to_excel.py \
+    --csv_dir data/evaluation \
+    --specific gpt
+
+
 
 
 """
@@ -142,6 +150,41 @@ def get_modified_files_from_patch(patch_text: str) -> Set[str]:
     except Exception as e:
         print(f"Warning: Failed to parse patch: {e}", file=sys.stderr)
         return set()
+
+
+def get_file_extension(file_path: str) -> str:
+    """
+    Get the file extension from a file path.
+
+    Args:
+        file_path: Path to the file
+
+    Returns:
+        File extension (e.g., '.java', '.kt', '.xml') or 'no_extension'
+    """
+    from pathlib import Path as PathLib
+    path = PathLib(file_path)
+    if path.suffix:
+        return path.suffix.lower()
+    return 'no_extension'
+
+
+def categorize_files_by_extension(files: Set[str]) -> Dict[str, int]:
+    """
+    Count files by their extension.
+
+    Args:
+        files: Set of file paths
+
+    Returns:
+        Dictionary mapping extension to count
+    """
+    from collections import defaultdict
+    counts = defaultdict(int)
+    for file_path in files:
+        ext = get_file_extension(file_path)
+        counts[ext] += 1
+    return dict(counts)
 
 
 def load_jsonl(file_path: Path) -> List[Dict]:
@@ -196,6 +239,8 @@ def compare_patches(dataset_file: Path, patch_file: Path) -> Dict:
         if instance_id:
             model_by_id[instance_id] = item
 
+    from collections import defaultdict
+
     results = {
         'total_instances': 0,
         'instances_with_overlap': 0,
@@ -207,6 +252,11 @@ def compare_patches(dataset_file: Path, patch_file: Path) -> Dict:
         'total_overlapping_files': 0,
         'details': []
     }
+
+    # Aggregate extension counts across all instances
+    aggregate_gold_extensions = defaultdict(int)
+    aggregate_model_extensions = defaultdict(int)
+    aggregate_overlap_extensions = defaultdict(int)
 
     # Find common instance IDs
     common_ids = set(gold_by_id.keys()) & set(model_by_id.keys())
@@ -250,6 +300,19 @@ def compare_patches(dataset_file: Path, patch_file: Path) -> Dict:
         else:
             results['instances_without_overlap'] += 1
 
+        # Categorize files by extension
+        gold_extensions = categorize_files_by_extension(gold_files)
+        model_extensions = categorize_files_by_extension(model_files)
+        overlap_extensions = categorize_files_by_extension(overlapping_files)
+
+        # Aggregate extension counts
+        for ext, count in gold_extensions.items():
+            aggregate_gold_extensions[ext] += count
+        for ext, count in model_extensions.items():
+            aggregate_model_extensions[ext] += count
+        for ext, count in overlap_extensions.items():
+            aggregate_overlap_extensions[ext] += count
+
         # Store detailed results
         instance_result = {
             'instance_id': instance_id,
@@ -259,9 +322,21 @@ def compare_patches(dataset_file: Path, patch_file: Path) -> Dict:
             'gold_file_count': len(gold_files),
             'model_file_count': len(model_files),
             'overlap_count': len(overlapping_files),
-            'overlap_percentage': (len(overlapping_files) / len(gold_files) * 100) if gold_files else 0
+            'recall': (len(overlapping_files) / len(gold_files) * 100) if gold_files else 0,
+            'precision': (len(overlapping_files) / len(model_files) * 100) if model_files else 0,
+            'f1': (2 * len(overlapping_files) / (len(gold_files) + len(model_files)) * 100) if (gold_files or model_files) else 0,
+            'gold_extensions': gold_extensions,
+            'model_extensions': model_extensions,
+            'overlap_extensions': overlap_extensions
         }
         results['details'].append(instance_result)
+
+    # Add aggregated extension statistics to results
+    results['extension_statistics'] = {
+        'gold_extensions': dict(aggregate_gold_extensions),
+        'model_extensions': dict(aggregate_model_extensions),
+        'overlap_extensions': dict(aggregate_overlap_extensions)
+    }
 
     return results
 
@@ -286,23 +361,38 @@ def save_to_csv(results: Dict, csv_file: Path):
             'gold_file_count',
             'model_file_count',
             'overlap_count',
-            'overlap_percentage',
+            'precision',
+            'recall',
+            'f1',
             'gold_files',
             'model_files',
-            'overlapping_files'
+            'overlapping_files',
+            'gold_extensions',
+            'model_extensions',
+            'overlap_extensions'
         ])
 
         # Write data rows
         for detail in results['details']:
+            # Format extensions as "ext: count" pairs
+            gold_ext_str = '; '.join(f"{ext}: {count}" for ext, count in sorted(detail.get('gold_extensions', {}).items()))
+            model_ext_str = '; '.join(f"{ext}: {count}" for ext, count in sorted(detail.get('model_extensions', {}).items()))
+            overlap_ext_str = '; '.join(f"{ext}: {count}" for ext, count in sorted(detail.get('overlap_extensions', {}).items()))
+
             writer.writerow([
                 detail['instance_id'],
                 detail['gold_file_count'],
                 detail['model_file_count'],
                 detail['overlap_count'],
-                f"{detail['overlap_percentage']:.2f}",
+                f"{detail['precision']:.2f}",
+                f"{detail['recall']:.2f}",
+                f"{detail['f1']:.2f}",
                 '; '.join(detail['gold_files']),
                 '; '.join(detail['model_files']),
-                '; '.join(detail['overlapping_files'])
+                '; '.join(detail['overlapping_files']),
+                gold_ext_str,
+                model_ext_str,
+                overlap_ext_str
             ])
 
     print("CSV saved successfully")
@@ -324,8 +414,31 @@ def print_summary(results: Dict):
     print(f"Total overlapping files: {results['total_overlapping_files']}")
 
     if results['total_instances'] > 0:
-        avg_overlap = results['instances_with_overlap'] / results['total_instances'] * 100
-        print(f"\nAverage overlap rate: {avg_overlap:.2f}%")
+        avg_precision = sum(d['precision'] for d in results['details']) / results['total_instances']
+        avg_recall = sum(d['recall'] for d in results['details']) / results['total_instances']
+        avg_f1 = sum(d['f1'] for d in results['details']) / results['total_instances']
+        print(f"\nAverage Precision: {avg_precision:.2f}%")
+        print(f"Average Recall:    {avg_recall:.2f}%")
+        print(f"Average F1:        {avg_f1:.2f}%")
+
+    # Print file type statistics
+    if 'extension_statistics' in results:
+        ext_stats = results['extension_statistics']
+        print(f"\n{'='*80}")
+        print("FILE TYPE BREAKDOWN")
+        print(f"{'='*80}")
+
+        all_extensions = set(ext_stats['gold_extensions'].keys()) | set(ext_stats['model_extensions'].keys())
+
+        if all_extensions:
+            print(f"{'Extension':<15} {'Gold':<10} {'Model':<10} {'Overlap':<10}")
+            print(f"{'-'*45}")
+
+            for ext in sorted(all_extensions):
+                gold_count = ext_stats['gold_extensions'].get(ext, 0)
+                model_count = ext_stats['model_extensions'].get(ext, 0)
+                overlap_count = ext_stats['overlap_extensions'].get(ext, 0)
+                print(f"{ext:<15} {gold_count:<10} {model_count:<10} {overlap_count:<10}")
 
     print("\n" + "="*80)
 
@@ -390,7 +503,7 @@ def main():
             print(f"  Gold files ({detail['gold_file_count']}): {', '.join(detail['gold_files'])}")
             print(f"  Model files ({detail['model_file_count']}): {', '.join(detail['model_files'])}")
             print(f"  Overlapping ({detail['overlap_count']}): {', '.join(detail['overlapping_files']) if detail['overlapping_files'] else 'None'}")
-            print(f"  Overlap: {detail['overlap_percentage']:.1f}%")
+            print(f"  Precision: {detail['precision']:.1f}%  Recall: {detail['recall']:.1f}%  F1: {detail['f1']:.1f}%")
 
     # Save to output file if specified
     if args.output_file:
