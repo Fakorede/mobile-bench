@@ -184,6 +184,20 @@ git checkout {pr.base.sha}
 bash /home/check_git_changes.sh
 chmod +x gradlew
 
+# Set up Gradle user home
+export GRADLE_USER_HOME=/tmp/.gradle
+mkdir -p $GRADLE_USER_HOME
+
+# Configure Gradle for Thunderbird
+cat > $GRADLE_USER_HOME/gradle.properties << 'EOF'
+org.gradle.daemon=false
+org.gradle.parallel=true
+org.gradle.workers.max=4
+org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC
+android.enableJetifier=true
+android.useAndroidX=true
+EOF
+
 echo "=== Running base tests ==="
 {test_cmd} --no-daemon --stacktrace --continue --parallel || true
 
@@ -209,6 +223,20 @@ set -e
 
 cd /home/{pr.repo}
 chmod +x gradlew
+
+# Set up Gradle user home
+export GRADLE_USER_HOME=/tmp/.gradle
+mkdir -p $GRADLE_USER_HOME
+
+# Configure Gradle for Thunderbird
+cat > $GRADLE_USER_HOME/gradle.properties << 'EOF'
+org.gradle.daemon=false
+org.gradle.parallel=true
+org.gradle.workers.max=4
+org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC
+android.enableJetifier=true
+android.useAndroidX=true
+EOF
 
 echo "=== Running tests ==="
 {test_cmd} --no-daemon --stacktrace --continue --parallel || true
@@ -249,6 +277,20 @@ else
 fi
 
 chmod +x gradlew
+
+# Set up Gradle user home
+export GRADLE_USER_HOME=/tmp/.gradle
+mkdir -p $GRADLE_USER_HOME
+
+# Configure Gradle for Thunderbird
+cat > $GRADLE_USER_HOME/gradle.properties << 'EOF'
+org.gradle.daemon=false
+org.gradle.parallel=true
+org.gradle.workers.max=4
+org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC
+android.enableJetifier=true
+android.useAndroidX=true
+EOF
 
 echo "=== Cleaning build artifacts ==="
 ./gradlew clean --no-daemon || true
@@ -305,6 +347,20 @@ else
 fi
 
 chmod +x gradlew
+
+# Set up Gradle user home
+export GRADLE_USER_HOME=/tmp/.gradle
+mkdir -p $GRADLE_USER_HOME
+
+# Configure Gradle for Thunderbird
+cat > $GRADLE_USER_HOME/gradle.properties << 'EOF'
+org.gradle.daemon=false
+org.gradle.parallel=true
+org.gradle.workers.max=4
+org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC
+android.enableJetifier=true
+android.useAndroidX=true
+EOF
 
 echo "=== Cleaning build artifacts ==="
 ./gradlew clean --no-daemon || true
