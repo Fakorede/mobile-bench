@@ -336,6 +336,10 @@ class CliArgs:
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def _check_repo_dir(self):
+        # Skip repo_dir validation when using remote images
+        if self.use_remote_images:
+            return
+
         if not self.repo_dir:
             raise ValueError(f"Invalid repo_dir: {self.repo_dir}")
         if isinstance(self.repo_dir, str):
