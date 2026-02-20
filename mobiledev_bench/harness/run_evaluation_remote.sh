@@ -24,6 +24,7 @@ set -e  # Exit on error
 
 # Common paths
 WORKDIR="data/results/evaluation"
+REPO_DIR="/tmp"  # Dummy value - not used with remote images, but required by CLI
 LOG_DIR="data/results/evaluation/logs"
 
 # Dataset files (shared across all models)
@@ -171,6 +172,7 @@ CMD="$CMD --ghcr_username $GHCR_USERNAME"
 CMD="$CMD --patch_files $PATCH_FILES"
 CMD="$CMD --dataset_files $DATASET_FILES"
 CMD="$CMD --workdir $WORKDIR"
+CMD="$CMD --repo_dir $REPO_DIR"
 CMD="$CMD --output_dir $OUTPUT_DIR"
 CMD="$CMD --log_dir $LOG_DIR"
 CMD="$CMD --max_workers_run_instance $MAX_WORKERS_RUN_INSTANCE"
