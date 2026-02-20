@@ -24,7 +24,6 @@ set -e  # Exit on error
 
 # Common paths
 WORKDIR="data/results/evaluation"
-REPO_DIR="data/repos"
 LOG_DIR="data/results/evaluation/logs"
 
 # Dataset files (shared across all models)
@@ -35,7 +34,6 @@ GHCR_USERNAME="mobiledev-bench"
 
 # Execution settings
 MAX_WORKERS_RUN_INSTANCE=1  # Set to 1 to avoid parallel downloads
-NEED_CLONE=true             # Set to true if repos need to be cloned
 STOP_ON_ERROR=false         # Continue on errors
 LOG_LEVEL="INFO"
 
@@ -173,10 +171,8 @@ CMD="$CMD --ghcr_username $GHCR_USERNAME"
 CMD="$CMD --patch_files $PATCH_FILES"
 CMD="$CMD --dataset_files $DATASET_FILES"
 CMD="$CMD --workdir $WORKDIR"
-CMD="$CMD --repo_dir $REPO_DIR"
 CMD="$CMD --output_dir $OUTPUT_DIR"
 CMD="$CMD --log_dir $LOG_DIR"
-CMD="$CMD --need_clone $NEED_CLONE"
 CMD="$CMD --max_workers_run_instance $MAX_WORKERS_RUN_INSTANCE"
 CMD="$CMD --stop_on_error $STOP_ON_ERROR"
 CMD="$CMD --log_level $LOG_LEVEL"
