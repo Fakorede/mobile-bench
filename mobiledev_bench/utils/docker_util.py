@@ -29,6 +29,88 @@ def exists(image_name: str) -> bool:
         return False
 
 
+def pull(image_name: str, ghcr_username: str, logger: logging.Logger) -> bool:
+    """
+    Pull a Docker image from GHCR and tag it with local name.
+
+    Args:
+        image_name: Local image name (e.g., mobiledevbench/org_mb_repo:pr-123)
+        ghcr_username: GHCR username/organization
+        logger: Logger instance
+
+    Returns:
+        bool: True if pull and tag successful, False otherwise
+    """
+    # Extract tag and repo from local image (mobiledevbench/repo:tag)
+    tag = image_name.split(":")[-1] if ":" in image_name else "latest"
+    repo_name = image_name.split(":")[0] if ":" in image_name else image_name
+
+    # GHCR format: ghcr.io/username/mobiledevbench/repo:tag
+    ghcr_image = f"ghcr.io/{ghcr_username}/{repo_name}:{tag}"
+
+    logger.info(f"Pulling image from GHCR: {ghcr_image}")
+
+    try:
+        # Pull the image from GHCR
+        pull_logs = docker_client.api.pull(ghcr_image, stream=True, decode=True)
+        for log in pull_logs:
+            if "status" in log:
+                logger.debug(f"{log['status']} {log.get('progress', '')}".strip())
+            elif "error" in log:
+                error_message = log["error"].strip()
+                logger.error(f"Docker pull error: {error_message}")
+                return False
+
+        logger.info(f"Successfully pulled: {ghcr_image}")
+
+        # Tag with local name
+        logger.info(f"Tagging as: {image_name}")
+        image = docker_client.images.get(ghcr_image)
+        image.tag(image_name)
+        logger.info(f"Successfully tagged as: {image_name}")
+
+        # Remove the GHCR remote tag to save space
+        logger.debug(f"Removing remote tag: {ghcr_image}")
+        docker_client.images.remove(ghcr_image, force=False)
+
+        return True
+
+    except docker.errors.APIError as e:
+        logger.error(f"Pull error: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unknown pull error occurred: {e}")
+        return False
+
+
+def delete(image_name: str, logger: logging.Logger, force: bool = True) -> bool:
+    """
+    Delete a Docker image to free up disk space.
+
+    Args:
+        image_name: Image name to delete
+        logger: Logger instance
+        force: Force removal even if image is in use
+
+    Returns:
+        bool: True if deletion successful, False otherwise
+    """
+    logger.info(f"Deleting image: {image_name}")
+    try:
+        docker_client.images.remove(image_name, force=force)
+        logger.info(f"Successfully deleted image: {image_name}")
+        return True
+    except docker.errors.ImageNotFound:
+        logger.warning(f"Image not found, cannot delete: {image_name}")
+        return False
+    except docker.errors.APIError as e:
+        logger.error(f"Delete error: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unknown delete error occurred: {e}")
+        return False
+
+
 def build(
     workdir: Path, dockerfile_name: str, image_full_name: str, logger: logging.Logger
 ):

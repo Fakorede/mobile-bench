@@ -193,6 +193,20 @@ def get_parser() -> ArgumentParser:
         default=True,
         help="The dataset is constructed by human or not",
     )
+    parser.add_argument(
+        "--use_remote_images",
+        type=parser.bool,
+        required=False,
+        default=False,
+        help="Use remote images from registry instead of building locally. Images will be pulled before each instance run and deleted after to save disk space.",
+    )
+    parser.add_argument(
+        "--ghcr_username",
+        type=str,
+        required=False,
+        default="mobiledev-bench",
+        help="GitHub Container Registry username/organization (default: mobiledev-bench). Required when --use_remote_images is True.",
+    )
 
     return parser
 
@@ -237,6 +251,8 @@ class CliArgs:
     log_level: str
     log_to_console: bool
     human_mode: bool = True
+    use_remote_images: bool = False
+    ghcr_username: str = "mobiledev-bench"
 
     def __post_init__(self):
         self._check_mode()
@@ -703,6 +719,14 @@ class CliArgs:
             )
             return
 
+        # Pull image from GHCR if use_remote_images is enabled
+        image_name = instance.name()
+        if self.use_remote_images:
+            self.logger.info(f"Pulling image from GHCR: {image_name}")
+            if not docker_util.pull(image_name, self.ghcr_username, self.logger):
+                self.logger.error(f"Failed to pull image: {image_name}")
+                raise RuntimeError(f"Failed to pull image: {image_name}")
+
         def run_and_save_output(
             image_full_name: str, run_command: str, output_path: Path
         ):
@@ -723,35 +747,41 @@ class CliArgs:
             )
             return output
 
-        if not self.human_mode:
-            from mobiledev_bench.utils.session_util import run_and_save_logs
+        try:
+            if not self.human_mode:
+                from mobiledev_bench.utils.session_util import run_and_save_logs
 
-            prepare_script_path = (
-                self.workdir
-                / instance.pr.org
-                / instance.pr.repo
-                / "images"
-                / f"pr-{instance.pr.number}"
-                / "prepare.sh"
-            )
-            asyncio.run(
-                run_and_save_logs(
-                    "fix",
-                    instance.name(),
-                    f"{instance.fix_patch_run(self.fix_patch_run_cmd)} >> /home/fix_msb.log 2>&1",
-                    self.logger,
-                    instance_dir / FIX_PATCH_RUN_LOG_FILE,
-                    "/home/fix_msb.log",
-                    prepare_script_path=prepare_script_path,
-                    global_env=self.global_env,
+                prepare_script_path = (
+                    self.workdir
+                    / instance.pr.org
+                    / instance.pr.repo
+                    / "images"
+                    / f"pr-{instance.pr.number}"
+                    / "prepare.sh"
                 )
-            )
-        else:
-            run_and_save_output(
-                instance.name(),
-                instance.fix_patch_run(self.fix_patch_run_cmd),
-                instance_dir / FIX_PATCH_RUN_LOG_FILE,
-            )
+                asyncio.run(
+                    run_and_save_logs(
+                        "fix",
+                        instance.name(),
+                        f"{instance.fix_patch_run(self.fix_patch_run_cmd)} >> /home/fix_msb.log 2>&1",
+                        self.logger,
+                        instance_dir / FIX_PATCH_RUN_LOG_FILE,
+                        "/home/fix_msb.log",
+                        prepare_script_path=prepare_script_path,
+                        global_env=self.global_env,
+                    )
+                )
+            else:
+                run_and_save_output(
+                    instance.name(),
+                    instance.fix_patch_run(self.fix_patch_run_cmd),
+                    instance_dir / FIX_PATCH_RUN_LOG_FILE,
+                )
+        finally:
+            # Delete image to free up disk space if use_remote_images is enabled
+            if self.use_remote_images:
+                self.logger.info(f"Cleaning up image: {image_name}")
+                docker_util.delete(image_name, self.logger)
 
     def run_mode_instance_only(self):
         self.logger.info("Running instances...")
@@ -786,7 +816,13 @@ class CliArgs:
         self.run_mode_instance_only()
 
     def run_mode_evaluation(self):
-        self.run_mode_instance()
+        if self.use_remote_images:
+            self.logger.info("Using remote images (--use_remote_images=True)")
+            self.logger.info("Images will be pulled from GHCR as needed")
+            self.run_mode_instance_only()
+        else:
+            self.run_mode_instance()
+
         self.logger.info("Running evaluation...")
         ReportBuilder(
             mode="evaluation",
