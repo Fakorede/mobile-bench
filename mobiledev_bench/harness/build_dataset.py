@@ -226,6 +226,20 @@ def get_parser() -> ArgumentParser:
         default=1800,
         help="The timeout for the agent to run",
     )
+    parser.add_argument(
+        "--push_image",
+        type=parser.bool,
+        required=False,
+        default=False,
+        help="Whether to push images to GHCR after building and delete locally to save disk space",
+    )
+    parser.add_argument(
+        "--ghcr_username",
+        type=str,
+        required=False,
+        default="MobileDev-Bench",
+        help="GHCR username/organization for pushing images",
+    )
 
     return parser
 
@@ -265,6 +279,8 @@ class CliArgs:
     run_log: bool = True
     human_mode: bool = True
     agent_timeout: int = 1800
+    push_image: bool = False
+    ghcr_username: str = "MobileDev-Bench"
 
     def __post_init__(self):
         self._check_mode()
@@ -541,6 +557,42 @@ class CliArgs:
         # if error_happened:
         #     raise ValueError("Check commit hashes failed, please check the logs.")
 
+    def push_image_to_ghcr(self, image_name: str) -> bool:
+        """Push image to GHCR with the appropriate tag."""
+        try:
+            # GHCR image format: ghcr.io/{username}/{image_name}
+            ghcr_image = f"ghcr.io/{self.ghcr_username}/{image_name}"
+
+            self.logger.info(f"Tagging image for GHCR: {ghcr_image}")
+            docker_client = docker.from_env()
+            image = docker_client.images.get(image_name)
+            image.tag(ghcr_image)
+
+            self.logger.info(f"Pushing image to GHCR: {ghcr_image}")
+            push_logs = docker_client.api.push(ghcr_image, stream=True, decode=True)
+
+            for log in push_logs:
+                if "status" in log:
+                    self.logger.debug(f"{log['status']} {log.get('progress', '')}".strip())
+                elif "error" in log:
+                    error_message = log["error"].strip()
+                    self.logger.error(f"Docker push error: {error_message}")
+                    return False
+
+            self.logger.info(f"Successfully pushed to GHCR: {ghcr_image}")
+
+            # Remove the GHCR tag to clean up
+            docker_client.images.remove(ghcr_image, force=False)
+
+            return True
+
+        except docker.errors.APIError as e:
+            self.logger.error(f"Failed to push image to GHCR: {e}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error pushing image: {e}")
+            return False
+
     def build_image(self, image: Image):
         workdir = self.workdir / image.pr.org / image.pr.repo / BUILD_IMAGE_WORKDIR
         image_dir = workdir / image.workdir()
@@ -579,6 +631,19 @@ class CliArgs:
             ),
         )
         self.logger.info(f"Image {image.image_full_name()} built successfully.")
+
+        # Push to GHCR and delete locally if flag is set
+        if self.push_image:
+            self.logger.info(f"Pushing image to GHCR: {image.image_full_name()}")
+            if self.push_image_to_ghcr(image.image_full_name()):
+                self.logger.info(f"Deleting local image to save disk space: {image.image_full_name()}")
+                try:
+                    docker_util.delete(image.image_full_name(), self.logger, force=True)
+                    self.logger.info(f"Successfully deleted local image: {image.image_full_name()}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to delete local image: {e}")
+            else:
+                self.logger.error(f"Failed to push image to GHCR, keeping local copy: {image.image_full_name()}")
 
     def run_mode_image(self):
         self.logger.info("Building images...")
