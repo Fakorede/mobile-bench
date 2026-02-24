@@ -561,7 +561,9 @@ class CliArgs:
         """Push image to GHCR with the appropriate tag."""
         try:
             # GHCR image format: ghcr.io/{username}/{image_name}
-            ghcr_image = f"ghcr.io/{self.ghcr_username}/{image_name}"
+            # Docker registry requires lowercase, so convert username
+            ghcr_username_lower = self.ghcr_username.lower()
+            ghcr_image = f"ghcr.io/{ghcr_username_lower}/{image_name}"
 
             self.logger.info(f"Tagging image for GHCR: {ghcr_image}")
             docker_client = docker.from_env()
