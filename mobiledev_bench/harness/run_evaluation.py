@@ -790,6 +790,11 @@ class CliArgs:
     def run_mode_instance_only(self):
         self.logger.info("Running instances...")
 
+        # Clean up any leftover containers before starting
+        if self.use_remote_images:
+            self.logger.info("Cleaning up leftover containers before starting...")
+            docker_util.cleanup_containers(self.logger, status_filter="exited")
+
         with tqdm(total=len(self.instances), desc="Running instances") as running_bar:
             with concurrent.futures.ThreadPoolExecutor(
                 max_workers=self.max_workers_run_instance
@@ -799,6 +804,7 @@ class CliArgs:
                     for instance in self.instances
                 }
 
+                completed_count = 0
                 for future in concurrent.futures.as_completed(futures):
                     instance = futures[future]
                     try:
@@ -812,6 +818,19 @@ class CliArgs:
                             sys.exit(1)
                     finally:
                         running_bar.update(1)
+                        completed_count += 1
+
+                        # Periodic cleanup every 10 instances when using remote images
+                        if self.use_remote_images and completed_count % 10 == 0:
+                            self.logger.info(
+                                f"Periodic cleanup after {completed_count} instances..."
+                            )
+                            docker_util.cleanup_containers(self.logger, status_filter="exited")
+
+        # Final cleanup when done
+        if self.use_remote_images:
+            self.logger.info("Final cleanup of containers...")
+            docker_util.cleanup_containers(self.logger, status_filter="exited")
 
         self.logger.info("Instances run successfully.")
 

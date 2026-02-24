@@ -150,6 +150,41 @@ def build(
         raise e
 
 
+def cleanup_containers(logger: logging.Logger, status_filter: str = "exited") -> int:
+    """
+    Clean up stopped/exited Docker containers to free up disk space.
+
+    Args:
+        logger: Logger instance
+        status_filter: Container status to filter (default: "exited")
+                      Options: "exited", "dead", "created"
+
+    Returns:
+        int: Number of containers removed
+    """
+    try:
+        containers = docker_client.containers.list(
+            all=True, filters={"status": status_filter}
+        )
+        removed_count = 0
+
+        for container in containers:
+            try:
+                logger.debug(f"Removing container: {container.id[:12]} ({container.name})")
+                container.remove(force=True)
+                removed_count += 1
+            except Exception as e:
+                logger.warning(f"Failed to remove container {container.id[:12]}: {e}")
+
+        if removed_count > 0:
+            logger.info(f"Cleaned up {removed_count} {status_filter} containers")
+        return removed_count
+
+    except Exception as e:
+        logger.error(f"Failed to cleanup containers: {e}")
+        return 0
+
+
 def run(
     image_full_name: str,
     run_command: str,
