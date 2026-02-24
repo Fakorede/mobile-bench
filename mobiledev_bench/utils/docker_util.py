@@ -18,7 +18,9 @@ from typing import Optional, Union
 
 import docker
 
-docker_client = docker.from_env()
+# Increase timeout for long-running operations (e.g., large image pulls, slow builds)
+# Default is 60s which can cause timeouts for Android builds and large image pulls
+docker_client = docker.from_env(timeout=600)
 
 
 def exists(image_name: str) -> bool:
@@ -173,13 +175,22 @@ def cleanup_containers(logger: logging.Logger, status_filter: str = "exited") ->
                 logger.debug(f"Removing container: {container.id[:12]} ({container.name})")
                 container.remove(force=True)
                 removed_count += 1
-            except Exception as e:
+            except docker.errors.NotFound:
+                # Container already removed, skip
+                logger.debug(f"Container {container.id[:12]} already removed")
+            except docker.errors.APIError as e:
+                # Handle API errors (timeouts, connection issues) gracefully
                 logger.warning(f"Failed to remove container {container.id[:12]}: {e}")
+            except Exception as e:
+                logger.warning(f"Unexpected error removing container {container.id[:12]}: {e}")
 
         if removed_count > 0:
             logger.info(f"Cleaned up {removed_count} {status_filter} containers")
         return removed_count
 
+    except docker.errors.APIError as e:
+        logger.error(f"Docker API error during cleanup: {e}")
+        return 0
     except Exception as e:
         logger.error(f"Failed to cleanup containers: {e}")
         return 0
@@ -191,6 +202,7 @@ def run(
     output_path: Optional[Path] = None,
     global_env: Optional[list[str]] = None,
     volumes: Optional[Union[dict[str, str], list[str]]] = None,
+    timeout: int = 3600,  # 1 hour default timeout for container execution
 ) -> str:
     container = None
     try:
@@ -208,18 +220,47 @@ def run(
         output = ""
         if output_path:
             with open(output_path, "w", encoding="utf-8") as f:
-                for line in container.logs(stream=True, follow=True):
-                    line_decoded = line.decode("utf-8")
-                    f.write(line_decoded)
-                    output += line_decoded
+                try:
+                    # Stream logs with timeout handling
+                    for line in container.logs(stream=True, follow=True):
+                        line_decoded = line.decode("utf-8")
+                        f.write(line_decoded)
+                        output += line_decoded
+                except docker.errors.APIError as e:
+                    # Handle connection/timeout errors gracefully
+                    print(f"Warning: Log streaming interrupted: {e}")
+                    # Try to get remaining logs
+                    try:
+                        container.reload()
+                        remaining = container.logs(tail=100).decode("utf-8")
+                        f.write(f"\n[Log streaming interrupted, last 100 lines:]\n{remaining}")
+                        output += remaining
+                    except:
+                        pass
         else:
-            container.wait()
-            output = container.logs().decode("utf-8")
+            # Wait for container with timeout
+            try:
+                container.wait(timeout=timeout)
+                output = container.logs().decode("utf-8")
+            except docker.errors.APIError as e:
+                print(f"Warning: Container wait timeout: {e}")
+                # Try to get partial output
+                try:
+                    output = container.logs().decode("utf-8")
+                except:
+                    output = f"Error: Container execution timeout after {timeout}s"
 
         return output
     finally:
         if container:
             try:
+                # Ensure container is stopped before removing
+                try:
+                    container.reload()
+                    if container.status in ["running", "created"]:
+                        container.stop(timeout=10)
+                except:
+                    pass
                 container.remove(force=True)
             except Exception as e:
                 print(f"Warning: Failed to remove container: {e}")
