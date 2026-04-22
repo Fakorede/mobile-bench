@@ -3,6 +3,8 @@
 # Script to run evaluation with remote images from GHCR
 # This script provides a convenient way to run evaluations for different models
 # without needing to build images locally.
+# You need to authenticate with a GitHub personal access token (PAT) that has read:packages scope.
+# echo "YOUR_GITHUB_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 #
 # Usage:
 #   ./mobiledev_bench/harness/run_evaluation_remote.sh <model_name> [options]
@@ -25,10 +27,10 @@ set -e  # Exit on error
 # Common paths
 WORKDIR="data/results/evaluation"
 REPO_DIR="/tmp"  # Dummy value - not used with remote images, but required by CLI
-LOG_DIR="data/results/evaluation/logs"
+LOG_DIR="data/results/evaluation/oracle/claude-sonnet-4.5/logs"
 
 # Dataset files (shared across all models)
-DATASET_FILES="data/instances/final_combined_dataset.jsonl"
+DATASET_FILES="data/instances/verified_dataset.jsonl"
 
 # GHCR settings
 GHCR_USERNAME="mobiledev-bench"
@@ -47,20 +49,20 @@ declare -A MODEL_PATCH_FILES
 declare -A MODEL_OUTPUT_DIRS
 
 # Claude Sonnet 4.5 configuration
-MODEL_PATCH_FILES["claude-sonnet-4.5"]="data/results/claude-sonnet-4.5_converted_patches.jsonl"
-MODEL_OUTPUT_DIRS["claude-sonnet-4.5"]="data/results/evaluation/claude-sonnet-4.5"
+MODEL_PATCH_FILES["claude-sonnet-4.5"]="data/results/predictions/oracle/anthropic__claude-sonnet-4-5.jsonl"
+MODEL_OUTPUT_DIRS["claude-sonnet-4.5"]="data/results/evaluation/oracle/claude-sonnet-4.5"
 
 # Gemini 2.5 Flash configuration
-MODEL_PATCH_FILES["gemini-2.5-flash"]="data/results/gemini-2.5-flash_converted_patches.jsonl"
-MODEL_OUTPUT_DIRS["gemini-2.5-flash"]="data/results/evaluation/gemini-2.5-flash"
+MODEL_PATCH_FILES["gemini-2.5-flash"]="data/results/predictions/oracle/google__gemini-2.5-flash.jsonl"
+MODEL_OUTPUT_DIRS["gemini-2.5-flash"]="data/results/evaluation/oracle/gemini-2.5-flash"
 
 # Qwen3 Coder configuration
-MODEL_PATCH_FILES["qwen3-coder"]="data/results/qwen3-coder_converted_patches.jsonl"
-MODEL_OUTPUT_DIRS["qwen3-coder"]="data/results/evaluation/qwen3-coder"
+MODEL_PATCH_FILES["qwen3-coder"]="data/results/predictions/oracle/qwen__qwen3-coder.jsonl"
+MODEL_OUTPUT_DIRS["qwen3-coder"]="data/results/evaluation/oracle/qwen3-coder"
 
 # GPT 5.2 configuration
-MODEL_PATCH_FILES["gpt-5.2"]="data/results/gpt-5.2_converted_patches.jsonl"
-MODEL_OUTPUT_DIRS["gpt-5.2"]="data/results/evaluation/gpt-5.2"
+MODEL_PATCH_FILES["gpt-5.2"]="data/results/predictions/oracle/openai__gpt-5.2.jsonl"
+MODEL_OUTPUT_DIRS["gpt-5.2"]="data/results/evaluation/oracle/gpt-5.2"
 
 # Add more models as needed
 # MODEL_PATCH_FILES["model_name"]="data/results/model_name_converted_patches.jsonl"
