@@ -221,6 +221,7 @@ class RepoCommits(Repository):
 @dataclass
 class Patch(PullRequestBase):
     fix_patch: str
+    model: str = ""
 
     def __post_init__(self):
         if not isinstance(self.fix_patch, str):
@@ -731,6 +732,25 @@ class CliArgs:
                 self.logger.error(f"Failed to pull image: {image_name}")
                 raise RuntimeError(f"Failed to pull image: {image_name}")
 
+        patch = self.patches[instance.pr.id]
+        use_begin_patch_applier = (
+            "gpt-5.2" in patch.model
+            and patch.fix_patch.strip().startswith("*** Begin Patch")
+        )
+
+        volumes = {
+            fix_patch_path: {
+                "bind": instance.dependency().fix_patch_path(),
+                "mode": "rw",
+            }
+        }
+        if use_begin_patch_applier:
+            applier_path = Path(__file__).parent / "apply_begin_patch.py"
+            volumes[str(applier_path.absolute())] = {
+                "bind": "/home/apply_begin_patch.py",
+                "mode": "ro",
+            }
+
         def run_and_save_output(
             image_full_name: str, run_command: str, output_path: Path
         ):
@@ -742,12 +762,7 @@ class CliArgs:
                 run_command,
                 output_path,
                 self.global_env,
-                volumes={
-                    fix_patch_path: {
-                        "bind": instance.dependency().fix_patch_path(),
-                        "mode": "rw",
-                    }
-                },
+                volumes=volumes,
             )
             return output
 
@@ -776,9 +791,16 @@ class CliArgs:
                     )
                 )
             else:
+                fix_cmd = instance.fix_patch_run(self.fix_patch_run_cmd)
+                if use_begin_patch_applier:
+                    repo_path = f"/home/{instance.pr.repo}"
+                    fix_cmd = (
+                        f"bash -c 'python3 /home/apply_begin_patch.py"
+                        f" /home/fix.patch {repo_path} && {fix_cmd}'"
+                    )
                 run_and_save_output(
                     instance.name(),
-                    instance.fix_patch_run(self.fix_patch_run_cmd),
+                    fix_cmd,
                     instance_dir / FIX_PATCH_RUN_LOG_FILE,
                 )
         finally:

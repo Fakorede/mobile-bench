@@ -13,7 +13,7 @@
 #
 # Examples:
 #   ./mobiledev_bench/harness/run_evaluation_remote.sh claude-sonnet-4.5 --repo WordPress-Android --max-workers 2 --dry-run
-#   ./mobiledev_bench/harness/run_evaluation_remote.sh gemini-2.5-flash --specifics instance_id_1 instance_id_2
+#   ./mobiledev_bench/harness/run_evaluation_remote.sh gemini-2.5-flash --specifics PalisadoesFoundation/talawa:pr-2220 PalisadoesFoundation/talawa:pr-2216
 #   ./mobiledev_bench/harness/run_evaluation_remote.sh qwen3-coder --max-workers 2
 #   ./mobiledev_bench/harness/run_evaluation_remote.sh gpt-5.2 --dry-run
 
@@ -25,9 +25,7 @@ set -e  # Exit on error
 # ============================================================================
 
 # Common paths
-WORKDIR="data/results/evaluation"
 REPO_DIR="/tmp"  # Dummy value - not used with remote images, but required by CLI
-LOG_DIR="data/results/evaluation/oracle/claude-sonnet-4.5/logs"
 
 # Dataset files (shared across all models)
 DATASET_FILES="data/instances/verified_dataset.jsonl"
@@ -126,6 +124,8 @@ fi
 # Get model-specific configuration
 PATCH_FILES="${MODEL_PATCH_FILES[$MODEL_NAME]}"
 OUTPUT_DIR="${MODEL_OUTPUT_DIRS[$MODEL_NAME]}"
+WORKDIR="${OUTPUT_DIR}/workdir"
+LOG_DIR="${OUTPUT_DIR}/logs"
 
 # Parse additional arguments
 SPECIFICS=""
