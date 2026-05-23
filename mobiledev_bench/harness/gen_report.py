@@ -14,7 +14,9 @@
 
 import concurrent.futures
 import glob
+import json
 import logging
+import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Dict, Literal, Optional, Tuple, Union
@@ -295,7 +297,18 @@ class CliArgs:
                         if line.strip() == "":
                             continue
 
-                        dataset = Dataset.from_json(line)
+                        raw = json.loads(line)
+                        for _f in ['base', 'resolved_issues', 'run_result',
+                                   'test_patch_result', 'fix_patch_result',
+                                   'fixed_tests', 'p2p_tests', 'f2p_tests',
+                                   's2p_tests', 'n2p_tests']:
+                            if _f in raw and isinstance(raw[_f], str):
+                                raw[_f] = json.loads(raw[_f])
+                        _str_defaults = {'tag': '', 'number_interval': '', 'lang': ''}
+                        for _k, _v in raw.items():
+                            if isinstance(_v, float) and math.isnan(_v):
+                                raw[_k] = _str_defaults.get(_k, None)
+                        dataset = Dataset.from_json(json.dumps(raw))
 
                         if not self.check_specific(dataset.id):
                             continue

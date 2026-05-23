@@ -14,7 +14,9 @@
 
 import concurrent.futures
 import glob
+import json
 import logging
+import math
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -404,7 +406,8 @@ class CliArgs:
             for file_path in self._patch_files:
                 with open(file_path, "r", encoding="utf-8") as f:
                     for line in f:
-                        if line.strip() == "":
+                        line = line.strip().lstrip(",")
+                        if not line:
                             continue
 
                         patch = Patch.from_json(line)
@@ -435,7 +438,18 @@ class CliArgs:
                         if line.strip() == "":
                             continue
 
-                        dataset = Dataset.from_json(line)
+                        raw = json.loads(line)
+                        for _f in ['base', 'resolved_issues', 'run_result',
+                                   'test_patch_result', 'fix_patch_result',
+                                   'fixed_tests', 'p2p_tests', 'f2p_tests',
+                                   's2p_tests', 'n2p_tests']:
+                            if _f in raw and isinstance(raw[_f], str):
+                                raw[_f] = json.loads(raw[_f])
+                        _str_defaults = {'tag': '', 'number_interval': '', 'lang': ''}
+                        for _k, _v in raw.items():
+                            if isinstance(_v, float) and math.isnan(_v):
+                                raw[_k] = _str_defaults.get(_k, None)
+                        dataset = Dataset.from_json(json.dumps(raw))
                         if not self.check_specific(dataset.id):
                             continue
                         if self.check_skip(dataset.id):
@@ -704,6 +718,14 @@ class CliArgs:
         self.logger.info("Images built successfully.")
 
     def run_instance(self, instance: Instance):
+        patch = self.patches[instance.pr.id]
+
+        if not patch.fix_patch.strip():
+            self.logger.info(
+                f"Empty patch for {instance.name()}, skipping..."
+            )
+            return
+
         instance_dir = (
             self.workdir
             / instance.pr.org
@@ -715,7 +737,10 @@ class CliArgs:
 
         fix_patch_path = instance_dir.absolute() / "fix.patch"
         with open(fix_patch_path, "w", encoding="utf-8", newline="\n") as f:
-            f.write(self.patches[instance.pr.id].fix_patch)
+            fix_patch_content = patch.fix_patch
+            if fix_patch_content and not fix_patch_content.endswith("\n"):
+                fix_patch_content += "\n"
+            f.write(fix_patch_content)
 
         report_path = instance_dir / REPORT_FILE
         if report_path.exists():
@@ -732,7 +757,6 @@ class CliArgs:
                 self.logger.error(f"Failed to pull image: {image_name}")
                 raise RuntimeError(f"Failed to pull image: {image_name}")
 
-        patch = self.patches[instance.pr.id]
         use_begin_patch_applier = (
             "gpt-5.2" in patch.model
             and patch.fix_patch.strip().startswith("*** Begin Patch")
