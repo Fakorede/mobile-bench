@@ -202,7 +202,7 @@ bash /home/check_git_changes.sh
 git checkout {pr.base.sha}
 bash /home/check_git_changes.sh
 chmod +x gradlew
-{test_cmd} --no-daemon --stacktrace --continue --parallel || true
+{test_cmd} --no-daemon --stacktrace --continue || true
 """.format(pr=self.pr, test_cmd=self.pr.test_command or "./gradlew clean test"),
             ),
             File(

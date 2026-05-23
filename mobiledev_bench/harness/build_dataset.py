@@ -240,6 +240,14 @@ def get_parser() -> ArgumentParser:
         default="MobileDev-Bench",
         help="GHCR username/organization for pushing images",
     )
+    parser.add_argument(
+        "--use_remote_images",
+        type=parser.bool,
+        required=False,
+        default=False,
+        help="Pull instance images from GHCR instead of building locally. "
+             "Each image is pulled before its tests run and deleted afterwards.",
+    )
 
     return parser
 
@@ -281,6 +289,7 @@ class CliArgs:
     agent_timeout: int = 1800
     push_image: bool = False
     ghcr_username: str = "MobileDev-Bench"
+    use_remote_images: bool = False
 
     def __post_init__(self):
         self._check_mode()
@@ -595,6 +604,35 @@ class CliArgs:
             self.logger.error(f"Unexpected error pushing image: {e}")
             return False
 
+    def pull_image_from_ghcr(self, image_name: str) -> bool:
+        """Pull an image from GHCR and tag it with the local image name."""
+        try:
+            ghcr_username_lower = self.ghcr_username.lower()
+            ghcr_image = f"ghcr.io/{ghcr_username_lower}/{image_name}"
+
+            self.logger.info(f"Pulling image from GHCR: {ghcr_image}")
+            docker_client = docker.from_env()
+            for log in docker_client.api.pull(ghcr_image, stream=True, decode=True):
+                if "status" in log:
+                    self.logger.debug(f"{log['status']} {log.get('progress', '')}".strip())
+                elif "error" in log:
+                    self.logger.error(f"Docker pull error: {log['error'].strip()}")
+                    return False
+
+            image = docker_client.images.get(ghcr_image)
+            image.tag(image_name)
+            docker_client.images.remove(ghcr_image, force=False)
+
+            self.logger.info(f"Successfully pulled: {image_name}")
+            return True
+
+        except docker.errors.APIError as e:
+            self.logger.error(f"Failed to pull image from GHCR: {e}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error pulling image: {e}")
+            return False
+
     def build_image(self, image: Image):
         workdir = self.workdir / image.pr.org / image.pr.repo / BUILD_IMAGE_WORKDIR
         image_dir = workdir / image.workdir()
@@ -634,18 +672,15 @@ class CliArgs:
         )
         self.logger.info(f"Image {image.image_full_name()} built successfully.")
 
-        # Push to GHCR and delete locally if flag is set
+        # Push to GHCR if flag is set; deletion is deferred to run_mode_image
+        # so that base images are not removed before their dependents are built.
         if self.push_image:
             self.logger.info(f"Pushing image to GHCR: {image.image_full_name()}")
             if self.push_image_to_ghcr(image.image_full_name()):
-                self.logger.info(f"Deleting local image to save disk space: {image.image_full_name()}")
-                try:
-                    docker_util.delete(image.image_full_name(), self.logger, force=True)
-                    self.logger.info(f"Successfully deleted local image: {image.image_full_name()}")
-                except Exception as e:
-                    self.logger.warning(f"Failed to delete local image: {e}")
+                return True
             else:
                 self.logger.error(f"Failed to push image to GHCR, keeping local copy: {image.image_full_name()}")
+        return False
 
     def run_mode_image(self):
         self.logger.info("Building images...")
@@ -680,6 +715,17 @@ class CliArgs:
             for image in images[external_name]:
                 building_images.add(image)
 
+        def delete_local_images(to_delete: set[Image]) -> None:
+            for image in to_delete:
+                self.logger.info(f"Deleting local image to save disk space: {image.image_full_name()}")
+                try:
+                    docker_util.delete(image.image_full_name(), self.logger, force=True)
+                    self.logger.info(f"Successfully deleted local image: {image.image_full_name()}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to delete local image: {e}")
+
+        prev_pushed_images: set[Image] = set()
+
         with tqdm(total=image_count, desc="Building images") as building_bar:
             while building_images:
                 with concurrent.futures.ThreadPoolExecutor(
@@ -691,10 +737,13 @@ class CliArgs:
                     }
 
                     failed_images: set[Image] = set()
+                    pushed_images: set[Image] = set()
                     for future in concurrent.futures.as_completed(futures):
                         image = futures[future]
                         try:
-                            future.result()
+                            was_pushed = future.result()
+                            if was_pushed:
+                                pushed_images.add(image)
                         except Exception as e:
                             self.logger.error(
                                 f"Error building image {image.image_full_name()}: {e}"
@@ -706,6 +755,10 @@ class CliArgs:
                         finally:
                             building_bar.update(1)
 
+                # All dependents of prev_pushed_images are now built — safe to delete.
+                if self.push_image:
+                    delete_local_images(prev_pushed_images)
+
                 new_building_images: set[Image] = set()
                 for image in building_images:
                     if image in failed_images:
@@ -716,7 +769,13 @@ class CliArgs:
 
                     for new_image in images[image.image_full_name()]:
                         new_building_images.add(new_image)
+
+                prev_pushed_images = pushed_images
                 building_images = new_building_images
+
+        # Final wave has no dependents — delete immediately.
+        if self.push_image:
+            delete_local_images(prev_pushed_images)
 
         self.logger.info("Images built successfully.")
 
@@ -736,6 +795,13 @@ class CliArgs:
                 f"Report already exists for {instance.name()}, skipping..."
             )
             return
+
+        if self.use_remote_images:
+            image_name = instance.name()
+            if not docker_util.exists(image_name):
+                if not self.pull_image_from_ghcr(image_name):
+                    self.logger.error(f"Skipping {instance.name()}: image not available on GHCR")
+                    return
 
         def run_and_save_output(
             image_full_name: str, run_command: str, output_path: Path
@@ -897,6 +963,13 @@ class CliArgs:
                 self.logger.info(
                     f"{envagent_image_name}/{instance.name()}: push image to ICM success"
                 )
+
+        if self.use_remote_images:
+            try:
+                docker_util.delete(instance.name(), self.logger, force=True)
+                self.logger.info(f"Deleted local image after tests: {instance.name()}")
+            except Exception as e:
+                self.logger.warning(f"Failed to delete instance image {instance.name()}: {e}")
 
         if self.run_log and (not self.human_mode):
             if temp_dir and os.path.exists(temp_dir):

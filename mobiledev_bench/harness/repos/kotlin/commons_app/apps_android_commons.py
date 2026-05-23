@@ -191,7 +191,7 @@ if [ ! -f "local.properties" ]; then
 fi
 
 echo "=== Running base tests ==="
-{test_cmd} --no-daemon --stacktrace --continue --parallel || true
+{test_cmd} --no-daemon --stacktrace --continue || true
 
 echo "=== Collecting test results ==="
 find . -name "TEST-*.xml" -type f 2>/dev/null | head -30 | while read file; do
