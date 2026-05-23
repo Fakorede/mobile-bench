@@ -209,6 +209,13 @@ def get_parser() -> ArgumentParser:
         default="mobiledev-bench",
         help="GitHub Container Registry username/organization (default: mobiledev-bench). Required when --use_remote_images is True.",
     )
+    parser.add_argument(
+        "--delete_local_images",
+        type=parser.bool,
+        required=False,
+        default=False,
+        help="Build image, run instance, and delete the local image sequentially for each instance to save disk space.",
+    )
 
     return parser
 
@@ -256,6 +263,7 @@ class CliArgs:
     human_mode: bool = True
     use_remote_images: bool = False
     ghcr_username: str = "mobiledev-bench"
+    delete_local_images: bool = False
 
     def __post_init__(self):
         self._check_mode()
@@ -644,6 +652,36 @@ class CliArgs:
         )
         self.logger.info(f"Image {image.image_full_name()} built successfully.")
 
+    def build_instance_image_chain(self, instance: Instance):
+        """Build the full image dependency chain for a single instance."""
+        images_to_build: list[Image] = []
+        image = instance.dependency()
+        while isinstance(image, Image):
+            images_to_build.append(image)
+            image = image.dependency()
+        for img in reversed(images_to_build):
+            self.build_image(img)
+
+    def run_mode_sequential_local(self):
+        """For each instance sequentially: build its image, run it, then delete the image."""
+        self.logger.info("Running instances sequentially with local build and delete...")
+        self.check_commit_hashes()
+
+        for instance in tqdm(self.instances, desc="Running instances"):
+            image_name = instance.name()
+            try:
+                self.build_instance_image_chain(instance)
+                self.run_instance(instance)
+            except Exception as e:
+                self.logger.error(f"Error on instance {instance.pr.id}: {e}")
+                if self.stop_on_error:
+                    sys.exit(1)
+            finally:
+                self.logger.info(f"Deleting local image: {image_name}")
+                docker_util.delete(image_name, self.logger)
+
+        self.logger.info("Instances run successfully.")
+
     def run_mode_image(self):
         self.logger.info("Building images...")
         self.check_commit_hashes()
@@ -889,6 +927,9 @@ class CliArgs:
             self.logger.info("Using remote images (--use_remote_images=True)")
             self.logger.info("Images will be pulled from GHCR as needed")
             self.run_mode_instance_only()
+        elif self.delete_local_images:
+            self.logger.info("Using sequential local build+run+delete (--delete_local_images=True)")
+            self.run_mode_sequential_local()
         else:
             self.run_mode_instance()
 
